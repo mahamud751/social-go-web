@@ -10,8 +10,8 @@ import { getAllUser } from "../../api/UserRequest";
 
 const Post = ({ data }) => {
   const { user } = useSelector((state) => state.authReducer.authData);
-  const [liked, setLiked] = useState(data.Likes.includes(user.ID));
-  const [likes, setLikes] = useState(data.Likes.length);
+  const [liked, setLiked] = useState(data?.Likes?.includes(user?.ID));
+  const [likes, setLikes] = useState(data?.Likes?.length);
 
   const [persons, setPersons] = useState([]);
   useEffect(() => {
