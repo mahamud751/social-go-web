@@ -42,25 +42,31 @@ const authReducer = (
       };
 
     case "FOLLOW_USER":
+      if (!state.authData || !state.authData.User) {
+        return state;
+      }
       return {
         ...state,
         authData: {
           ...state.authData,
           user: {
             ...state.authData.User,
-            following: [...state.authData.User.Following, action.data],
+            Following: [...state.authData.User.Following, action.data],
           },
         },
       };
 
     case "UNFOLLOW_USER":
+      if (!state.authData || !state.authData.User) {
+        return state;
+      }
       return {
         ...state,
         authData: {
           ...state.authData,
           user: {
             ...state.authData.User,
-            following: [
+            Following: [
               ...state.authData.User.Following.filter(
                 (personId) => personId !== action.data
               ),

@@ -20,27 +20,27 @@ const ProfileCard = ({ location }) => {
           />
           <img
             src={
-              user.ProfilePicture
-                ? user.ProfilePicture
+              user?.ProfilePicture
+                ? user?.ProfilePicture
                 : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
             }
             alt="ProfileImage"
           />
         </div>
         <div className="ProfileName">
-          <span>{user.UserName}</span>
-          <span>{user.WorksAt ? user.WorksAt : "Write about yourself"}</span>
+          <span>{user?.UserName}</span>
+          <span>{user?.WorksAt ? user?.WorksAt : "Write about yourself"}</span>
         </div>
         <div className="followStatus">
           <hr />
           <div>
             <div className="follow">
-              <span>{user.Followers.length}</span>
+              <span>{user?.Followers?.length}</span>
               <span>Followers</span>
             </div>
             <div className="vl"></div>
             <div className="follow">
-              <span>{user.Following.length}</span>
+              <span>{user?.Following?.length}</span>
               <span>Following</span>
             </div>
             {/* for profilepage */}
@@ -49,7 +49,7 @@ const ProfileCard = ({ location }) => {
                 <div className="vl"></div>
                 <div className="follow">
                   <span>
-                    {posts.filter((post) => post.UserId === user.ID).length}
+                    {posts.filter((post) => post.UserID === user.ID).length}
                   </span>
                   <span>Posts</span>
                 </div>{" "}

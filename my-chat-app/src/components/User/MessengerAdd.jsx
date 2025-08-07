@@ -55,7 +55,7 @@ const MessengerAdd = ({ message }) => {
               className="name_sm"
               sx={{ textTransform: "capitalize" }}
             >
-              {message.UserName}
+              {message.Username}
             </Typography>
           </CardContent>
           <CardActions sx={{ display: "flex", justifyContent: "center" }}>

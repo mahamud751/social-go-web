@@ -9,9 +9,11 @@ import { likePost } from "../../api/PostRequest";
 import { getAllUser } from "../../api/UserRequest";
 
 const Post = ({ data }) => {
+  console.log("data", data);
+
   const { user } = useSelector((state) => state.authReducer.authData);
-  const [liked, setLiked] = useState(data?.Likes?.includes(user?.ID));
-  const [likes, setLikes] = useState(data?.Likes?.length);
+  const [liked, setLiked] = useState(data?.Likes?.includes(user?.ID) || false);
+  const [likes, setLikes] = useState(data?.Likes?.length || 0);
 
   const [persons, setPersons] = useState([]);
   useEffect(() => {
@@ -22,28 +24,24 @@ const Post = ({ data }) => {
     fetchPersons();
   }, [user]);
 
-  const handleLike = () => {
-    likePost(data.ID, user.ID);
-    setLiked((prev) => !prev);
-    liked ? setLikes((prev) => prev - 1) : setLikes((prev) => prev + 1);
+  const handleLike = async () => {
+    try {
+      await likePost(data.ID, user.ID);
+      setLiked((prev) => !prev);
+      setLikes((prev) => (liked ? prev - 1 : prev + 1));
+    } catch (error) {
+      console.error("Failed to like post:", error);
+    }
   };
+
   return (
     <div className="post">
       <img src={data.Image ? data.Image : ""} alt="" />
-      {persons.map((pd) => {
-        return (
-          <>
-            {" "}
-            {pd.ID === data.userId ? (
-              <span style={{ textTransform: "capitalize" }} key={pd.ID}>
-                {pd.Username}
-              </span>
-            ) : (
-              ""
-            )}
-          </>
-        );
-      })}
+      {persons.map((pd) => (
+        <span style={{ textTransform: "capitalize" }} key={pd.ID}>
+          {pd.ID === data.UserID ? pd.Username : ""}
+        </span>
+      ))}
       <div className="postReact">
         <img
           src={liked ? Heart : NotLike}

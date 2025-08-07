@@ -55,7 +55,7 @@ const ContractList = () => {
 
   const checkOnlineStatus = (chat) => {
     const chatMember = chat.Members.find((member) => member !== user.ID);
-    const online = onlineUsers.find((user) => user.UserId === chatMember);
+    const online = onlineUsers.find((user) => user.UserID === chatMember);
     return online ? true : false;
   };
   return (

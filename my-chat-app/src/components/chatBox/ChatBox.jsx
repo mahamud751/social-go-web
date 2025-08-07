@@ -14,6 +14,7 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receivedMessage }) => {
   const handleChange = (newMessage) => {
     setNewMessage(newMessage);
   };
+  const scrollRef = useRef();
 
   // fetching data for headers
   useEffect(() => {
@@ -72,11 +73,17 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receivedMessage }) => {
 
   // Receive Message from parent component
   useEffect(() => {
-    console.log("Message Arrived: ", receivedMessage);
-    if (receivedMessage !== null && receivedMessage.ChatId === chat.ID) {
-      setMessages([...messages, receivedMessage]);
+    if (
+      receivedMessage &&
+      receivedMessage.chatId === chat?.ID // Update to chatId
+    ) {
+      setMessages((prev) => [...prev, receivedMessage]);
     }
-  }, [receivedMessage]);
+  }, [receivedMessage, chat?.ID]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const scroll = useRef();
   const imageRef = useRef();
@@ -124,12 +131,13 @@ const ChatBox = ({ chat, currentUser, setSendMessage, receivedMessage }) => {
                   <div
                     ref={scroll}
                     className={
-                      message.SenderId === currentUser
+                      message.SenderID === currentUser
                         ? "message own"
                         : "message"
                     }
                   >
-                    <span>{message.Text}</span>{" "}
+                    <span>{message.text || message.Text}</span>
+
                     <span>{format(message.CreatedAt)}</span>
                   </div>
                 </>

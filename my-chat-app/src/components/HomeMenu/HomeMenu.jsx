@@ -200,34 +200,29 @@ const HomeMenu = ({ location }) => {
                         </ListItemButton>
                       </Link>
                     </ListItem>
-                    {admin == true ? (
-                      <ListItem disablePadding>
-                        <Link to={"/friend_list"} style={{ width: "100%" }}>
-                          <ListItemButton>
-                            <ListItemIcon>
-                              <i className="fa-solid fa-message icon_bg"></i>
-                            </ListItemIcon>
-                            <ListItemText primary="Friend List" />
-                          </ListItemButton>
-                        </Link>
-                      </ListItem>
-                    ) : (
-                      ""
-                    )}
-                    {admin == true ? (
-                      <ListItem disablePadding>
-                        <Link to={"/addMessenger"} style={{ width: "100%" }}>
-                          <ListItemButton>
-                            <ListItemIcon>
-                              <i className="fa-solid fa-message icon_bg"></i>
-                            </ListItemIcon>
-                            <ListItemText primary="Add Messenger" />
-                          </ListItemButton>
-                        </Link>
-                      </ListItem>
-                    ) : (
-                      ""
-                    )}
+
+                    <ListItem disablePadding>
+                      <Link to={"/friend_list"} style={{ width: "100%" }}>
+                        <ListItemButton>
+                          <ListItemIcon>
+                            <i className="fa-solid fa-message icon_bg"></i>
+                          </ListItemIcon>
+                          <ListItemText primary="Friend List" />
+                        </ListItemButton>
+                      </Link>
+                    </ListItem>
+
+                    <ListItem disablePadding>
+                      <Link to={"/addMessenger"} style={{ width: "100%" }}>
+                        <ListItemButton>
+                          <ListItemIcon>
+                            <i className="fa-solid fa-message icon_bg"></i>
+                          </ListItemIcon>
+                          <ListItemText primary="Add Messenger" />
+                        </ListItemButton>
+                      </Link>
+                    </ListItem>
+
                     <ListItem disablePadding>
                       <Link to={"/chat"} style={{ width: "100%" }}>
                         <ListItemButton>
@@ -344,34 +339,28 @@ const HomeMenu = ({ location }) => {
                   </ListItemButton>
                 </Link>
               </ListItem>
-              {admin == true ? (
-                <ListItem disablePadding>
-                  <Link to={"/friend_list"} style={{ width: "100%" }}>
-                    <ListItemButton>
-                      <ListItemIcon>
-                        <PeopleAltIcon className="icon_bg" />
-                      </ListItemIcon>
-                      <ListItemText primary="Friend List" />
-                    </ListItemButton>
-                  </Link>
-                </ListItem>
-              ) : (
-                ""
-              )}
-              {admin == true ? (
-                <ListItem disablePadding>
-                  <Link to={"/addMessenger"} style={{ width: "100%" }}>
-                    <ListItemButton>
-                      <ListItemIcon>
-                        <i className="fa-solid fa-message icon_bg"></i>
-                      </ListItemIcon>
-                      <ListItemText primary="Add Messenger" />
-                    </ListItemButton>
-                  </Link>
-                </ListItem>
-              ) : (
-                ""
-              )}
+
+              <ListItem disablePadding>
+                <Link to={"/friend_list"} style={{ width: "100%" }}>
+                  <ListItemButton>
+                    <ListItemIcon>
+                      <PeopleAltIcon className="icon_bg" />
+                    </ListItemIcon>
+                    <ListItemText primary="Friend List" />
+                  </ListItemButton>
+                </Link>
+              </ListItem>
+
+              <ListItem disablePadding>
+                <Link to={"/addMessenger"} style={{ width: "100%" }}>
+                  <ListItemButton>
+                    <ListItemIcon>
+                      <i className="fa-solid fa-message icon_bg"></i>
+                    </ListItemIcon>
+                    <ListItemText primary="Add Messenger" />
+                  </ListItemButton>
+                </Link>
+              </ListItem>
 
               <ListItem disablePadding>
                 <Link to={"/chat"} style={{ width: "100%" }}>

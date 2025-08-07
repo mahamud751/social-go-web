@@ -56,7 +56,7 @@ const FriendList = () => {
 
   const checkOnlineStatus = (chat) => {
     const chatMember = chat.Members.find((member) => member !== user.ID);
-    const online = onlineUsers.find((user) => user.UserId === chatMember);
+    const online = onlineUsers.find((user) => user.UserID === chatMember);
     return online ? true : false;
   };
   return (
@@ -66,7 +66,7 @@ const FriendList = () => {
       </div>
       <div className="col-md-9 mt-5">
         <Grid container spacing={2}>
-          {chats.map((chat) => (
+          {chats?.map((chat) => (
             <Grid item xs={6} md={3}>
               <div
                 onClick={() => {
