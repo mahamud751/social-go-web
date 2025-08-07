@@ -1,0 +1,24 @@
+.rightSide5 {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  position: fixed;
+  overflow-y: scroll;
+  height: fit-content;
+}
+
+.navIcons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.navIcons>img {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.navIcons>a>img {
+  width: 1.5rem;
+  height: 1.5rem;
+}

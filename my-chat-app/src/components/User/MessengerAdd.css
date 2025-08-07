@@ -1,0 +1,5 @@
+@media only screen and (max-width : 600px) {
+    .name_sm {
+        font-size: smaller;
+    }
+}
