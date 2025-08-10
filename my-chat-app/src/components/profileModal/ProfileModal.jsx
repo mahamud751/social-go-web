@@ -33,55 +33,47 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    let UserData = formData;
-    if (profileImage) {
-      const data = new FormData();
-      const fileName = Date.now() + profileImage.name;
-      data.append("name", fileName);
-      data.append("file", profileImage);
-      data.append("upload_preset", "upload");
-      UserData.profilePicture = fileName;
-      try {
+    let UserData = { ...formData };
+
+    try {
+      // Handle profile image upload
+      if (profileImage) {
+        const data = new FormData();
+        const fileName = Date.now() + profileImage.name;
+        data.append("name", fileName);
+        data.append("file", profileImage);
+        data.append("upload_preset", "upload");
+        UserData.profilePicture = fileName;
         const uploadRes = await axios.post(
           "https://api.cloudinary.com/v1_1/dsj99epbt/image/upload",
           data
         );
-        const { url } = uploadRes.data;
-
-        const newUser = {
-          ...UserData,
-          profilePicture: url,
-        };
-        dispatch(updateUser(param.id, newUser));
-      } catch (err) {
-        console.log(err);
+        UserData.profilePicture = uploadRes.data.url;
       }
-    } else if (coverImage) {
-      const data = new FormData();
-      const fileName = Date.now() + coverImage.name;
-      data.append("name", fileName);
-      data.append("file", coverImage);
-      data.append("upload_preset", "uploadv2");
-      UserData.coverPicture = fileName;
-      try {
+
+      // Handle cover image upload
+      if (coverImage) {
+        const data = new FormData();
+        const fileName = Date.now() + coverImage.name;
+        data.append("name", fileName);
+        data.append("file", coverImage);
+        data.append("upload_preset", "uploadv2");
+        UserData.coverPicture = fileName;
         const uploadRes = await axios.post(
           "https://api.cloudinary.com/v1_1/dsj99epbt/image/upload",
           data
         );
-        const { url } = uploadRes.data;
-
-        const newUser = {
-          ...UserData,
-          coverPicture: url,
-        };
-        dispatch(updateUser(param.id, newUser));
-      } catch (err) {
-        console.log(err);
+        UserData.coverPicture = uploadRes.data.url;
       }
-    } else {
-      dispatch(updateUser(param.id, UserData));
+
+      // Update user with the modified UserData
+      await dispatch(updateUser(param.id, UserData));
+      setModalOpened(false);
+    } catch (err) {
+      console.error("Error during submission:", err);
+      // Optionally, notify the user of the error (e.g., with a toast or alert)
+      alert("An error occurred while updating your profile. Please try again.");
     }
-    setModalOpened(false);
   };
   return (
     <Modal
@@ -106,7 +98,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="firstname"
             placeholder="First Name"
             onChange={handleChange}
-            value={formData.firstname}
+            value={formData.Firstname}
           />
 
           <input
@@ -115,7 +107,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="lastname"
             placeholder="Last Name"
             onChange={handleChange}
-            value={formData.lastname}
+            value={formData.Lastname}
           />
         </div>
 
@@ -126,7 +118,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="worksAt"
             placeholder="Works at"
             onChange={handleChange}
-            value={formData.worksAt}
+            value={formData.WorksAt}
           />
         </div>
 
@@ -137,7 +129,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="livesin"
             placeholder="Lives in"
             onChange={handleChange}
-            value={formData.livesin}
+            value={formData.LivesIn}
           />
 
           <input
@@ -146,7 +138,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="country"
             placeholder="Country"
             onChange={handleChange}
-            value={formData.country}
+            value={formData.Country}
           />
         </div>
 
@@ -157,7 +149,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="relationship"
             placeholder="RelationShip Status"
             onChange={handleChange}
-            value={formData.relationship}
+            value={formData.Relationship}
           />
         </div>
         <div>

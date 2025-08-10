@@ -6,6 +6,7 @@ import Post from "../post/Post";
 import "./posts.css";
 
 const Posts = () => {
+  const params = useParams();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.authReducer.authData);
 
@@ -18,7 +19,9 @@ const Posts = () => {
   const allMembersId = posts.map((pd) => pd.UserID);
 
   if (!posts) return "No Posts";
-  posts = posts.filter((post) => post.UserID === user.ID);
+  if (params.id) posts = posts.filter((post) => post.UserID === params.id);
+  console.log(posts);
+
   return (
     <div className="posts">
       {loading

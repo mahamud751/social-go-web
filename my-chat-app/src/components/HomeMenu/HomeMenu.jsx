@@ -200,6 +200,16 @@ const HomeMenu = ({ location }) => {
                         </ListItemButton>
                       </Link>
                     </ListItem>
+                    <ListItem disablePadding>
+                      <Link to={"/friend-request"} style={{ width: "100%" }}>
+                        <ListItemButton>
+                          <ListItemIcon>
+                            <PeopleAltIcon className="icon_bg" />
+                          </ListItemIcon>
+                          <ListItemText primary="Friend Request" />
+                        </ListItemButton>
+                      </Link>
+                    </ListItem>
 
                     <ListItem disablePadding>
                       <Link to={"/friend_list"} style={{ width: "100%" }}>
@@ -339,7 +349,16 @@ const HomeMenu = ({ location }) => {
                   </ListItemButton>
                 </Link>
               </ListItem>
-
+              <ListItem disablePadding>
+                <Link to={"/friend-request"} style={{ width: "100%" }}>
+                  <ListItemButton>
+                    <ListItemIcon>
+                      <PeopleAltIcon className="icon_bg" />
+                    </ListItemIcon>
+                    <ListItemText primary="Friend Request" />
+                  </ListItemButton>
+                </Link>
+              </ListItem>
               <ListItem disablePadding>
                 <Link to={"/friend_list"} style={{ width: "100%" }}>
                   <ListItemButton>

@@ -1,11 +1,27 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import "./profileCard.css";
 import { Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { getUser } from "../../api/UserRequest";
 const ProfileCard = ({ location }) => {
   const { user } = useSelector((state) => state.authReducer.authData);
-  const serverPublic = process.env.REACT_APP_PUBLIC_FOLDER;
   const posts = useSelector((state) => state.postReducer.posts);
+  const [userData, setUserData] = useState(null);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const getUserData = async () => {
+      try {
+        const { data } = await getUser(user.ID);
+        setUserData(data);
+        dispatch({ type: "SAVE_USER", data: data });
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    getUserData();
+  }, []);
   return (
     <>
       <div className="ProfileCard">
@@ -28,19 +44,21 @@ const ProfileCard = ({ location }) => {
           />
         </div>
         <div className="ProfileName">
-          <span>{user?.UserName}</span>
-          <span>{user?.WorksAt ? user?.WorksAt : "Write about yourself"}</span>
+          <span>{userData?.Username}</span>
+          <span>
+            {userData?.WorksAt ? user?.WorksAt : "Write about yourself"}
+          </span>
         </div>
         <div className="followStatus">
           <hr />
           <div>
             <div className="follow">
-              <span>{user?.Followers?.length}</span>
+              <span>{userData?.Followers?.length}</span>
               <span>Followers</span>
             </div>
             <div className="vl"></div>
             <div className="follow">
-              <span>{user?.Following?.length}</span>
+              <span>{userData?.Following?.length}</span>
               <span>Following</span>
             </div>
             {/* for profilepage */}
