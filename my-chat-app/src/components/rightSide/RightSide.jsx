@@ -14,7 +14,6 @@ import {
   getNotifications,
   markNotificationAsRead,
 } from "../../api/Notification";
-
 import {
   Modal,
   Box,
@@ -29,6 +28,7 @@ import {
   Badge,
 } from "@mui/material";
 import { CheckCircle, Cancel } from "@mui/icons-material";
+import WebSocketService from "../../actions/WebSocketService";
 
 const RightSide = () => {
   const [modalOpened, setModalOpened] = useState(false);
@@ -47,12 +47,37 @@ const RightSide = () => {
       } catch (error) {
         console.error(
           "Fetch persons error:",
-          error.response?.data?.message || "Failed to fetch users"
+          error.response?.data?.message || " FAILED to fetch users"
         );
       }
     };
     fetchPersons();
   }, [user]);
+
+  // WebSocket setup
+  useEffect(() => {
+    if (!user?.ID) return;
+
+    const handleMessage = (message) => {
+      if (message.type === "notification") {
+        setNotifications((prev) => [message.data, ...prev]);
+      }
+    };
+
+    const handleError = (error) => {
+      setError("WebSocket connection error");
+    };
+
+    const handleClose = () => {
+      setError("WebSocket connection closed");
+    };
+
+    WebSocketService.connect(user.ID, handleMessage, handleError, handleClose);
+
+    return () => {
+      WebSocketService.disconnect();
+    };
+  }, [user?.ID]);
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -68,7 +93,6 @@ const RightSide = () => {
     }
   };
 
-  // Fetch notifications when modal opens or periodically
   useEffect(() => {
     if (modalOpened && user?.ID) fetchNotifications();
     const interval = setInterval(() => {
@@ -80,7 +104,7 @@ const RightSide = () => {
   // Handle accept friend request
   const handleAccept = async (requestId) => {
     try {
-      const { data } = await confirmFriendRequest(requestId);
+      await confirmFriendRequest(requestId);
       setNotifications((prev) =>
         prev.filter((notif) => notif.id !== requestId)
       );
@@ -96,7 +120,7 @@ const RightSide = () => {
   // Handle reject friend request
   const handleReject = async (requestId) => {
     try {
-      const { data } = await rejectFriendRequest(requestId);
+      await rejectFriendRequest(requestId);
       setNotifications((prev) =>
         prev.filter((notif) => notif.id !== requestId)
       );
@@ -172,7 +196,7 @@ const RightSide = () => {
           sx={{
             width: "90%",
             maxWidth: 400,
-            bgcolor: "grey.100", // Changed to light grey
+            bgcolor: "grey.100",
             p: 3,
             borderRadius: 2,
             maxHeight: "80vh",

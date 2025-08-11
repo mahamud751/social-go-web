@@ -19,26 +19,47 @@ import {
   Chip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import ThumbUpIcon from "@mui/icons-material/ThumbUp";
-import ThumbUpOffAltIcon from "@mui/icons-material/ThumbUpOffAlt";
 import ReplyIcon from "@mui/icons-material/Reply";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-const CommentModal = ({ open, handleClose, postId }) => {
+const reactions = {
+  like: { emoji: "👍", label: "Like" },
+  love: { emoji: "❤️", label: "Love" },
+  haha: { emoji: "😂", label: "Haha" },
+  wow: { emoji: "😮", label: "Wow" },
+  sad: { emoji: "😢", label: "Sad" },
+  angry: { emoji: "😣", label: "Angry" },
+  care: { emoji: "🤗", label: "Care" },
+};
+
+const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
   const { user } = useSelector((state) => state.authReducer.authData);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
-  const [replyTo, setReplyTo] = useState(null); // Track comment being replied to
+  const [replyTo, setReplyTo] = useState(null);
   const [users, setUsers] = useState({});
+  const [reactionStates, setReactionStates] = useState({});
+  const [showReactions, setShowReactions] = useState(null);
+  const [hoverTimeout, setHoverTimeout] = useState(null); // For debouncing hover
 
   // Fetch comments
   useEffect(() => {
     const fetchComments = async () => {
       try {
         const { data } = await API.get(`/comment/post/${postId}`);
-        // Organize comments into a tree structure
         const commentTree = buildCommentTree(data);
         setComments(commentTree);
+        const initialReactions = {};
+        data.forEach((comment) => {
+          if (comment.Reactions && user?.ID) {
+            Object.keys(comment.Reactions).forEach((type) => {
+              if (comment.Reactions[type]?.includes(user.ID)) {
+                initialReactions[comment.ID] = type;
+              }
+            });
+          }
+        });
+        setReactionStates(initialReactions);
       } catch (error) {
         console.error(
           "Failed to fetch comments:",
@@ -47,9 +68,9 @@ const CommentModal = ({ open, handleClose, postId }) => {
       }
     };
     if (open) fetchComments();
-  }, [postId, open]);
+  }, [postId, open, user]);
 
-  // Fetch users for username and profile picture mapping
+  // Fetch users
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -72,7 +93,7 @@ const CommentModal = ({ open, handleClose, postId }) => {
     fetchUsers();
   }, []);
 
-  // Build comment tree for threaded display
+  // Build comment tree
   const buildCommentTree = (comments) => {
     const commentMap = new Map();
     const tree = [];
@@ -113,12 +134,16 @@ const CommentModal = ({ open, handleClose, postId }) => {
           const updatedComments = [...prev];
           const parent = findComment(updatedComments, replyTo.ID);
           if (parent) {
-            parent.children = [...(parent.children || []), data];
+            parent.children = [
+              ...(parent.children || []),
+              { ...data, children: [] },
+            ];
           }
           return updatedComments;
         }
         return [...prev, { ...data, children: [] }];
       });
+      setCommentCount((prev) => prev + 1);
       setNewComment("");
       setReplyTo(null);
     } catch (error) {
@@ -129,21 +154,54 @@ const CommentModal = ({ open, handleClose, postId }) => {
     }
   };
 
-  // Handle comment like/unlike
-  const handleLikeComment = async (commentId) => {
+  // Handle comment reaction
+  const handleReaction = async (commentId, reactionType) => {
     try {
-      const { data } = await API.post(`/comment/${commentId}/like`);
+      const currentReaction = reactionStates[commentId];
+      const payload = {
+        userId: user.ID,
+        reactionType: currentReaction === reactionType ? "" : reactionType,
+      };
+      await API.post(`/comment/${commentId}/like`, payload);
+      setReactionStates((prev) => ({
+        ...prev,
+        [commentId]: currentReaction === reactionType ? null : reactionType,
+      }));
       setComments((prev) => {
         const updatedComments = [...prev];
         const comment = findComment(updatedComments, commentId);
         if (comment) {
-          comment.Likes = data.Likes;
+          comment.Reactions = comment.Reactions || {};
+          if (currentReaction === reactionType) {
+            comment.Reactions[currentReaction] = comment.Reactions[
+              currentReaction
+            ].filter((id) => id !== user.ID);
+            if (comment.Reactions[currentReaction].length === 0) {
+              delete comment.Reactions[currentReaction];
+            }
+          } else {
+            if (currentReaction) {
+              comment.Reactions[currentReaction] = comment.Reactions[
+                currentReaction
+              ].filter((id) => id !== user.ID);
+              if (comment.Reactions[currentReaction].length === 0) {
+                delete comment.Reactions[currentReaction];
+              }
+            }
+            if (reactionType) {
+              comment.Reactions[reactionType] =
+                comment.Reactions[reactionType] || [];
+              if (!comment.Reactions[reactionType].includes(user.ID)) {
+                comment.Reactions[reactionType].push(user.ID);
+              }
+            }
+          }
         }
         return updatedComments;
       });
     } catch (error) {
       console.error(
-        "Failed to like/unlike comment:",
+        "Failed to update reaction:",
         error.response?.data || error.message
       );
     }
@@ -157,6 +215,12 @@ const CommentModal = ({ open, handleClose, postId }) => {
         const updatedComments = prev.filter((c) => c.ID !== commentId);
         return buildCommentTree(updatedComments.flatMap(flattenComment));
       });
+      setCommentCount((prev) => prev - 1);
+      setReactionStates((prev) => {
+        const newStates = { ...prev };
+        delete newStates[commentId];
+        return newStates;
+      });
     } catch (error) {
       console.error(
         "Failed to delete comment:",
@@ -165,7 +229,7 @@ const CommentModal = ({ open, handleClose, postId }) => {
     }
   };
 
-  // Helper to find a comment by ID in the tree
+  // Helper to find a comment by ID
   const findComment = (comments, id) => {
     for (const comment of comments) {
       if (comment.ID === id) return comment;
@@ -175,17 +239,53 @@ const CommentModal = ({ open, handleClose, postId }) => {
     return null;
   };
 
-  // Helper to flatten comment tree for deletion
+  // Helper to flatten comment tree
   const flattenComment = (comment) => {
     return [comment, ...(comment.children || [])];
   };
 
-  // Render comment and its replies recursively
+  // Get reaction emojis and count
+  const getReactionEmojis = (comment) => {
+    const activeReactions = Object.keys(comment.Reactions || {}).filter(
+      (type) => comment.Reactions[type]?.length > 0
+    );
+    return (
+      activeReactions.map((type) => reactions[type].emoji).join(" ") || "👍"
+    );
+  };
+
+  const getTotalReactions = (comment) => {
+    return Object.values(comment.Reactions || {}).reduce(
+      (sum, arr) => sum + (arr?.length || 0),
+      0
+    );
+  };
+
+  // Handle hover with debounce
+  const handleMouseEnter = (commentId) => {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    setHoverTimeout(
+      setTimeout(() => {
+        setShowReactions(commentId);
+      }, 100)
+    );
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    setHoverTimeout(
+      setTimeout(() => {
+        setShowReactions(null);
+      }, 100)
+    );
+  };
+
+  // Render comment
   const renderComment = (comment, depth = 0) => (
     <React.Fragment key={comment.ID}>
       <ListItem
         sx={{
-          pl: 2 + depth * 2, // Indent replies
+          pl: 2 + depth * 2,
           bgcolor: depth % 2 === 0 ? "grey.50" : "white",
           borderRadius: 1,
           mb: 1,
@@ -208,23 +308,65 @@ const CommentModal = ({ open, handleClose, postId }) => {
                 {comment.Text}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Chip
-                  icon={
-                    comment.Likes?.includes(user.ID) ? (
-                      <ThumbUpIcon fontSize="small" />
-                    ) : (
-                      <ThumbUpOffAltIcon fontSize="small" />
-                    )
-                  }
-                  label={comment.Likes?.length || 0}
-                  size="small"
-                  onClick={() => handleLikeComment(comment.ID)}
-                  sx={{
-                    cursor: "pointer",
-                    bgcolor: "primary.light",
-                    color: "white",
-                  }}
-                />
+                <Box
+                  sx={{ position: "relative" }}
+                  onMouseEnter={() => handleMouseEnter(comment.ID)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <Chip
+                    label={
+                      <>
+                        {getReactionEmojis(comment)}{" "}
+                        {getTotalReactions(comment)}
+                      </>
+                    }
+                    size="small"
+                    sx={{
+                      cursor: "pointer",
+                      bgcolor: "primary.light",
+                      color: "white",
+                    }}
+                  />
+                  {showReactions === comment.ID && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: "-40px", // Position above the Chip
+                        left: 0,
+                        display: "flex",
+                        gap: 1,
+                        bgcolor: "white",
+                        p: 0.5,
+                        borderRadius: 2,
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        zIndex: 10,
+                      }}
+                      onMouseEnter={() => handleMouseEnter(comment.ID)} // Keep menu open when hovering over it
+                      onMouseLeave={handleMouseLeave}
+                    >
+                      {Object.keys(reactions).map((type) => (
+                        <Chip
+                          key={type}
+                          label={reactions[type].emoji}
+                          onClick={() => handleReaction(comment.ID, type)}
+                          sx={{
+                            cursor: "pointer",
+                            fontSize: "20px",
+                            bgcolor:
+                              reactionStates[comment.ID] === type
+                                ? "primary.main"
+                                : "grey.200",
+                            color:
+                              reactionStates[comment.ID] === type
+                                ? "white"
+                                : "black",
+                          }}
+                          title={reactions[type].label}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
                 <Chip
                   icon={<ReplyIcon fontSize="small" />}
                   label="Reply"

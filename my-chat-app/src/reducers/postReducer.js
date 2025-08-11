@@ -22,6 +22,16 @@ const postReducer = (
       return { ...state, posts: action.data, loading: false, error: false };
     case "RETREIVING_FAIL":
       return { ...state, loading: false, error: true };
+    // Handle reaction updates
+    case "REACTION_UPDATE":
+      return {
+        ...state,
+        posts: state.posts.map((post) =>
+          post.ID === action.data.postId
+            ? { ...post, Reactions: action.data.reactions }
+            : post
+        ),
+      };
     default:
       return state;
   }
