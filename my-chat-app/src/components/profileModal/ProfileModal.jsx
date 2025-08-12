@@ -9,8 +9,15 @@ import "./ProfileModal.css";
 function ProfileModal({ profileModal, setProfileModal, data }) {
   const theme = useMantineTheme();
 
-  const { password, ...other } = data;
-  const [formData, setFormData] = useState(other);
+  const [formData, setFormData] = useState({
+    ID: data.ID || "",
+    Firstname: data.Firstname || "",
+    Lastname: data.Lastname || "",
+    WorksAt: data.WorksAt || "",
+    LivesIn: data.LivesIn || "",
+    Country: data.Country || "",
+    Relationship: data.Relationship || "",
+  });
 
   const [profileImage, setProfileImage] = useState(null);
   const [coverImage, setCoverImage] = useState(null);
@@ -32,7 +39,15 @@ function ProfileModal({ profileModal, setProfileModal, data }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    let UserData = { ...formData };
+    const UserData = {
+      ID: formData.ID,
+      Firstname: formData.Firstname,
+      Lastname: formData.Lastname,
+      WorksAt: formData.WorksAt,
+      LivesIn: formData.LivesIn,
+      Country: formData.Country,
+      Relationship: formData.Relationship,
+    };
 
     try {
       // Handle profile image upload
