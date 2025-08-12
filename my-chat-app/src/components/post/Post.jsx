@@ -6,6 +6,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { likePost } from "../../api/PostRequest";
 import { getAllUser } from "../../api/UserRequest";
 import CommentModal from "./CommentModal";
+import { Link } from "react-router-dom";
 
 const reactions = {
   like: { emoji: "👍", label: "Like" },
@@ -117,7 +118,7 @@ const Post = ({ data }) => {
       {persons.map((pd) => (
         <span style={{ textTransform: "capitalize" }} key={pd.ID}>
           {pd.ID === data.UserID ? (
-            <div className="nameImage">
+            <Link to={`/profile/${pd.ID}`} className="nameImage">
               <img
                 src={
                   pd.ProfilePicture
@@ -128,7 +129,7 @@ const Post = ({ data }) => {
                 className="profileImage"
               />
               <p className="name"> {pd.Username}</p>
-            </div>
+            </Link>
           ) : (
             ""
           )}
