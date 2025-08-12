@@ -7,7 +7,7 @@ import { useParams } from "react-router-dom";
 import * as UserApi from "../../api/UserRequest.js";
 import { logout } from "../../actions/AuthAction";
 
-const InfoCard = () => {
+const InfoCard = ({ isCurrentUser }) => {
   const dispatch = useDispatch();
   const params = useParams();
   const [modalOpened, setModalOpened] = useState(false);
@@ -76,10 +76,11 @@ const InfoCard = () => {
         </span>
         <span>{profileUser.WorksAt}</span>
       </div>
-
-      <button className="button logout-button" onClick={handleLogOut}>
-        Log Out
-      </button>
+      {isCurrentUser && (
+        <button className="button logout-button" onClick={handleLogOut}>
+          Log Out
+        </button>
+      )}
     </div>
   );
 };

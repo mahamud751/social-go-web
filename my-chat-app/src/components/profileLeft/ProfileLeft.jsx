@@ -2,11 +2,11 @@ import React from "react";
 import InfoCard from "../infoCard/InfoCard";
 import LogoSearch from "../logoSearch/LogoSearch";
 
-const ProfileLeft = () => {
+const ProfileLeft = ({ isCurrentUser }) => {
   return (
     <div className="profileSide">
       <LogoSearch />
-      <InfoCard />
+      <InfoCard isCurrentUser={isCurrentUser} />
     </div>
   );
 };

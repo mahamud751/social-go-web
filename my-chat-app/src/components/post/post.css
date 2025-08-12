@@ -6,7 +6,7 @@
   gap: 1rem;
 }
 
-.post>img {
+.post > img {
   width: 100%;
   /* max-height: 38rem; */
   object-fit: cover;
@@ -17,4 +17,18 @@
   display: flex;
   align-items: flex-start;
   gap: 1.5rem;
+}
+.nameImage {
+  display: flex;
+}
+.profileImage {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.name {
+  margin-left: 10px;
+  margin-top: 12px;
 }

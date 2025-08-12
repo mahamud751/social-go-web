@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { followUser, unfollowUser } from "../../actions/userAction";
-
 import {
   Card,
   CardActions,
@@ -17,6 +17,7 @@ const User = ({ person }) => {
   const publicFolder = process.env.REACT_APP_PUBLIC_FOLDER;
   const { user } = useSelector((state) => state.authReducer.authData);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const [following, setFollowing] = useState(
     person.Followers?.includes(user?.ID)
@@ -70,6 +71,11 @@ const User = ({ person }) => {
         error.response?.data?.message || "Failed to send friend request"
       );
     }
+  };
+
+  // Handle visit profile
+  const handleVisitProfile = () => {
+    navigate(`/profile/${person?.ID}`);
   };
 
   return (
@@ -132,20 +138,31 @@ const User = ({ person }) => {
             {following ? "Unfollow" : "Follow"}
           </Button>
           {user.ID !== person.ID && (
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={handleSendRequest}
-              disabled={requestStatus !== "none"}
-              sx={{ borderRadius: 2, width: "150px" }}
-              className="button fc-button"
-            >
-              {requestStatus === "friend"
-                ? "Friends"
-                : requestStatus === "pending" || requestStatus === "sent"
-                ? "Request Sent"
-                : "Send Friend Request"}
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={handleSendRequest}
+                disabled={requestStatus !== "none"}
+                sx={{ borderRadius: 2, width: "150px" }}
+                className="button fc-button"
+              >
+                {requestStatus === "friend"
+                  ? "Friends"
+                  : requestStatus === "pending" || requestStatus === "sent"
+                  ? "Request Sent"
+                  : "Send Friend Request"}
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleVisitProfile}
+                sx={{ borderRadius: 2, width: "150px" }}
+                className="button fc-button"
+              >
+                Visit Profile
+              </Button>
+            </>
           )}
         </CardActions>
       </CardContent>

@@ -116,7 +116,22 @@ const Post = ({ data }) => {
       <img src={data.Image || ""} alt="" />
       {persons.map((pd) => (
         <span style={{ textTransform: "capitalize" }} key={pd.ID}>
-          {pd.ID === data.UserID ? pd.Username : ""}
+          {pd.ID === data.UserID ? (
+            <div className="nameImage">
+              <img
+                src={
+                  pd.ProfilePicture
+                    ? pd.ProfilePicture
+                    : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+                }
+                alt="ProfileImage"
+                className="profileImage"
+              />
+              <p className="name"> {pd.Username}</p>
+            </div>
+          ) : (
+            ""
+          )}
         </span>
       ))}
       <div className="postReact">

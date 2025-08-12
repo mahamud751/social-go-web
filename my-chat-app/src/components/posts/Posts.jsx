@@ -20,7 +20,6 @@ const Posts = () => {
 
   if (!posts) return "No Posts";
   if (params.id) posts = posts.filter((post) => post.UserID === params.id);
-  console.log(posts);
 
   return (
     <div className="posts">
