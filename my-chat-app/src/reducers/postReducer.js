@@ -1,29 +1,17 @@
-const postReducer = (
-  state = { posts: [], loading: false, error: false, uploading: false },
-  action
-) => {
+const initialState = {
+  posts: [],
+  comments: [],
+  stories: [],
+};
+
+const postReducer = (state = initialState, action) => {
   switch (action.type) {
-    // belongs to PostShare.jsx
-    case "UPLOAD_START":
-      return { ...state, error: false, uploading: true };
-    case "UPLOAD_SUCCESS":
+    case "NEW_POST":
       return {
         ...state,
         posts: [action.data, ...state.posts],
-        uploading: false,
-        error: false,
       };
-    case "UPLOAD_FAIL":
-      return { ...state, uploading: false, error: true };
-    // belongs to Posts.jsx
-    case "RETREIVING_START":
-      return { ...state, loading: true, error: false };
-    case "RETREIVING_SUCCESS":
-      return { ...state, posts: action.data, loading: false, error: false };
-    case "RETREIVING_FAIL":
-      return { ...state, loading: false, error: true };
-    // Handle reaction updates
-    case "REACTION_UPDATE":
+    case "UPDATE_POST_REACTION":
       return {
         ...state,
         posts: state.posts.map((post) =>
@@ -31,6 +19,44 @@ const postReducer = (
             ? { ...post, Reactions: action.data.reactions }
             : post
         ),
+      };
+    case "NEW_COMMENT":
+      return {
+        ...state,
+        posts: state.posts.map((post) =>
+          post.ID === action.data.postId
+            ? { ...post, CommentCount: (post.CommentCount || 0) + 1 }
+            : post
+        ),
+        comments: [{ ...action.data, type: "new-comment" }, ...state.comments],
+      };
+    case "NEW_REPLY":
+      return {
+        ...state,
+        posts: state.posts.map((post) =>
+          post.ID === action.data.postId
+            ? { ...post, CommentCount: (post.CommentCount || 0) + 1 }
+            : post
+        ),
+        comments: [{ ...action.data, type: "new-reply" }, ...state.comments],
+      };
+    case "UPDATE_COMMENT_REACTION":
+      return {
+        ...state,
+        comments: state.comments.map((comment) =>
+          comment.ID === action.data.commentId
+            ? {
+                ...comment,
+                Reactions: action.data.reactions,
+                type: "comment-reaction-update",
+              }
+            : comment
+        ),
+      };
+    case "NEW_STORY":
+      return {
+        ...state,
+        stories: [action.data, ...state.stories],
       };
     default:
       return state;
