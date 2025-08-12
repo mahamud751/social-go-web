@@ -9,7 +9,7 @@ import Friend from "./pages/Friend/Friend";
 import AddMessenger from "./pages/addMessenger/AddMessenger";
 import FriendList from "./pages/friendList/FriendList";
 import FriendRequests from "./pages/RequestList/FriendRequests";
-import User from "./pages/user/Profile";
+
 function App() {
   const user = useSelector((state) => state.authReducer.authData);
   return (
@@ -34,10 +34,7 @@ function App() {
           path="/profile/:id"
           element={user ? <Profile /> : <Navigate to="../auth" />}
         />
-        <Route
-          path="/user/:id"
-          element={user ? <User /> : <Navigate to="../auth" />}
-        />
+
         <Route
           path="/chat"
           element={user ? <Chat /> : <Navigate to="../auth" />}

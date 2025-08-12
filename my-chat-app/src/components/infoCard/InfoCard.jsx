@@ -10,7 +10,7 @@ import { logout } from "../../actions/AuthAction";
 const InfoCard = ({ isCurrentUser }) => {
   const dispatch = useDispatch();
   const params = useParams();
-  const [modalOpened, setModalOpened] = useState(false);
+  const [profileModal, setProfileModal] = useState(false);
   const profileUserId = params.id;
   const [profileUser, setProfileUser] = useState({});
   const { user } = useSelector((state) => state.authReducer.authData);
@@ -42,12 +42,12 @@ const InfoCard = ({ isCurrentUser }) => {
             <UilPen
               width="2rem"
               height="1.2rem"
-              onClick={() => setModalOpened(true)}
+              onClick={() => setProfileModal(true)}
               style={{ color: "white" }}
             />
             <ProfileModal
-              modalOpened={modalOpened}
-              setModalOpened={setModalOpened}
+              profileModal={profileModal}
+              setProfileModal={setProfileModal}
               data={user}
               style={{ width: "100%" }}
             />

@@ -1,13 +1,12 @@
 import { Modal, useMantineTheme } from "@mantine/core";
 import axios from "axios";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useParams } from "react-router-dom";
-import { uploadImage } from "../../actions/uploadAction.js";
 import { updateUser } from "../../actions/userAction.js";
 import "./ProfileModal.css";
 
-function ProfileModal({ modalOpened, setModalOpened, data }) {
+function ProfileModal({ profileModal, setProfileModal, data }) {
   const theme = useMantineTheme();
 
   const { password, ...other } = data;
@@ -68,7 +67,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
 
       // Update user with the modified UserData
       await dispatch(updateUser(param.id, UserData));
-      setModalOpened(false);
+      setProfileModal(false);
     } catch (err) {
       console.error("Error during submission:", err);
       // Optionally, notify the user of the error (e.g., with a toast or alert)
@@ -85,8 +84,8 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
       overlayOpacity={0.55}
       overlayBlur={3}
       size="100%"
-      opened={modalOpened}
-      onClose={() => setModalOpened(false)}
+      opened={profileModal}
+      onClose={() => setProfileModal(false)}
     >
       <form className="infoForm">
         <h3>Your info</h3>
@@ -98,7 +97,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="firstname"
             placeholder="First Name"
             onChange={handleChange}
-            value={formData.Firstname}
+            defaultValue={formData.Firstname}
           />
 
           <input
@@ -107,7 +106,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="lastname"
             placeholder="Last Name"
             onChange={handleChange}
-            value={formData.Lastname}
+            defaultValue={formData.Lastname}
           />
         </div>
 
@@ -118,7 +117,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="worksAt"
             placeholder="Works at"
             onChange={handleChange}
-            value={formData.WorksAt}
+            defaultValue={formData.WorksAt}
           />
         </div>
 
@@ -129,7 +128,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="livesin"
             placeholder="Lives in"
             onChange={handleChange}
-            value={formData.LivesIn}
+            defaultValue={formData.LivesIn}
           />
 
           <input
@@ -138,7 +137,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="country"
             placeholder="Country"
             onChange={handleChange}
-            value={formData.Country}
+            defaultValue={formData.Country}
           />
         </div>
 
@@ -149,7 +148,7 @@ function ProfileModal({ modalOpened, setModalOpened, data }) {
             name="relationship"
             placeholder="RelationShip Status"
             onChange={handleChange}
-            value={formData.Relationship}
+            defaultValue={formData.Relationship}
           />
         </div>
         <div>
