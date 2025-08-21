@@ -19,7 +19,7 @@ const Profile = () => {
         <div className="col-md-3">
           <ProfileLeft isCurrentUser={isCurrentUser} />
         </div>
-        <div className="col-md-6">
+        <div className="col-md-6 mt-5">
           <div className="profile-center">
             <ProfileCard
               location="profilePage"

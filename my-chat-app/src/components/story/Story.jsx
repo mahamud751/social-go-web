@@ -132,8 +132,8 @@ const Story = () => {
   };
 
   return (
-    <div className="postSide">
-      <Box sx={{ mb: 2, position: "relative" }}>
+    <div>
+      <Box sx={{ mb: 2, position: "relative", my: 2, p: 3 }}>
         <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
           My Day
         </Typography>

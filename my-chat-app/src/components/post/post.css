@@ -1,14 +1,32 @@
+/* Inherit variables from App.css and add post-specific ones */
+:root[data-theme="dark"] {
+  --post-background: #242526;
+  --post-text-color: #ffffff;
+  --reaction-bg: #ffffff;
+  --reaction-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --icon-color: #007bff; /* Matches CommentIcon color */
+}
+
+:root[data-theme="light"] {
+  --post-background: #f0f2f5;
+  --post-text-color: #000000;
+  --reaction-bg: #ffffff;
+  --reaction-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --icon-color: #005bb5; /* Slightly darker blue for light mode */
+}
+
 .post {
   display: flex;
   flex-direction: column;
   padding: 1rem;
-  background-color: #242526;
+  background-color: var(--post-background);
   gap: 1rem;
+  color: var(--post-text-color);
+  border-radius: 0.5rem;
 }
 
 .post > img {
   width: 100%;
-  /* max-height: 38rem; */
   object-fit: cover;
   border-radius: 0.5rem;
 }
@@ -18,9 +36,13 @@
   align-items: flex-start;
   gap: 1.5rem;
 }
+
 .nameImage {
   display: flex;
+  align-items: center;
+  text-decoration: none;
 }
+
 .profileImage {
   width: 3.5rem;
   height: 3.5rem;
@@ -31,4 +53,24 @@
 .name {
   margin-left: 10px;
   margin-top: 12px;
+  color: var(--text-color); /* From App.css */
+}
+
+.postStats {
+  display: flex;
+  gap: 1rem;
+  color: var(--post-text-color);
+}
+
+.detail {
+  color: var(--post-text-color);
+}
+
+.reactionContainer {
+  color: var(--post-text-color);
+}
+
+.reactionOptions {
+  background: var(--reaction-bg);
+  box-shadow: var(--reaction-shadow);
 }

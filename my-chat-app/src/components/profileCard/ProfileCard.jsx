@@ -34,7 +34,7 @@ const ProfileCard = ({ location, params, isCurrentUser }) => {
           src={
             userData?.CoverPicture
               ? userData.CoverPicture
-              : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+              : "https://i.ibb.co.com/FqHhTwR8/Blue-and-Red-Neon-Coming-Soon-Announcement-Facebook-Cover.png"
           }
           alt="CoverImage"
         />

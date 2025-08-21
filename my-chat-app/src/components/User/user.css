@@ -1,0 +1,78 @@
+/* Inherit variables from App.css, add user-specific ones */
+:root[data-theme="dark"] {
+  --user-card-bg: #242526; /* Matches post.css, postShare.css, navbar.css */
+  --user-text-color: #ffffff; /* Matches original Typography color */
+  --user-secondary-text: #b0b3b8; /* Matches commentModal.css, navbar.css */
+  --user-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --user-button-text: #ffffff;
+  --user-button-hover-bg: transparent;
+  --user-button-hover-border: 2px solid var(--orange); /* From App.css */
+  --user-button-hover-text: var(--orange);
+  --user-error-bg: #3a3b3c; /* Darker for alerts */
+}
+
+:root[data-theme="light"] {
+  --user-card-bg: #f0f2f5; /* Matches post.css, postShare.css, navbar.css */
+  --user-text-color: #000000;
+  --user-secondary-text: #666666; /* Matches commentModal.css, navbar.css */
+  --user-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --user-button-text: #ffffff;
+  --user-button-hover-bg: transparent;
+  --user-button-hover-border: 2px solid var(--orange);
+  --user-button-hover-text: var(--orange);
+  --user-error-bg: #ffebee; /* Lighter for alerts */
+}
+
+/* Override MUI Card styles */
+.MuiCard-root {
+  background: var(--user-card-bg) !important;
+  color: var(--user-text-color) !important;
+}
+
+/* Override MUI Typography styles */
+.MuiTypography-root {
+  color: var(--user-text-color) !important;
+}
+
+/* Override MUI Button styles */
+.MuiButton-contained {
+  background: var(--user-button-bg) !important;
+  color: var(--user-button-text) !important;
+}
+
+.MuiButton-outlined {
+  background: var(--user-button-hover-bg) !important;
+  border: var(--user-button-hover-border) !important;
+  color: var(--user-button-hover-text) !important;
+}
+
+.MuiButton-root:disabled {
+  background: silver !important;
+  color: #ffffff !important;
+}
+
+/* Override MUI Alert styles */
+.MuiAlert-root {
+  background: var(--user-error-bg) !important;
+  color: var(--user-text-color) !important;
+}
+
+/* Custom class for buttons to match App.css .button */
+.fc-button {
+  border-radius: 0.5rem !important;
+  transition: all 200ms ease-out !important;
+}
+
+.fc-button:hover {
+  background: var(--user-button-hover-bg) !important;
+  border: var(--user-button-hover-border) !important;
+  color: var(--user-button-hover-text) !important;
+}

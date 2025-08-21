@@ -1,14 +1,47 @@
+/* Inherit variables from App.css, add chat-box-specific ones */
+:root[data-theme="dark"] {
+  --chat-box-bg: #242526; /* Matches post.css, postShare.css, navbar.css, user.css, MessengerAdd.css, infoCard.css, Chat.css */
+  --chat-box-text: #ffffff; /* Matches text colors in other components */
+  --chat-box-secondary-text: #b0b3b8; /* Matches commentModal.css, navbar.css, infoCard.css, Chat.css */
+  --chat-box-message-bg: var(--buttonBg); /* From App.css */
+  --chat-box-own-bg: linear-gradient(
+    98.63deg,
+    #24e4f0 0%,
+    #358ff9 100%
+  ); /* Matches original .own */
+  --chat-box-sender-bg: #ffffff; /* Matches original .chat-sender */
+  --chat-box-input-bg: #3a3b3c; /* Darker input for dark mode */
+  --chat-box-sender-icon-bg: #7a8085; /* Matches input background */
+}
+
+:root[data-theme="light"] {
+  --chat-box-bg: #f0f2f5; /* Matches post.css, postShare.css, navbar.css, user.css, MessengerAdd.css, infoCard.css, Chat.css */
+  --chat-box-text: #000000;
+  --chat-box-secondary-text: #666666; /* Matches commentModal.css, navbar.css, infoCard.css, Chat.css */
+  --chat-box-message-bg: #e0e0e0; /* Lighter for received messages */
+  --chat-box-own-bg: linear-gradient(
+    98.63deg,
+    #24e4f0 0%,
+    #358ff9 100%
+  ); /* Matches original .own */
+  --chat-box-sender-bg: #ffffff; /* Matches original .chat-sender */
+  --chat-box-input-bg: #ffffff;
+  --chat-box-sender-icon-bg: #e0e0e0; /* Matches input background */
+}
+
 .ChatBox-container {
-  background-color: #242526;
+  background-color: var(--chat-box-bg);
   border-radius: 1rem;
   display: grid;
   grid-template-rows: 14vh 60vh 13vh;
+  color: var(--chat-box-text);
 }
 
 .chat-header {
   padding: 1rem 1rem 0rem 1rem;
   display: flex;
   flex-direction: column;
+  color: var(--chat-box-text);
 }
 
 .chat-body {
@@ -26,8 +59,8 @@
 }
 
 .message {
-  background: var(--buttonBg);
-  color: white;
+  background: var(--chat-box-message-bg);
+  color: var(--chat-box-text);
   padding: 0.7rem;
   border-radius: 1rem 1rem 1rem 0;
   max-width: 28rem;
@@ -37,20 +70,20 @@
   gap: 0.5rem;
 }
 
-.message>span:nth-child(2) {
+.message > span:nth-child(2) {
   font-size: 0.7rem;
-  color: var(--textColor);
+  color: var(--chat-box-secondary-text);
   align-self: end;
 }
 
 .own {
   align-self: flex-end;
   border-radius: 1rem 1rem 0 1rem;
-  background: linear-gradient(98.63deg, #24e4f0 0%, #358ff9 100%);
+  background: var(--chat-box-own-bg);
 }
 
 .chat-sender {
-  background: white;
+  background: var(--chat-box-sender-bg);
   display: flex;
   justify-content: space-between;
   height: 3.5rem;
@@ -61,28 +94,30 @@
   align-self: end;
 }
 
-.chat-sender>input {
+.chat-sender > input {
   height: 70%;
-  background-color: rgb(236, 236, 236);
+  background-color: var(--chat-box-input-bg);
   border-radius: 0.5rem;
   border: none;
   outline: none;
   flex: 1;
   font-size: 14px;
   padding: 0px 15px 0px 15px;
+  color: var(--chat-box-text);
 }
 
-.chat-sender>div:nth-of-type(1) {
-  background: rgb(233, 233, 233);
+.chat-sender > div:nth-of-type(1) {
+  background: var(--chat-box-sender-icon-bg);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   cursor: pointer;
+  color: var(--chat-box-text);
 }
 
-.chat-sender>div {
+.chat-sender > div {
   height: 70%;
   padding: 0px 15px 0px 15px;
 }

@@ -1,0 +1,85 @@
+/* Inherit variables from App.css and post.css, add modal-specific ones */
+:root[data-theme="dark"] {
+  --modal-background: #242526; /* Matches post background */
+  --modal-text-color: #ffffff;
+  --modal-secondary-text: #b0b3b8; /* Lighter gray for secondary text */
+  --modal-chip-bg: #3a3b3c; /* Darker chip background */
+  --modal-chip-text: #ffffff;
+  --modal-button-bg: #1976d2; /* Matches MUI primary.main */
+  --modal-button-text: #ffffff;
+  --modal-hover-bg: #3a3b3c; /* Hover background for list items */
+  --modal-divider: #4a4b4c;
+  --modal-input-bg: #3a3b3c;
+}
+
+:root[data-theme="light"] {
+  --modal-background: #ffffff; /* Matches light mode background */
+  --modal-text-color: #000000;
+  --modal-secondary-text: #666666; /* Darker gray for secondary text */
+  --modal-chip-bg: #e0e0e0; /* Lighter chip background */
+  --modal-chip-text: #000000;
+  --modal-button-bg: #1976d2; /* Matches MUI primary.main */
+  --modal-button-text: #ffffff;
+  --modal-hover-bg: #f5f5f5; /* Hover background for list items */
+  --modal-divider: #e0e0e0;
+  --modal-input-bg: #ffffff;
+}
+
+.commentModal {
+  background: var(--modal-background);
+  color: var(--modal-text-color);
+}
+
+/* Ensure MUI components respect theme variables */
+.MuiDialog-paper {
+  background: var(--modal-background) !important;
+  color: var(--modal-text-color) !important;
+}
+
+.MuiTypography-root {
+  color: var(--modal-text-color);
+}
+
+.MuiTypography-caption {
+  color: var(--modal-secondary-text);
+}
+
+.MuiChip-root {
+  background: var(--modal-chip-bg) !important;
+  color: var(--modal-chip-text) !important;
+}
+
+.MuiButton-contained {
+  background: var(--modal-button-bg) !important;
+  color: var(--modal-button-text) !important;
+}
+
+.MuiButton-outlined {
+  color: var(--modal-button-bg) !important;
+  border-color: var(--modal-button-bg) !important;
+}
+
+.MuiDivider-root {
+  background: var(--modal-divider) !important;
+}
+
+.MuiListItem-root {
+  background: var(--modal-background) !important;
+}
+
+.MuiListItem-root:hover {
+  background: var(--modal-hover-bg) !important;
+}
+
+.MuiTextField-root .MuiOutlinedInput-root {
+  background: var(--modal-input-bg) !important;
+  color: var(--modal-text-color) !important;
+}
+
+.MuiTextField-root .MuiInputLabel-root {
+  color: var(--modal-secondary-text) !important;
+}
+
+.MuiIconButton-root {
+  color: var(--modal-text-color) !important;
+}

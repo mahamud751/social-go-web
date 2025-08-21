@@ -17,7 +17,6 @@ const FriendAdd = ({ location }) => {
     };
     fetchPersons();
   }, [user]);
-  console.log("persons", persons);
 
   return (
     <div>
@@ -27,7 +26,7 @@ const FriendAdd = ({ location }) => {
         {persons?.map((person, id) => {
           if (person.ID !== user.ID)
             return (
-              <Grid item xs={6} md={3} key={person.ID}>
+              <Grid item xs={6} md={4} key={person.ID}>
                 <User person={person} key={id} />
               </Grid>
             );

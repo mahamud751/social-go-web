@@ -13,12 +13,12 @@
   margin-top: 1rem;
 }
 
-.navIcons>img {
+.navIcons > img {
   width: 1.5rem;
   height: 1.5rem;
 }
 
-.navIcons>a>img {
+.navIcons > a > img {
   width: 1.5rem;
   height: 1.5rem;
 }

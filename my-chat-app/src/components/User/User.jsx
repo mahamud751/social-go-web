@@ -12,8 +12,9 @@ import {
   Alert,
 } from "@mui/material";
 import { getFriendRequests, sendFriendRequest } from "../../api/MessageRequest";
+import "./user.css";
 
-const User = ({ person }) => {
+const User = ({ person, theme }) => {
   const publicFolder = process.env.REACT_APP_PUBLIC_FOLDER;
   const { user } = useSelector((state) => state.authReducer.authData);
   const dispatch = useDispatch();
@@ -80,19 +81,19 @@ const User = ({ person }) => {
 
   return (
     <Card
+      className="MuiCard-root"
       sx={{
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        borderRadius: 10,
-        maxWidth: 300,
+        borderRadius: 2,
         mx: "auto",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+        boxShadow: "0 4px 20px var(--profileShadow)", // From App.css
       }}
     >
       <CardContent sx={{ textAlign: "center" }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }} className="MuiAlert-root">
             {error}
           </Alert>
         )}
@@ -105,64 +106,74 @@ const User = ({ person }) => {
           }
           alt="Profile"
           sx={{
-            height: 200,
+            height: 100,
             borderRadius: "50%",
             objectFit: "cover",
             mx: "auto",
+            width: 100,
           }}
         />
         <Typography
           variant="h6"
           component="div"
-          sx={{ textTransform: "capitalize", mt: 2, fontWeight: "bold" }}
+          className="MuiTypography-root"
+          sx={{
+            textTransform: "capitalize",
+            mt: 2,
+            fontWeight: "bold",
+          }}
         >
           {person?.Username}
         </Typography>
         <CardActions
           sx={{
-            justifyContent: "center",
             mt: 1,
-            flexDirection: "column",
             gap: 1,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          <Button
-            variant={following ? "outlined" : "contained"}
-            color={following ? "error" : "primary"}
-            onClick={handleFollow}
-            sx={{ borderRadius: 2, width: "150px" }}
-            className={
-              following ? "button fc-button UnfollowButton" : "button fc-button"
-            }
-          >
-            {following ? "Unfollow" : "Follow"}
-          </Button>
-          {user.ID !== person.ID && (
-            <>
+          <div>
+            {user.ID !== person.ID && (
               <Button
                 variant="contained"
-                color="secondary"
-                onClick={handleSendRequest}
-                disabled={requestStatus !== "none"}
-                sx={{ borderRadius: 2, width: "150px" }}
-                className="button fc-button"
-              >
-                {requestStatus === "friend"
-                  ? "Friends"
-                  : requestStatus === "pending" || requestStatus === "sent"
-                  ? "Request Sent"
-                  : "Send Friend Request"}
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
                 onClick={handleVisitProfile}
-                sx={{ borderRadius: 2, width: "150px" }}
+                sx={{ borderRadius: 2, width: "150px", mx: 1 }}
                 className="button fc-button"
               >
                 Visit Profile
               </Button>
-            </>
+            )}
+            <Button
+              variant={following ? "outlined" : "contained"}
+              onClick={handleFollow}
+              sx={{ borderRadius: 2, width: "150px" }}
+              className={
+                following
+                  ? "button fc-button UnfollowButton"
+                  : "button fc-button"
+              }
+            >
+              {following ? "Unfollow" : "Follow"}
+            </Button>
+          </div>
+          {user.ID !== person.ID && (
+            <Button
+              variant="contained"
+              onClick={handleSendRequest}
+              disabled={requestStatus !== "none"}
+              sx={{
+                borderRadius: 2,
+                width: "210px",
+              }}
+              className="button fc-button"
+            >
+              {requestStatus === "friend"
+                ? "Friends"
+                : requestStatus === "pending" || requestStatus === "sent"
+                ? "Request Sent"
+                : "Send Friend Request"}
+            </Button>
           )}
         </CardActions>
       </CardContent>

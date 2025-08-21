@@ -1,13 +1,36 @@
 .navbar_lg {
-    display: none;
+  display: none;
 }
-
+.profile {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.profileImage {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.profileName {
+  margin-left: 10px;
+  font-size: 1.2rem;
+  color: #fff;
+}
+.followers {
+  display: flex;
+  justify-content: space-evenly;
+}
+.navbar_sm {
+  width: 400px;
+}
 @media only screen and (max-width: 600px) {
-    .navbar_sm {
-        display: none;
-    }
+  .navbar_sm {
+    display: none;
+  }
 
-    .navbar_lg {
-        display: inline;
-    }
+  .navbar_lg {
+    display: inline;
+  }
 }

@@ -1,66 +1,92 @@
+/* Inherit variables from App.css, add post-share-specific ones */
+:root[data-theme="dark"] {
+  --post-share-bg: #242526; /* Matches existing post background */
+  --post-share-text: #ffffff;
+  --post-share-input-bg: #3a3b3c; /* Darker input for dark mode */
+  --post-share-option-bg: #3a3b3c;
+  --post-share-option-text: #ffffff;
+  --post-share-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --post-share-button-text: #ffffff;
+}
+
+:root[data-theme="light"] {
+  --post-share-bg: #f0f2f5; /* Matches post.css light mode */
+  --post-share-text: #000000;
+  --post-share-input-bg: #ffffff;
+  --post-share-option-bg: #e0e0e0;
+  --post-share-option-text: #000000;
+  --post-share-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --post-share-button-text: #ffffff;
+}
+
 .postShare {
   display: flex;
   gap: 1rem;
-  background-color: #242526;
+  background-color: var(--post-share-bg);
   padding: 1rem;
   border-radius: 1rem;
-
+  color: var(--post-share-text);
 }
 
-.postShare>img {
+.postShare > img {
   border-radius: 50%;
   width: 3rem;
   height: 3rem;
 }
 
-.postShare>div {
+.postShare > div {
   display: flex;
   flex-direction: column;
   width: 90%;
   gap: 1rem;
 }
 
-.postShare>div>input {
+.postShare > div > input {
   padding: 10px;
   font-size: 10px;
   border: none;
   border-radius: 10px;
-  background-color: white;
+  background-color: var(--post-share-input-bg);
   outline: none;
+  color: var(--post-share-text);
 }
 
 .postShare2_bg {
   padding: 10px;
-  background-color: #242526;
+  background-color: var(--post-share-bg);
 }
 
-
-.postShare2>img {
+.postShare2 > img {
   border-radius: 50%;
   width: 3rem;
   height: 3rem;
 }
 
-.postShare2>div {
+.postShare2 > div {
   display: flex;
   flex-direction: column;
   width: 90%;
   gap: 1rem;
-
 }
 
-
-
-.postShare2>input {
+.postShare2 > input {
   padding: 10px;
   font-size: 10px;
   border: none;
   border-radius: 10px;
-  background-color: white;
+  background-color: var(--post-share-input-bg);
   outline: none;
+  color: var(--post-share-text);
   width: 70%;
   margin-left: 10px;
-
 }
 
 .postOptions {
@@ -77,10 +103,14 @@
   justify-content: center;
   align-items: center;
   font-size: 12px;
+  background-color: var(--post-share-option-bg);
+  color: var(--post-share-option-text);
 }
 
 .option:hover {
   cursor: pointer;
+  background-color: var(--post-share-text);
+  color: var(--post-share-bg);
 }
 
 .ps-button {
@@ -88,20 +118,37 @@
   padding-right: 20px;
   padding-left: 20px;
   font-size: 12px;
+  background: var(--post-share-button-bg);
+  color: var(--post-share-button-text);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.ps-button:hover {
+  background: transparent;
+  border: 2px solid var(--orange); /* From App.css */
+  color: var(--orange);
+}
+
+.ps-button:disabled {
+  background: silver;
+  pointer-events: none;
 }
 
 .previewImage {
   position: relative;
 }
 
-.previewImage>svg> {
+.previewImage > svg {
   position: absolute;
   right: 1rem;
   top: 0.5rem;
   cursor: pointer;
+  fill: var(--post-share-text);
 }
 
-.previewImage>img {
+.previewImage > img {
   width: 100%;
   max-width: 20rem;
   object-fit: cover;

@@ -18,7 +18,7 @@ const reactions = {
   care: { emoji: "🤗", label: "Care" },
 };
 
-const Post = ({ data }) => {
+const Post = ({ data, theme }) => {
   const { user } = useSelector((state) => state.authReducer.authData);
   const dispatch = useDispatch();
   const [reaction, setReaction] = useState(null);
@@ -27,7 +27,7 @@ const Post = ({ data }) => {
   const [persons, setPersons] = useState([]);
   const [openCommentModal, setOpenCommentModal] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
-  const [hoverTimeout, setHoverTimeout] = useState(null); // For debouncing hover
+  const [hoverTimeout, setHoverTimeout] = useState(null);
 
   useEffect(() => {
     const fetchPersons = async () => {
@@ -93,7 +93,6 @@ const Post = ({ data }) => {
     );
   };
 
-  // Handle hover with debounce
   const handleMouseEnter = () => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
     setHoverTimeout(
@@ -115,26 +114,28 @@ const Post = ({ data }) => {
   return (
     <div className="post">
       <img src={data.Image || ""} alt="" />
-      {persons.map((pd) => (
-        <span style={{ textTransform: "capitalize" }} key={pd.ID}>
-          {pd.ID === data.UserID ? (
-            <Link to={`/profile/${pd.ID}`} className="nameImage">
-              <img
-                src={
-                  pd.ProfilePicture
-                    ? pd.ProfilePicture
-                    : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-                }
-                alt="ProfileImage"
-                className="profileImage"
-              />
-              <p className="name"> {pd.Username}</p>
-            </Link>
-          ) : (
-            ""
-          )}
-        </span>
-      ))}
+      <div>
+        {persons?.map((pd) => (
+          <span style={{ textTransform: "capitalize" }} key={pd.ID}>
+            {pd.ID === data.UserID ? (
+              <Link to={`/profile/${pd.ID}`} className="nameImage">
+                <img
+                  src={
+                    pd.ProfilePicture
+                      ? pd.ProfilePicture
+                      : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+                  }
+                  alt="ProfileImage"
+                  className="profileImage"
+                />
+                <p className="name"> {pd.Username}</p>
+              </Link>
+            ) : (
+              ""
+            )}
+          </span>
+        ))}
+      </div>
       <div className="postReact">
         <div
           className="reactionContainer"
@@ -143,7 +144,15 @@ const Post = ({ data }) => {
           onMouseLeave={handleMouseLeave}
         >
           <span
-            style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+            style={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              color:
+                theme === "dark"
+                  ? "var(--post-text-color)"
+                  : "var(--post-text-color)",
+            }}
           >
             {reaction ? (
               <>
@@ -158,24 +167,29 @@ const Post = ({ data }) => {
               className="reactionOptions"
               style={{
                 position: "absolute",
-                top: "-40px", // Position above to avoid overlap
+                top: "-40px",
                 left: 0,
                 display: "flex",
                 gap: "10px",
-                background: "white",
                 padding: "5px",
                 borderRadius: "20px",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                 zIndex: 10,
               }}
-              onMouseEnter={handleMouseEnter} // Keep menu open when hovering over it
+              onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
               {Object.keys(reactions).map((type) => (
                 <span
                   key={type}
                   onClick={() => handleReaction(type)}
-                  style={{ cursor: "pointer", fontSize: "20px" }}
+                  style={{
+                    cursor: "pointer",
+                    fontSize: "20px",
+                    color:
+                      theme === "dark"
+                        ? "var(--post-text-color)"
+                        : "var(--post-text-color)",
+                  }}
                   title={reactions[type].label}
                 >
                   {reactions[type].emoji}
@@ -185,7 +199,10 @@ const Post = ({ data }) => {
           )}
         </div>
         <CommentIcon
-          style={{ cursor: "pointer", color: "#007bff" }}
+          style={{
+            cursor: "pointer",
+            color: "var(--icon-color)",
+          }}
           onClick={() => setOpenCommentModal(true)}
         />
         <img src={Share} alt="" />
@@ -214,6 +231,7 @@ const Post = ({ data }) => {
         handleClose={() => setOpenCommentModal(false)}
         postId={data.ID}
         setCommentCount={setCommentCount}
+        theme={theme} // Pass theme to CommentModal if needed
       />
     </div>
   );

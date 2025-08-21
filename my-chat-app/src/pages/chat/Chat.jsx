@@ -107,7 +107,7 @@ const Chat = () => {
   };
 
   return (
-    <div>
+    <div style={{ width: "100%" }} className="mt-5">
       {/* Desktop View */}
       <div className="navbar_lg">
         <div>
@@ -178,7 +178,7 @@ const Chat = () => {
       </div>
 
       {/* Mobile View */}
-      <div className="navbar_sm">
+      <div className="">
         <div className="Chat">
           <div className="row">
             <div className="col-md-2">
@@ -214,9 +214,7 @@ const Chat = () => {
                     alignSelf: "flex-end",
                     marginRight: 30,
                   }}
-                >
-                  <NavIcons />
-                </div>
+                ></div>
                 <ChatBox
                   chat={currentChat}
                   currentUser={user.ID}

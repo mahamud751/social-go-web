@@ -289,56 +289,70 @@ const HomeMenu = ({ location }) => {
           sx={{
             width: "100%",
             maxWidth: 360,
-
             height: "100vh",
           }}
         >
-          <nav aria-label="main mailbox folders">
+          <nav aria-label="main mailbox folders" style={{ marginLeft: 20 }}>
             <List>
+              <ListItem disablePadding>
+                {location === "profilePage" ? (
+                  ""
+                ) : (
+                  <>
+                    <div style={{ width: "100%" }}>
+                      <div className="profile">
+                        <div>
+                          {" "}
+                          <Link
+                            to={`/profile/${user.ID}`}
+                            style={{
+                              textDecoration: "none",
+                              color: "inherit",
+                            }}
+                          >
+                            <ListItemButton>
+                              <ListItemIcon>
+                                <img
+                                  src={
+                                    user?.ProfilePicture
+                                      ? user.ProfilePicture
+                                      : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+                                  }
+                                  alt="ProfileImage"
+                                  className="profileImage"
+                                />
+                              </ListItemIcon>
+                            </ListItemButton>
+                          </Link>
+                          <span className="profileName"> {user.Username}</span>
+                        </div>
+                      </div>
+                      <div className="followers">
+                        <div className="follow">
+                          <span>{user?.Followers?.length || 0}</span>
+                          <span>Followers</span>
+                        </div>
+                        <div className="vl"></div>
+                        <div className="follow">
+                          <span>{user?.Following?.length || 0}</span>
+                          <span>Following</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </ListItem>
+              <hr />
               <ListItem disablePadding>
                 <Link to={"/"} style={{ width: "100%" }}>
                   <ListItemButton>
                     <ListItemIcon>
                       <HomeIcon className="icon_bg" />
                     </ListItemIcon>
-                    <ListItemText primary="Home" />
+                    <ListItemText primary="Feed" />
                   </ListItemButton>
                 </Link>
               </ListItem>
-              <ListItem disablePadding>
-                {location === "profilePage" ? (
-                  ""
-                ) : (
-                  <span style={{ width: "100%" }}>
-                    <Link
-                      to={`/profile/${user.ID}`}
-                      style={{
-                        textDecoration: "none",
-                        color: "inherit",
-                      }}
-                    >
-                      <ListItemButton>
-                        <ListItemIcon>
-                          <img
-                            src={
-                              user.ProfilePicture
-                                ? user.ProfilePicture
-                                : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-                            }
-                            alt="ProfileImage"
-                            style={{ width: 20, height: 20, borderRadius: 50 }}
-                          />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={`${user.Username}`}
-                          sx={{ textTransform: "capitalize" }}
-                        />
-                      </ListItemButton>
-                    </Link>
-                  </span>
-                )}
-              </ListItem>
-              <hr />
               <ListItem disablePadding>
                 <Link to={"/friend"} style={{ width: "100%" }}>
                   <ListItemButton>
@@ -393,35 +407,6 @@ const HomeMenu = ({ location }) => {
                     <ListItemText primary="Messenger" />
                   </ListItemButton>
                 </Link>
-              </ListItem>
-
-              <hr />
-              <h6 className="ms-3">Your Shortcuts</h6>
-              <ListItem disablePadding>
-                <a
-                  href={"https://www.facebook.com/groups/talkjs.net"}
-                  style={{ width: "100%" }}
-                >
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <i className="fa-solid fa-person-chalkboard icon_bg"></i>
-                    </ListItemIcon>
-                    <ListItemText primary="Talk.js" />
-                  </ListItemButton>
-                </a>
-              </ListItem>
-              <ListItem disablePadding>
-                <a
-                  href={"https://www.facebook.com/groups/161616437580654"}
-                  style={{ width: "100%" }}
-                >
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <i className="fa-solid fa-person-chalkboard icon_bg"></i>
-                    </ListItemIcon>
-                    <ListItemText primary="CSE/EEE/IT Jobs in Bangladesh" />
-                  </ListItemButton>
-                </a>
               </ListItem>
             </List>
           </nav>

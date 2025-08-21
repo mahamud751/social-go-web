@@ -1,5 +1,75 @@
-@media only screen and (max-width : 600px) {
-    .name_sm {
-        font-size: smaller;
-    }
+/* Inherit variables from App.css, add messenger-specific ones */
+:root[data-theme="dark"] {
+  --messenger-card-bg: #242526; /* Matches post.css, postShare.css, navbar.css, user.css */
+  --messenger-text-color: #ffffff; /* Matches Typography in User.js */
+  --messenger-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --messenger-button-text: #ffffff;
+  --messenger-button-hover-bg: transparent;
+  --messenger-button-hover-border: 2px solid var(--orange); /* From App.css */
+  --messenger-button-hover-text: var(--orange);
+}
+
+:root[data-theme="light"] {
+  --messenger-card-bg: #f0f2f5; /* Matches post.css, postShare.css, navbar.css, user.css */
+  --messenger-text-color: #000000;
+  --messenger-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --messenger-button-text: #ffffff;
+  --messenger-button-hover-bg: transparent;
+  --messenger-button-hover-border: 2px solid var(--orange);
+  --messenger-button-hover-text: var(--orange);
+}
+
+/* Override Mantine Card styles */
+.Mantine-Card-root {
+  background: var(--messenger-card-bg) !important;
+  color: var(--messenger-text-color) !important;
+  border-radius: 8px !important; /* Matches MUI sx borderRadius: 2 (8px in MUI theme) */
+}
+
+/* Override MUI Typography styles */
+.MuiTypography-root {
+  color: var(--messenger-text-color) !important;
+}
+
+/* Style for name_sm */
+.name_sm {
+  font-size: 1.2rem; /* Base font size */
+}
+
+/* Style for r-button to match App.css .button */
+.r-button {
+  background: var(--messenger-button-bg);
+  color: var(--messenger-button-text);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.r-button:hover {
+  background: var(--messenger-button-hover-bg);
+  border: var(--messenger-button-hover-border);
+  color: var(--messenger-button-hover-text);
+}
+
+.r-button:disabled {
+  background: silver;
+  color: #ffffff;
+  pointer-events: none;
+}
+
+@media only screen and (max-width: 600px) {
+  .name_sm {
+    font-size: smaller;
+  }
 }

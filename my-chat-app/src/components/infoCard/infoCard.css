@@ -1,21 +1,55 @@
+/* Inherit variables from App.css, add info-card-specific ones */
+:root[data-theme="dark"] {
+  --info-card-bg: #242526; /* Matches post.css, postShare.css, navbar.css, user.css, MessengerAdd.css */
+  --info-card-text: #ffffff; /* Matches text colors in other components */
+  --info-card-secondary-text: #b0b3b8; /* Matches commentModal.css, navbar.css */
+  --info-card-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --info-card-button-text: #ffffff;
+  --info-card-button-hover-bg: transparent;
+  --info-card-button-hover-border: 2px solid var(--orange); /* From App.css */
+  --info-card-button-hover-text: var(--orange);
+}
+
+:root[data-theme="light"] {
+  --info-card-bg: #f0f2f5; /* Matches post.css, postShare.css, navbar.css, user.css, MessengerAdd.css */
+  --info-card-text: #000000;
+  --info-card-secondary-text: #666666; /* Matches commentModal.css, navbar.css */
+  --info-card-button-bg: linear-gradient(
+    98.63deg,
+    #8f00ff 0%,
+    #ff18b7 100%
+  ); /* From App.css */
+  --info-card-button-text: #ffffff;
+  --info-card-button-hover-bg: transparent;
+  --info-card-button-hover-border: 2px solid var(--orange);
+  --info-card-button-hover-text: var(--orange);
+}
+
 .infoCard {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background-color: #242526;
+  background-color: var(--info-card-bg);
   border-radius: 1rem;
   padding: 1rem;
   width: 90%;
+  color: var(--info-card-text);
 }
 
 .infoHead {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--info-card-text);
 }
 
-.infoHead>div:hover {
+.infoHead > div:hover {
   cursor: pointer;
+  color: var(--info-card-secondary-text);
 }
 
 .logout-button {
@@ -23,4 +57,23 @@
   height: 2rem;
   align-self: flex-end;
   margin-top: 6rem;
+  background: var(--info-card-button-bg);
+  color: var(--info-card-button-text);
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.logout-button:hover {
+  background: var(--info-card-button-hover-bg);
+  border: var(--info-card-button-hover-border);
+  color: var(--info-card-button-hover-text);
+}
+
+.logout-button:disabled {
+  background: silver;
+  color: #ffffff;
+  pointer-events: none;
 }

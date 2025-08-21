@@ -9,14 +9,27 @@ import Friend from "./pages/Friend/Friend";
 import AddMessenger from "./pages/addMessenger/AddMessenger";
 import FriendList from "./pages/friendList/FriendList";
 import FriendRequests from "./pages/RequestList/FriendRequests";
+import ThemeToggle from "./components/ThemeToggle";
+import Notification from "./components/Notification";
 
-function App() {
+function App({ toggleTheme, theme }) {
   const user = useSelector((state) => state.authReducer.authData);
   return (
     <div className="App">
-      <div className="blur" style={{ top: "-18%", right: "0" }}></div>
-      <div className="blur" style={{ top: "36%", left: "-8rem" }}></div>
-
+      <div
+        style={{
+          position: "fixed",
+          top: "0",
+          right: "0",
+          zIndex: "1000",
+          display: "flex",
+          justifyContent: "flex-end",
+          width: "100%",
+        }}
+      >
+        <Notification />
+        <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+      </div>
       <Routes>
         <Route
           path="/"
