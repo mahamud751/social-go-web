@@ -35,7 +35,9 @@ const Notification = () => {
   const [persons, setPersons] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [error, setError] = useState(null);
-  const { user } = useSelector((state) => state?.authReducer?.authData);
+  const authData = useSelector((state) => state?.authReducer?.authData);
+  const user = authData?.user;
+
   const navigate = useNavigate();
 
   // Fetch suggested users
