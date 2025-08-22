@@ -17,10 +17,10 @@ const ChatBox = ({
   const [userData, setUserData] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [callStatus, setCallStatus] = useState("idle"); // idle, calling, incoming, in-progress, ended
+  const [callStatus, setCallStatus] = useState("idle");
   const [isCallInitiator, setIsCallInitiator] = useState(false);
-  const [callType, setCallType] = useState(null); // 'audio' or 'video'
-  const [incomingCallOffer, setIncomingCallOffer] = useState(null); // Store incoming call offer separately
+  const [callType, setCallType] = useState(null);
+  const [incomingCallOffer, setIncomingCallOffer] = useState(null);
   const localVideoRef = useRef();
   const remoteMediaRef = useRef();
   const peerConnection = useRef();
@@ -28,13 +28,12 @@ const ChatBox = ({
   const dataChannel = useRef();
   const scrollRef = useRef();
   const imageRef = useRef();
-  const callTimeoutRef = useRef(null); // For call timeout
+  const callTimeoutRef = useRef(null);
 
   const handleChange = (newMessage) => {
     setNewMessage(newMessage);
   };
 
-  // Fetch user data for headers
   useEffect(() => {
     const userId = chat?.Members?.find((id) => id !== currentUser);
     const getUserData = async () => {
@@ -49,7 +48,6 @@ const ChatBox = ({
     if (chat !== null) getUserData();
   }, [chat, currentUser]);
 
-  // Fetch messages
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -63,12 +61,10 @@ const ChatBox = ({
     if (chat !== null) fetchMessages();
   }, [chat]);
 
-  // Scroll to last message
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Send message
   const handleSend = async (e) => {
     e.preventDefault();
     const message = {
@@ -87,14 +83,12 @@ const ChatBox = ({
     }
   };
 
-  // Receive message
   useEffect(() => {
     if (receivedMessage && receivedMessage.chatId === chat?.ID) {
       setMessages((prev) => [...prev, receivedMessage]);
     }
   }, [receivedMessage, chat?.ID]);
 
-  // WebRTC Functions
   const getMediaStream = async (isVideo) => {
     try {
       const constraints = {
@@ -104,17 +98,19 @@ const ChatBox = ({
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStream.current = stream;
       const audioTracks = stream.getAudioTracks();
-      console.log("Audio tracks:", audioTracks);
+      console.log("Local stream audio tracks:", audioTracks);
+      if (audioTracks.length === 0) {
+        console.error("No audio tracks found in stream");
+        alert("No audio input device detected. Please check your microphone.");
+      }
       audioTracks.forEach((track) => {
-        console.log(
-          "Audio track enabled:",
-          track.enabled,
-          "muted:",
-          track.muted
-        );
+        console.log("Audio track:", {
+          enabled: track.enabled,
+          muted: track.muted,
+        });
         track.enabled = true;
       });
-      if (localVideoRef.current && isVideo) {
+      if (isVideo && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
       return stream;
@@ -122,7 +118,7 @@ const ChatBox = ({
       console.error("Error accessing media devices:", error);
       if (error.name === "NotAllowedError") {
         alert(
-          "Microphone access denied. Please allow microphone access to enable voice calls."
+          "Microphone access denied. Please allow microphone access for voice calls."
         );
       } else if (error.name === "NotFoundError") {
         alert("No microphone found. Please ensure a microphone is connected.");
@@ -136,6 +132,12 @@ const ChatBox = ({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+        // Add TURN server for testing
+        {
+          urls: "turn:numb.viagenie.ca",
+          username: "your-username",
+          credential: "your-password",
+        },
       ],
     };
 
@@ -144,7 +146,7 @@ const ChatBox = ({
     if (localStream.current) {
       console.log("Local stream tracks:", localStream.current.getTracks());
       localStream.current.getTracks().forEach((track) => {
-        console.log("Adding track:", track);
+        console.log("Adding track to peer connection:", track);
         peerConnection.current.addTrack(track, localStream.current);
       });
     } else {
@@ -155,27 +157,25 @@ const ChatBox = ({
       const remoteStream = event.streams[0];
       console.log("Received remote stream tracks:", remoteStream.getTracks());
       remoteStream.getAudioTracks().forEach((track) => {
-        console.log(
-          "Remote audio track enabled:",
-          track.enabled,
-          "muted:",
-          track.muted
-        );
+        console.log("Remote audio track:", {
+          enabled: track.enabled,
+          muted: track.muted,
+        });
         track.enabled = true;
       });
       if (callType === "video" && remoteMediaRef.current) {
         remoteMediaRef.current.srcObject = remoteStream;
-      } else if (callType === "audio") {
-        const audioElement = new Audio();
-        audioElement.srcObject = remoteStream;
-        audioElement.play().catch((error) => {
-          console.error("Error playing audio stream:", error);
+      } else if (callType === "audio" && remoteMediaRef.current) {
+        remoteMediaRef.current.srcObject = remoteStream;
+        remoteMediaRef.current.play().catch((error) => {
+          console.error("Error playing remote audio stream:", error);
         });
       }
     };
 
     peerConnection.current.onicecandidate = (event) => {
       if (event.candidate && socket.current?.readyState === WebSocket.OPEN) {
+        console.log("Sending ICE candidate:", event.candidate);
         socket.current.send(
           JSON.stringify({
             type: "ice-candidate",
@@ -220,11 +220,9 @@ const ChatBox = ({
       await getMediaStream(type === "video");
       createPeerConnection();
 
-      // Create offer
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
 
-      // Send offer to the remote peer via WebSocket
       const receiverId = chat.Members.find((id) => id !== currentUser);
       socket.current.send(
         JSON.stringify({
@@ -243,6 +241,9 @@ const ChatBox = ({
       );
     } catch (error) {
       console.error("Error starting call:", error);
+      alert(
+        "Failed to start call. Please check your microphone and camera permissions."
+      );
       endCall();
     }
   };
@@ -257,10 +258,6 @@ const ChatBox = ({
         !incomingCallOffer.offer.sdp ||
         !incomingCallOffer.callerId
       ) {
-        console.error("Cannot answer call: Invalid state or call data:", {
-          callStatus,
-          incomingCallOffer,
-        });
         throw new Error("Invalid or missing offer data");
       }
 
@@ -269,7 +266,6 @@ const ChatBox = ({
       await getMediaStream(incomingCallOffer.callType === "video");
       createPeerConnection();
 
-      // Set remote description with the offer
       console.log(
         "Setting remote description with offer:",
         incomingCallOffer.offer
@@ -281,11 +277,9 @@ const ChatBox = ({
         })
       );
 
-      // Create answer
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
 
-      // Send answer to the caller via WebSocket
       socket.current.send(
         JSON.stringify({
           type: "call-answer",
@@ -300,7 +294,6 @@ const ChatBox = ({
         })
       );
 
-      // Clear incoming call offer and timeout
       setIncomingCallOffer(null);
       if (callTimeoutRef.current) {
         clearTimeout(callTimeoutRef.current);
@@ -308,6 +301,9 @@ const ChatBox = ({
       }
     } catch (error) {
       console.error("Error answering call:", error);
+      alert(
+        "Failed to answer call. Please check your microphone and camera permissions."
+      );
       endCall();
     }
   };
@@ -330,9 +326,7 @@ const ChatBox = ({
     setCallStatus("idle");
     setCallType(null);
     setIncomingCallOffer(null);
-    if (typeof setCallData === "function") {
-      setCallData(null);
-    }
+    setCallData(null);
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
@@ -364,19 +358,23 @@ const ChatBox = ({
     setCallType(null);
     setIsCallInitiator(false);
     setIncomingCallOffer(null);
-    if (typeof setCallData === "function") {
-      setCallData(null);
-    }
+    setCallData(null);
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
     }
   };
 
-  // Handle call-related WebSocket messages
   useEffect(() => {
     if (callData) {
-      console.log("Received callData:", callData);
+      console.log(
+        "Received callData:",
+        callData,
+        "callStatus:",
+        callStatus,
+        "isCallInitiator:",
+        isCallInitiator
+      );
       switch (callData.type) {
         case "incoming-call-offer":
           if (
@@ -385,8 +383,9 @@ const ChatBox = ({
             callData.offer.type &&
             callData.offer.sdp &&
             callData.callType &&
-            callStatus === "idle" // Only process if no active call
+            callStatus === "idle"
           ) {
+            console.log("Processing incoming-call-offer:", callData);
             setCallStatus("incoming");
             setCallType(callData.callType);
             setIncomingCallOffer({
@@ -394,7 +393,6 @@ const ChatBox = ({
               offer: callData.offer,
               callType: callData.callType,
             });
-            // Set timeout for incoming call (30 seconds)
             callTimeoutRef.current = setTimeout(() => {
               console.log("Incoming call timed out");
               declineCall();
@@ -407,9 +405,7 @@ const ChatBox = ({
                 callStatus,
               }
             );
-            if (typeof setCallData === "function") {
-              setCallData(null);
-            }
+            setCallData(null);
           }
           break;
         case "call-answer":
@@ -420,10 +416,7 @@ const ChatBox = ({
             callData.answer.type &&
             callData.answer.sdp
           ) {
-            console.log(
-              "Setting remote description with answer:",
-              callData.answer
-            );
+            console.log("Processing call-answer:", callData.answer);
             peerConnection.current
               .setRemoteDescription(
                 new RTCSessionDescription({
@@ -438,9 +431,7 @@ const ChatBox = ({
             setCallStatus("in-progress");
           } else {
             console.error("Invalid call answer:", callData);
-            if (typeof setCallData === "function") {
-              setCallData(null);
-            }
+            setCallData(null);
           }
           break;
         case "new-ice-candidate":
@@ -449,6 +440,7 @@ const ChatBox = ({
             callData.candidate &&
             callStatus === "in-progress"
           ) {
+            console.log("Adding ICE candidate:", callData.candidate);
             peerConnection.current
               .addIceCandidate(new RTCIceCandidate(callData.candidate))
               .catch((error) => {
@@ -458,18 +450,17 @@ const ChatBox = ({
           break;
         case "call-declined":
           if (isCallInitiator) {
+            console.log("Call declined by peer");
             endCall();
           }
           break;
         case "call-ended":
           if (callStatus === "incoming" && incomingCallOffer) {
-            console.log(
-              "Ignoring call-ended while incoming call is pending user action"
-            );
-            // Notify user that the caller hung up
+            console.log("Caller ended call before answering");
             alert(`${userData?.Username || "Caller"} hung up`);
             declineCall();
           } else if (callStatus !== "idle") {
+            console.log("Call ended by peer");
             endCall();
           }
           break;
