@@ -25,7 +25,7 @@ const ContractList = () => {
   }, [user.ID]);
 
   useEffect(() => {
-    socket.current = io("https://go.dpremiumhomes.com/api", {
+    socket.current = io(`https://${process.env.REACT_APP_API_URL}/api`, {
       transports: ["websocket"],
       upgrade: false,
     });

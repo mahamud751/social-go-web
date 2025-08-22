@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://go.dpremiumhomes.com/api",
+  baseURL: `https://${process.env.REACT_APP_API_URL}/api`,
 });
 
 export const logIn = (formData) => API.post("/auth/login", formData);

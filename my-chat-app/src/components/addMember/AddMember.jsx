@@ -15,7 +15,7 @@ const AddMember = ({ person }) => {
     };
 
     axios
-      .post("https://go.dpremiumhomes.com/api/chat", newMember)
+      .post(`https://${process.env.REACT_APP_API_URL}/api/chat`, newMember)
       .then((res) => {
         MySwal.fire("Good job!", "successfully added", "success");
       })

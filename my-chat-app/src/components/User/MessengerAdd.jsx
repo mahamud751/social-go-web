@@ -22,11 +22,15 @@ const MessengerAdd = ({ message, theme }) => {
 
     try {
       const profile = JSON.parse(localStorage.getItem("profile"));
-      await axios.post("https://go.dpremiumhomes.com/api/chat", newMember, {
-        headers: {
-          Authorization: `Bearer ${profile.token}`,
-        },
-      });
+      await axios.post(
+        `https://${process.env.REACT_APP_API_URL}/api/chat`,
+        newMember,
+        {
+          headers: {
+            Authorization: `Bearer ${profile.token}`,
+          },
+        }
+      );
       MySwal.fire("Good job!", "Successfully added", "success");
     } catch (error) {
       MySwal.fire("Something Error Found.", "warning");

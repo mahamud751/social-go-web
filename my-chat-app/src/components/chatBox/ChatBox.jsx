@@ -22,7 +22,7 @@ const ChatBox = ({
   const [callType, setCallType] = useState(null); // 'audio' or 'video'
   const [incomingCallOffer, setIncomingCallOffer] = useState(null); // Store incoming call offer separately
   const localVideoRef = useRef();
-  const remoteVideoRef = useRef();
+  const remoteMediaRef = useRef();
   const peerConnection = useRef();
   const localStream = useRef();
   const dataChannel = useRef();
@@ -103,12 +103,30 @@ const ChatBox = ({
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStream.current = stream;
-      if (localVideoRef.current) {
+      const audioTracks = stream.getAudioTracks();
+      console.log("Audio tracks:", audioTracks);
+      audioTracks.forEach((track) => {
+        console.log(
+          "Audio track enabled:",
+          track.enabled,
+          "muted:",
+          track.muted
+        );
+        track.enabled = true;
+      });
+      if (localVideoRef.current && isVideo) {
         localVideoRef.current.srcObject = stream;
       }
       return stream;
     } catch (error) {
       console.error("Error accessing media devices:", error);
+      if (error.name === "NotAllowedError") {
+        alert(
+          "Microphone access denied. Please allow microphone access to enable voice calls."
+        );
+      } else if (error.name === "NotFoundError") {
+        alert("No microphone found. Please ensure a microphone is connected.");
+      }
       throw error;
     }
   };
@@ -123,22 +141,39 @@ const ChatBox = ({
 
     peerConnection.current = new RTCPeerConnection(configuration);
 
-    // Add local stream to peer connection
     if (localStream.current) {
+      console.log("Local stream tracks:", localStream.current.getTracks());
       localStream.current.getTracks().forEach((track) => {
+        console.log("Adding track:", track);
         peerConnection.current.addTrack(track, localStream.current);
       });
+    } else {
+      console.error("No local stream available to add tracks");
     }
 
-    // Receive remote stream
     peerConnection.current.ontrack = (event) => {
       const remoteStream = event.streams[0];
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
+      console.log("Received remote stream tracks:", remoteStream.getTracks());
+      remoteStream.getAudioTracks().forEach((track) => {
+        console.log(
+          "Remote audio track enabled:",
+          track.enabled,
+          "muted:",
+          track.muted
+        );
+        track.enabled = true;
+      });
+      if (callType === "video" && remoteMediaRef.current) {
+        remoteMediaRef.current.srcObject = remoteStream;
+      } else if (callType === "audio") {
+        const audioElement = new Audio();
+        audioElement.srcObject = remoteStream;
+        audioElement.play().catch((error) => {
+          console.error("Error playing audio stream:", error);
+        });
       }
     };
 
-    // Handle ICE candidates
     peerConnection.current.onicecandidate = (event) => {
       if (event.candidate && socket.current?.readyState === WebSocket.OPEN) {
         socket.current.send(
@@ -154,7 +189,6 @@ const ChatBox = ({
       }
     };
 
-    // Create data channel for additional messaging
     dataChannel.current = peerConnection.current.createDataChannel("messages");
     dataChannel.current.onopen = () => {
       console.log("Data channel is open");
@@ -163,7 +197,6 @@ const ChatBox = ({
       console.log("Received message via data channel:", event.data);
     };
 
-    // Handle ICE connection state changes
     peerConnection.current.oniceconnectionstatechange = () => {
       console.log(
         "ICE connection state:",
@@ -450,7 +483,6 @@ const ChatBox = ({
     <div className="ChatBox-container">
       {chat ? (
         <>
-          {/* Chat header with call buttons */}
           <div className="chat-header">
             <div className="follower">
               <img
@@ -479,7 +511,6 @@ const ChatBox = ({
               </div>
             </div>
 
-            {/* Call buttons - only show when not in a call */}
             {callStatus === "idle" && (
               <div className="call-buttons">
                 <button
@@ -499,7 +530,6 @@ const ChatBox = ({
               </div>
             )}
 
-            {/* End call button - show during active call */}
             {callStatus === "in-progress" && (
               <button
                 className="call-btn end-call"
@@ -518,7 +548,6 @@ const ChatBox = ({
             />
           </div>
 
-          {/* Incoming call notification */}
           {callStatus === "incoming" &&
             !isCallInitiator &&
             incomingCallOffer && (
@@ -548,11 +577,10 @@ const ChatBox = ({
               </div>
             )}
 
-          {/* Video call container */}
           {callStatus === "in-progress" && callType === "video" && (
             <div className="video-call-container">
               <video
-                ref={remoteVideoRef}
+                ref={remoteMediaRef}
                 autoPlay
                 playsInline
                 className="remote-video"
@@ -574,24 +602,25 @@ const ChatBox = ({
             </div>
           )}
 
-          {/* Audio call indicator */}
           {callStatus === "in-progress" && callType === "audio" && (
-            <div className="audio-call-indicator">
-              <div className="audio-wave">
-                <div className="wave-bar"></div>
-                <div className="wave-bar"></div>
-                <div className="wave-bar"></div>
-                <div className="wave-bar"></div>
-                <div className="wave-bar"></div>
+            <div className="audio-call-container">
+              <audio ref={remoteMediaRef} autoPlay />
+              <div className="audio-call-indicator">
+                <div className="audio-wave">
+                  <div className="wave-bar"></div>
+                  <div className="wave-bar"></div>
+                  <div className="wave-bar"></div>
+                  <div className="wave-bar"></div>
+                  <div className="wave-bar"></div>
+                </div>
+                <p>Ongoing voice call with {userData?.Username}</p>
+                <button className="end-audio-call" onClick={endCall}>
+                  End Call
+                </button>
               </div>
-              <p>Ongoing voice call with {userData?.Username}</p>
-              <button className="end-audio-call" onClick={endCall}>
-                End Call
-              </button>
             </div>
           )}
 
-          {/* Chat body - hide during video call */}
           <div
             className={`chat-body ${
               callStatus === "in-progress" && callType === "video"
@@ -613,7 +642,6 @@ const ChatBox = ({
             ))}
           </div>
 
-          {/* Chat sender - hide during video call */}
           <div
             className={`chat-sender ${
               callStatus === "in-progress" && callType === "video"

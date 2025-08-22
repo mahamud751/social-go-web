@@ -34,7 +34,9 @@ const Chat = () => {
 
   // Connect to WebSocket
   useEffect(() => {
-    socket.current = new WebSocket("wss://go.dpremiumhomes.com/ws/ws");
+    socket.current = new WebSocket(
+      `wss://${process.env.REACT_APP_API_URL}/ws/ws`
+    );
 
     socket.current.onopen = () => {
       socket.current.send(
