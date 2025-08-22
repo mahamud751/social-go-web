@@ -34,7 +34,7 @@ const Chat = () => {
 
   // Connect to WebSocket
   useEffect(() => {
-    socket.current = new WebSocket("ws://localhost:5002/ws/ws");
+    socket.current = new WebSocket("wss://chat.pino10.shop/ws/ws");
 
     socket.current.onopen = () => {
       socket.current.send(
