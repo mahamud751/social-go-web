@@ -22,7 +22,7 @@ const MessengerAdd = ({ message, theme }) => {
 
     try {
       const profile = JSON.parse(localStorage.getItem("profile"));
-      await axios.post("http://localhost:5002/api/chat", newMember, {
+      await axios.post("https://go.dpremiumhomes.com/api/chat", newMember, {
         headers: {
           Authorization: `Bearer ${profile.token}`,
         },

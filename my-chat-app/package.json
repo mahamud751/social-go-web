@@ -23,6 +23,7 @@
     "react-scripts": "5.0.1",
     "redux": "^4.2.0",
     "redux-thunk": "^2.4.1",
+    "simple-peer": "^9.11.1",
     "socket.io-client": "^4.5.2",
     "sweetalert2": "^11.6.15",
     "sweetalert2-react-content": "^5.0.7",

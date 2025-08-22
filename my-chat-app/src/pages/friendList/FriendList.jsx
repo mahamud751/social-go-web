@@ -27,7 +27,7 @@ const FriendList = () => {
   }, [user.ID]);
 
   useEffect(() => {
-    socket.current = io("http://localhost:5002/api", {
+    socket.current = io("https://go.dpremiumhomes.com/api", {
       transports: ["websocket"],
       upgrade: false,
     });

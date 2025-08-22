@@ -1,11 +1,9 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
 import Conversation from "../../components/conversation/Conversation";
 import LogoSearch from "../../components/logoSearch/LogoSearch";
 import ChatBox from "../../components/chatBox/ChatBox";
 import NavIcons from "../../components/NavIcons/NavIcons";
-
 import "./chat.css";
 import { userChats } from "../../api/ChatRequest";
 
@@ -19,6 +17,7 @@ const Chat = () => {
   const [currentChat, setCurrentChat] = useState(null);
   const [sendMessage, setSendMessage] = useState(null);
   const [receivedMessage, setReceivedMessage] = useState(null);
+  const [callData, setCallData] = useState(null);
 
   // Get the chat in chat section
   useEffect(() => {
@@ -38,7 +37,6 @@ const Chat = () => {
     socket.current = new WebSocket("ws://localhost:5002/ws/ws");
 
     socket.current.onopen = () => {
-      // Notify server of new user
       socket.current.send(
         JSON.stringify({
           type: "new-user-add",
@@ -49,20 +47,94 @@ const Chat = () => {
 
     socket.current.onmessage = (event) => {
       const msg = JSON.parse(event.data);
-      console.log("WebSocket Message:", msg); // ← Log everything
-      if (msg.type === "get-users") {
-        const users = msg.data.map((uid) => ({ UserID: uid }));
-        setOnlineUsers(users);
-      } else if (msg.type === "receive-message") {
-        console.log("Received message:", msg.data); // ← Add this
-        if (msg.data && msg.data.chatId && msg.data.senderId) {
-          setReceivedMessage({
-            chatId: msg.data.chatId,
-            senderId: msg.data.senderId,
-            text: msg.data.text,
-            createdAt: msg.data.createdAt || new Date().toISOString(),
-          });
-        }
+      console.log("WebSocket Message:", msg);
+      switch (msg.type) {
+        case "get-users":
+          const users = msg.data.map((uid) => ({ UserID: uid }));
+          setOnlineUsers(users);
+          break;
+        case "receive-message":
+          if (
+            msg.data &&
+            msg.data.chatId &&
+            msg.data.senderId &&
+            msg.data.text
+          ) {
+            setReceivedMessage({
+              chatId: msg.data.chatId,
+              senderId: msg.data.senderId,
+              text: msg.data.text,
+              createdAt: msg.data.createdAt || new Date().toISOString(),
+            });
+          } else {
+            console.error("Invalid receive-message:", msg.data);
+          }
+          break;
+        case "incoming-call-offer":
+          if (
+            msg.data &&
+            msg.data.callerId &&
+            msg.data.offer &&
+            msg.data.offer.type &&
+            msg.data.offer.sdp &&
+            msg.data.callType &&
+            !callData // Only process if no active call
+          ) {
+            setCallData({
+              type: "incoming-call-offer",
+              callerId: msg.data.callerId,
+              offer: {
+                type: msg.data.offer.type,
+                sdp: msg.data.offer.sdp,
+              },
+              callType: msg.data.callType,
+            });
+          } else {
+            console.error(
+              "Invalid incoming-call-offer or call already in progress:",
+              {
+                callData,
+                msgData: msg.data,
+              }
+            );
+          }
+          break;
+        case "call-answer":
+          if (
+            msg.data &&
+            msg.data.answer &&
+            msg.data.answer.type &&
+            msg.data.answer.sdp
+          ) {
+            setCallData({
+              type: "call-answer",
+              answer: {
+                type: msg.data.answer.type,
+                sdp: msg.data.answer.sdp,
+              },
+            });
+          } else {
+            console.error("Invalid call-answer:", msg.data);
+          }
+          break;
+        case "new-ice-candidate":
+          if (msg.data && msg.data.candidate) {
+            setCallData({
+              type: "new-ice-candidate",
+              candidate: msg.data.candidate,
+            });
+          } else {
+            console.error("Invalid ice-candidate:", msg.data);
+          }
+          break;
+        case "call-declined":
+          setCallData({ type: "call-declined" });
+          break;
+        case "call-ended":
+          setCallData({ type: "call-ended" });
+          break;
+        default:
+          console.log("Unhandled WebSocket message type:", msg.type);
       }
     };
 
@@ -82,7 +154,7 @@ const Chat = () => {
   // Send message through WebSocket
   useEffect(() => {
     if (sendMessage && socket.current?.readyState === WebSocket.OPEN) {
-      console.log("sendMessage message:", sendMessage); // ← Add this
+      console.log("Sending message:", sendMessage);
       socket.current.send(
         JSON.stringify({
           type: "send-message",
@@ -91,14 +163,12 @@ const Chat = () => {
             receiverId: sendMessage.receiverId,
             senderId: sendMessage.senderId,
             text: sendMessage.text,
-            chatId: sendMessage.chatId, // Use chatId to match backend
+            chatId: sendMessage.chatId,
           },
         })
       );
     }
   }, [sendMessage]);
-
-  //
 
   const checkOnlineStatus = (chat) => {
     const chatMember = chat.Members.find((member) => member !== user.ID);
@@ -158,13 +228,11 @@ const Chat = () => {
                     </div>
                   </div>
                 </div>
-                {/* Left Side */}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Side Chat */}
         <div className="col-md-10">
           <div className="Right-side-chat">
             <ChatBox
@@ -172,6 +240,9 @@ const Chat = () => {
               currentUser={user.ID}
               setSendMessage={setSendMessage}
               receivedMessage={receivedMessage}
+              socket={socket}
+              callData={callData}
+              setCallData={setCallData}
             />
           </div>
         </div>
@@ -220,6 +291,9 @@ const Chat = () => {
                   currentUser={user.ID}
                   setSendMessage={setSendMessage}
                   receivedMessage={receivedMessage}
+                  socket={socket}
+                  callData={callData}
+                  setCallData={setCallData}
                 />
               </div>
             </div>
