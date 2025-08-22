@@ -35,7 +35,7 @@ const Notification = () => {
   const [persons, setPersons] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [error, setError] = useState(null);
-  const { user } = useSelector((state) => state.authReducer.authData);
+  const { user } = useSelector((state) => state?.authReducer?.authData);
   const navigate = useNavigate();
 
   // Fetch suggested users
@@ -72,7 +72,7 @@ const Notification = () => {
       setError("WebSocket connection closed");
     };
 
-    WebSocketService.connect(user.ID, handleMessage, handleError, handleClose);
+    WebSocketService.connect(user?.ID, handleMessage, handleError, handleClose);
 
     return () => {
       WebSocketService.disconnect();
