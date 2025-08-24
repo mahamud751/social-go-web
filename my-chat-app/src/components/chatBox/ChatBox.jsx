@@ -4,6 +4,7 @@ import { getUser } from "../../api/UserRequest";
 import "./chatBox.css";
 import { format } from "timeago.js";
 import InputEmoji from "react-input-emoji";
+import AgoraRTC from "agora-rtc-sdk-ng";
 
 const ChatBox = ({
   chat,
@@ -21,19 +22,31 @@ const ChatBox = ({
   const [isCallInitiator, setIsCallInitiator] = useState(false);
   const [callType, setCallType] = useState(null);
   const [incomingCallOffer, setIncomingCallOffer] = useState(null);
+  const [agoraToken, setAgoraToken] = useState(null);
   const localVideoRef = useRef();
   const remoteMediaRef = useRef();
-  const peerConnection = useRef();
-  const localStream = useRef();
-  const dataChannel = useRef();
   const scrollRef = useRef();
   const imageRef = useRef();
   const callTimeoutRef = useRef(null);
+  const agoraClient = useRef(null);
+  const localAudioTrack = useRef(null);
+  const localVideoTrack = useRef(null);
 
   const handleChange = (newMessage) => {
     setNewMessage(newMessage);
   };
 
+  // Initialize Agora client
+  useEffect(() => {
+    agoraClient.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+    return () => {
+      if (agoraClient.current) {
+        agoraClient.current.leave();
+      }
+    };
+  }, []);
+
+  // Fetch user data
   useEffect(() => {
     const userId = chat?.Members?.find((id) => id !== currentUser);
     const getUserData = async () => {
@@ -48,6 +61,7 @@ const ChatBox = ({
     if (chat !== null) getUserData();
   }, [chat, currentUser]);
 
+  // Fetch messages
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -61,10 +75,12 @@ const ChatBox = ({
     if (chat !== null) fetchMessages();
   }, [chat]);
 
+  // Auto-scroll to latest message
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Handle sending messages
   const handleSend = async (e) => {
     e.preventDefault();
     const message = {
@@ -83,162 +99,135 @@ const ChatBox = ({
     }
   };
 
+  // Handle received messages
   useEffect(() => {
     if (receivedMessage && receivedMessage.chatId === chat?.ID) {
       setMessages((prev) => [...prev, receivedMessage]);
     }
   }, [receivedMessage, chat?.ID]);
 
-  const getMediaStream = async (isVideo) => {
+  // Fetch Agora token
+  const fetchAgoraToken = async (channelName, role, uid) => {
     try {
-      const constraints = {
-        video: isVideo ? true : false,
-        audio: true,
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      localStream.current = stream;
-      const audioTracks = stream.getAudioTracks();
-      console.log("Local stream audio tracks:", audioTracks);
-      if (audioTracks.length === 0) {
-        console.error("No audio tracks found in stream");
-        alert("No audio input device detected. Please check your microphone.");
+      const response = await fetch(
+        `/agora-token/${channelName}/${role}/${uid}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            // Add authorization headers if needed
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.token && data.appId) {
+        return data;
+      } else {
+        throw new Error("Failed to fetch Agora token");
       }
-      audioTracks.forEach((track) => {
-        console.log("Audio track:", {
-          enabled: track.enabled,
-          muted: track.muted,
-        });
-        track.enabled = true;
-      });
-      if (isVideo && localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-      return stream;
     } catch (error) {
-      console.error("Error accessing media devices:", error);
-      if (error.name === "NotAllowedError") {
-        alert(
-          "Microphone access denied. Please allow microphone access for voice calls."
-        );
-      } else if (error.name === "NotFoundError") {
-        alert("No microphone found. Please ensure a microphone is connected.");
-      }
+      console.error("Error fetching Agora token:", error);
       throw error;
     }
   };
 
-  const createPeerConnection = () => {
-    const configuration = {
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        // Add TURN server for testing
-        {
-          urls: "turn:numb.viagenie.ca",
-          username: "your-username",
-          credential: "your-password",
-        },
-      ],
-    };
-
-    peerConnection.current = new RTCPeerConnection(configuration);
-
-    if (localStream.current) {
-      console.log("Local stream tracks:", localStream.current.getTracks());
-      localStream.current.getTracks().forEach((track) => {
-        console.log("Adding track to peer connection:", track);
-        peerConnection.current.addTrack(track, localStream.current);
-      });
-    } else {
-      console.error("No local stream available to add tracks");
-    }
-
-    peerConnection.current.ontrack = (event) => {
-      const remoteStream = event.streams[0];
-      console.log("Received remote stream tracks:", remoteStream.getTracks());
-      remoteStream.getAudioTracks().forEach((track) => {
-        console.log("Remote audio track:", {
-          enabled: track.enabled,
-          muted: track.muted,
-        });
-        track.enabled = true;
-      });
-      if (callType === "video" && remoteMediaRef.current) {
-        remoteMediaRef.current.srcObject = remoteStream;
-      } else if (callType === "audio" && remoteMediaRef.current) {
-        remoteMediaRef.current.srcObject = remoteStream;
-        remoteMediaRef.current.play().catch((error) => {
-          console.error("Error playing remote audio stream:", error);
-        });
-      }
-    };
-
-    peerConnection.current.onicecandidate = (event) => {
-      if (event.candidate && socket.current?.readyState === WebSocket.OPEN) {
-        console.log("Sending ICE candidate:", event.candidate);
-        socket.current.send(
-          JSON.stringify({
-            type: "ice-candidate",
-            userId: currentUser,
-            data: {
-              targetId: chat.Members.find((id) => id !== currentUser),
-              candidate: event.candidate,
-            },
-          })
-        );
-      }
-    };
-
-    dataChannel.current = peerConnection.current.createDataChannel("messages");
-    dataChannel.current.onopen = () => {
-      console.log("Data channel is open");
-    };
-    dataChannel.current.onmessage = (event) => {
-      console.log("Received message via data channel:", event.data);
-    };
-
-    peerConnection.current.oniceconnectionstatechange = () => {
-      console.log(
-        "ICE connection state:",
-        peerConnection.current.iceConnectionState
+  // Join Agora channel
+  const joinAgoraChannel = async (channelName, token, uid) => {
+    try {
+      await agoraClient.current.join(
+        process.env.REACT_APP_AGORA_APP_ID,
+        channelName,
+        token,
+        uid
       );
-      if (
-        peerConnection.current.iceConnectionState === "disconnected" ||
-        peerConnection.current.iceConnectionState === "failed"
-      ) {
-        endCall();
+      console.log("Joined Agora channel:", channelName);
+
+      // Create and publish local tracks
+      if (callType === "audio" || callType === "video") {
+        localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack();
+        if (callType === "video") {
+          localVideoTrack.current = await AgoraRTC.createCameraVideoTrack();
+          localVideoTrack.current.play(localVideoRef.current);
+        }
+        await agoraClient.current.publish([
+          localAudioTrack.current,
+          ...(callType === "video" ? [localVideoTrack.current] : []),
+        ]);
       }
-    };
+    } catch (error) {
+      console.error("Error joining Agora channel:", error);
+      throw error;
+    }
   };
 
+  // Handle remote users joining
+  useEffect(() => {
+    agoraClient.current.on("user-published", async (user, mediaType) => {
+      await agoraClient.current.subscribe(user, mediaType);
+      console.log(
+        "Subscribed to remote user:",
+        user.uid,
+        "mediaType:",
+        mediaType
+      );
+      if (mediaType === "video") {
+        user.videoTrack.play(remoteMediaRef.current);
+      }
+      if (mediaType === "audio") {
+        user.audioTrack.play();
+      }
+    });
+
+    agoraClient.current.on("user-unpublished", (user, mediaType) => {
+      console.log(
+        "Remote user unpublished:",
+        user.uid,
+        "mediaType:",
+        mediaType
+      );
+    });
+
+    agoraClient.current.on("user-left", (user, reason) => {
+      console.log("Remote user left:", user.uid, "reason:", reason);
+      endCall();
+    });
+  }, []);
+
+  // Start a call
   const startCall = async (type) => {
     try {
       setCallType(type);
       setIsCallInitiator(true);
       setCallStatus("calling");
 
-      await getMediaStream(type === "video");
-      createPeerConnection();
+      const channelName = `chat_${chat.ID}_${Date.now()}`;
+      const tokenData = await fetchAgoraToken(
+        channelName,
+        "publisher",
+        currentUser
+      );
+      setAgoraToken(tokenData.token);
 
-      const offer = await peerConnection.current.createOffer();
-      await peerConnection.current.setLocalDescription(offer);
+      await joinAgoraChannel(channelName, tokenData.token, currentUser);
 
       const receiverId = chat.Members.find((id) => id !== currentUser);
       socket.current.send(
         JSON.stringify({
-          type: "call-offer",
+          type: "agora-signal",
           userId: currentUser,
           data: {
-            receiverId: receiverId,
-            offer: {
-              type: offer.type,
-              sdp: offer.sdp,
-            },
+            action: "call-request",
+            targetId: receiverId,
+            channel: channelName,
             callType: type,
-            senderId: currentUser,
           },
         })
       );
+
+      callTimeoutRef.current = setTimeout(() => {
+        console.log("Call timed out");
+        endCall();
+      }, 30000);
     } catch (error) {
       console.error("Error starting call:", error);
       alert(
@@ -248,48 +237,42 @@ const ChatBox = ({
     }
   };
 
+  // Answer a call
   const answerCall = async () => {
     try {
       if (
         callStatus !== "incoming" ||
         !incomingCallOffer ||
-        !incomingCallOffer.offer ||
-        !incomingCallOffer.offer.type ||
-        !incomingCallOffer.offer.sdp ||
+        !incomingCallOffer.channel ||
         !incomingCallOffer.callerId
       ) {
-        throw new Error("Invalid or missing offer data");
+        throw new Error("Invalid or missing call data");
       }
 
       setCallStatus("in-progress");
       setCallType(incomingCallOffer.callType);
-      await getMediaStream(incomingCallOffer.callType === "video");
-      createPeerConnection();
 
-      console.log(
-        "Setting remote description with offer:",
-        incomingCallOffer.offer
+      const tokenData = await fetchAgoraToken(
+        incomingCallOffer.channel,
+        "publisher",
+        currentUser
       );
-      await peerConnection.current.setRemoteDescription(
-        new RTCSessionDescription({
-          type: incomingCallOffer.offer.type,
-          sdp: incomingCallOffer.offer.sdp,
-        })
-      );
+      setAgoraToken(tokenData.token);
 
-      const answer = await peerConnection.current.createAnswer();
-      await peerConnection.current.setLocalDescription(answer);
+      await joinAgoraChannel(
+        incomingCallOffer.channel,
+        tokenData.token,
+        currentUser
+      );
 
       socket.current.send(
         JSON.stringify({
-          type: "call-answer",
+          type: "agora-signal",
           userId: currentUser,
           data: {
-            callerId: incomingCallOffer.callerId,
-            answer: {
-              type: answer.type,
-              sdp: answer.sdp,
-            },
+            action: "call-accepted",
+            targetId: incomingCallOffer.callerId,
+            channel: incomingCallOffer.channel,
           },
         })
       );
@@ -308,6 +291,7 @@ const ChatBox = ({
     }
   };
 
+  // Decline a call
   const declineCall = () => {
     if (
       incomingCallOffer?.callerId &&
@@ -315,10 +299,12 @@ const ChatBox = ({
     ) {
       socket.current.send(
         JSON.stringify({
-          type: "decline-call",
+          type: "agora-signal",
           userId: currentUser,
           data: {
-            callerId: incomingCallOffer.callerId,
+            action: "call-rejected",
+            targetId: incomingCallOffer.callerId,
+            channel: incomingCallOffer.channel,
           },
         })
       );
@@ -333,23 +319,30 @@ const ChatBox = ({
     }
   };
 
+  // End a call
   const endCall = () => {
-    if (localStream.current) {
-      localStream.current.getTracks().forEach((track) => track.stop());
-      localStream.current = null;
+    if (localAudioTrack.current) {
+      localAudioTrack.current.close();
+      localAudioTrack.current = null;
     }
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
+    if (localVideoTrack.current) {
+      localVideoTrack.current.close();
+      localVideoTrack.current = null;
+    }
+    if (agoraClient.current) {
+      agoraClient.current.leave();
     }
     const peerId = chat?.Members.find((id) => id !== currentUser);
     if (peerId && socket.current?.readyState === WebSocket.OPEN) {
       socket.current.send(
         JSON.stringify({
-          type: "end-call",
+          type: "agora-signal",
           userId: currentUser,
           data: {
-            peerId: peerId,
+            action: "call-ended",
+            targetId: peerId,
+            channel:
+              incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`,
           },
         })
       );
@@ -359,12 +352,14 @@ const ChatBox = ({
     setIsCallInitiator(false);
     setIncomingCallOffer(null);
     setCallData(null);
+    setAgoraToken(null);
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
     }
   };
 
+  // Handle Agora signaling through WebSocket
   useEffect(() => {
     if (callData) {
       console.log(
@@ -376,92 +371,43 @@ const ChatBox = ({
         isCallInitiator
       );
       switch (callData.type) {
-        case "incoming-call-offer":
-          if (
-            chat?.Members.includes(callData.callerId) &&
-            callData.offer &&
-            callData.offer.type &&
-            callData.offer.sdp &&
-            callData.callType &&
-            callStatus === "idle"
-          ) {
-            console.log("Processing incoming-call-offer:", callData);
+        case "agora-signal":
+          const {
+            action,
+            channel,
+            callType: incomingCallType,
+            targetId,
+          } = callData.data;
+          if (action === "call-request" && callStatus === "idle") {
             setCallStatus("incoming");
-            setCallType(callData.callType);
+            setCallType(incomingCallType);
             setIncomingCallOffer({
-              callerId: callData.callerId,
-              offer: callData.offer,
-              callType: callData.callType,
+              callerId: callData.userId,
+              channel,
+              callType: incomingCallType,
             });
             callTimeoutRef.current = setTimeout(() => {
               console.log("Incoming call timed out");
               declineCall();
             }, 30000);
-          } else {
-            console.error(
-              "Invalid incoming call offer or call already in progress:",
-              {
-                callData,
-                callStatus,
-              }
-            );
-            setCallData(null);
-          }
-          break;
-        case "call-answer":
-          if (
-            isCallInitiator &&
-            peerConnection.current &&
-            callData.answer &&
-            callData.answer.type &&
-            callData.answer.sdp
-          ) {
-            console.log("Processing call-answer:", callData.answer);
-            peerConnection.current
-              .setRemoteDescription(
-                new RTCSessionDescription({
-                  type: callData.answer.type,
-                  sdp: callData.answer.sdp,
-                })
-              )
-              .catch((error) => {
-                console.error("Error setting remote answer:", error);
-                endCall();
-              });
+          } else if (action === "call-accepted" && isCallInitiator) {
             setCallStatus("in-progress");
-          } else {
-            console.error("Invalid call answer:", callData);
-            setCallData(null);
-          }
-          break;
-        case "new-ice-candidate":
-          if (
-            peerConnection.current &&
-            callData.candidate &&
-            callStatus === "in-progress"
-          ) {
-            console.log("Adding ICE candidate:", callData.candidate);
-            peerConnection.current
-              .addIceCandidate(new RTCIceCandidate(callData.candidate))
-              .catch((error) => {
-                console.error("Error adding ICE candidate:", error);
-              });
-          }
-          break;
-        case "call-declined":
-          if (isCallInitiator) {
-            console.log("Call declined by peer");
+            if (callTimeoutRef.current) {
+              clearTimeout(callTimeoutRef.current);
+              callTimeoutRef.current = null;
+            }
+          } else if (action === "call-rejected" && isCallInitiator) {
+            console.log("Call rejected by peer");
             endCall();
-          }
-          break;
-        case "call-ended":
-          if (callStatus === "incoming" && incomingCallOffer) {
-            console.log("Caller ended call before answering");
-            alert(`${userData?.Username || "Caller"} hung up`);
-            declineCall();
-          } else if (callStatus !== "idle") {
-            console.log("Call ended by peer");
-            endCall();
+          } else if (action === "call-ended") {
+            if (callStatus === "incoming" && incomingCallOffer) {
+              console.log("Caller ended call before answering");
+              alert(`${userData?.Username || "Caller"} hung up`);
+              declineCall();
+            } else if (callStatus !== "idle") {
+              console.log("Call ended by peer");
+              endCall();
+            }
           }
           break;
         default:

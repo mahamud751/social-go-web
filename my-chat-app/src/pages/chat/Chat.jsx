@@ -34,9 +34,7 @@ const Chat = () => {
 
   // Connect to WebSocket
   useEffect(() => {
-    socket.current = new WebSocket(
-      `wss://${process.env.REACT_APP_API_URL}/ws/ws`
-    );
+    socket.current = new WebSocket(`wss://${process.env.REACT_APP_API_URL}/ws`);
 
     socket.current.onopen = () => {
       socket.current.send(
@@ -72,68 +70,21 @@ const Chat = () => {
             console.error("Invalid receive-message:", msg.data);
           }
           break;
-        case "incoming-call-offer":
+        case "agora-signal":
           if (
             msg.data &&
-            msg.data.callerId &&
-            msg.data.offer &&
-            msg.data.offer.type &&
-            msg.data.offer.sdp &&
-            msg.data.callType &&
-            !callData // Only process if no active call
+            msg.data.action &&
+            msg.data.targetId &&
+            msg.data.channel
           ) {
             setCallData({
-              type: "incoming-call-offer",
-              callerId: msg.data.callerId,
-              offer: {
-                type: msg.data.offer.type,
-                sdp: msg.data.offer.sdp,
-              },
-              callType: msg.data.callType,
+              type: "agora-signal",
+              userId: msg.userId,
+              data: msg.data,
             });
           } else {
-            console.error(
-              "Invalid incoming-call-offer or call already in progress:",
-              {
-                callData,
-                msgData: msg.data,
-              }
-            );
+            console.error("Invalid agora-signal:", msg.data);
           }
-          break;
-        case "call-answer":
-          if (
-            msg.data &&
-            msg.data.answer &&
-            msg.data.answer.type &&
-            msg.data.answer.sdp
-          ) {
-            setCallData({
-              type: "call-answer",
-              answer: {
-                type: msg.data.answer.type,
-                sdp: msg.data.answer.sdp,
-              },
-            });
-          } else {
-            console.error("Invalid call-answer:", msg.data);
-          }
-          break;
-        case "new-ice-candidate":
-          if (msg.data && msg.data.candidate) {
-            setCallData({
-              type: "new-ice-candidate",
-              candidate: msg.data.candidate,
-            });
-          } else {
-            console.error("Invalid ice-candidate:", msg.data);
-          }
-          break;
-        case "call-declined":
-          setCallData({ type: "call-declined" });
-          break;
-        case "call-ended":
-          setCallData({ type: "call-ended" });
           break;
         default:
           console.log("Unhandled WebSocket message type:", msg.type);
