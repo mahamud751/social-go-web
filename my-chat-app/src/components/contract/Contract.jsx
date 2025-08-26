@@ -34,7 +34,7 @@ const Contract = ({ data, currentUser, online }) => {
               src={
                 userData?.ProfilePicture
                   ? userData.ProfilePicture
-                  : "defaultProfile.png"
+                  : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
               }
               alt="Profile"
               className="followerImage"

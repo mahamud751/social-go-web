@@ -10,7 +10,7 @@ import AddMessenger from "./pages/addMessenger/AddMessenger";
 import FriendList from "./pages/friendList/FriendList";
 import FriendRequests from "./pages/RequestList/FriendRequests";
 import ThemeToggle from "./components/ThemeToggle";
-import Notification from "./components/Notification";
+import Notification from "./components/Notification/Notification";
 
 function App({ toggleTheme, theme }) {
   const user = useSelector((state) => state.authReducer.authData);

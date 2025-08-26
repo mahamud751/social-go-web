@@ -109,21 +109,37 @@ const ChatBox = ({
   // Fetch Agora token
   const fetchAgoraToken = async (channelName, role, uid) => {
     try {
-      const response = await fetch(
-        `/agora-token/${channelName}/${role}/${uid}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            // Add authorization headers if needed
-          },
-        }
+      console.log(
+        "Fetching token for uid:",
+        uid,
+        "channel:",
+        channelName,
+        "role:",
+        role
       );
+      const apiUrl = `https://${
+        process.env.REACT_APP_API_URL
+      }/api/agora-token/${encodeURIComponent(channelName)}/${encodeURIComponent(
+        role
+      )}/${encodeURIComponent(uid)}`;
+      console.log("Fetching token from URL:", apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
       const data = await response.json();
+      console.log("Token response:", data);
       if (data.token && data.appId) {
         return data;
       } else {
-        throw new Error("Failed to fetch Agora token");
+        throw new Error("Invalid token response: " + JSON.stringify(data));
       }
     } catch (error) {
       console.error("Error fetching Agora token:", error);
@@ -201,16 +217,36 @@ const ChatBox = ({
       setCallStatus("calling");
 
       const channelName = `chat_${chat.ID}_${Date.now()}`;
+      console.log(
+        "Starting call with channel:",
+        channelName,
+        "type:",
+        type,
+        "uid:",
+        currentUser
+      );
+
+      // Fetch Agora token
       const tokenData = await fetchAgoraToken(
         channelName,
         "publisher",
         currentUser
       );
+      console.log("Token fetched:", tokenData);
       setAgoraToken(tokenData.token);
 
+      // Join Agora channel
       await joinAgoraChannel(channelName, tokenData.token, currentUser);
+      console.log("Joined channel successfully");
 
+      // Send call-request signal
       const receiverId = chat.Members.find((id) => id !== currentUser);
+      if (!receiverId) {
+        throw new Error("Receiver ID not found");
+      }
+      if (socket.current?.readyState !== WebSocket.OPEN) {
+        throw new Error("WebSocket is not open");
+      }
       socket.current.send(
         JSON.stringify({
           type: "agora-signal",
@@ -223,6 +259,7 @@ const ChatBox = ({
           },
         })
       );
+      console.log("Sent call-request signal to:", receiverId);
 
       callTimeoutRef.current = setTimeout(() => {
         console.log("Call timed out");
@@ -231,7 +268,7 @@ const ChatBox = ({
     } catch (error) {
       console.error("Error starting call:", error);
       alert(
-        "Failed to start call. Please check your microphone and camera permissions."
+        `Failed to start call: ${error.message}. Please check your microphone and camera permissions.`
       );
       endCall();
     }
