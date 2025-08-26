@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useNavigate } from "react-router-dom";
+import HomeMenu from "../../components/HomeMenu/HomeMenu";
 
 const FriendRequests = () => {
   const { user } = useSelector((state) => state.authReducer.authData);
@@ -131,93 +132,113 @@ const FriendRequests = () => {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 3,
-          }}
-        >
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: "bold", color: "primary.main" }}
+    <div className="row">
+      <div className="col-md-3 mt-3">
+        <HomeMenu />
+      </div>
+      <div className="col-md-9 mt-5" style={{ height: "auto" }}>
+        <Box p={4}>
+          <Paper
+            className="MuiCard-root"
+            sx={{
+              alignItems: "center",
+              borderRadius: 2,
+              mx: "auto",
+              p: 4,
+              boxShadow: "0 4px 20px var(--profileShadow)", // From App.css
+            }}
           >
-            Friend Requests
-          </Typography>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchRequests}
-            sx={{ borderRadius: 2 }}
-          >
-            Refresh
-          </Button>
-        </Box>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {requests.length === 0 ? (
-          <Typography variant="body1" color="text.secondary">
-            No pending friend requests.
-          </Typography>
-        ) : (
-          <List sx={{ maxHeight: "60vh", overflowY: "auto" }}>
-            {requests.map((request) => (
-              <ListItem
-                key={request.id}
-                sx={{
-                  bgcolor: "grey.50",
-                  borderRadius: 1,
-                  mb: 1,
-                  "&:hover": { bgcolor: "grey.100" },
-                }}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+              }}
+            >
+              <Typography
+                variant="h4"
+                sx={{ fontWeight: "bold", color: "primary.main" }}
               >
-                <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: "primary.main" }} />
-                </ListItemAvatar>
-                <ListItemText
-                  primary={
-                    <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-                      {request.senderName || "Unknown User"}
-                    </Typography>
-                  }
-                  secondary={
-                    <Typography variant="caption" color="text.secondary">
-                      Received: {new Date(request.createdAt).toLocaleString()}
-                    </Typography>
-                  }
-                />
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    onClick={() => handleAccept(request.id)}
-                    sx={{ borderRadius: 2 }}
+                Friend Requests
+              </Typography>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={fetchRequests}
+                sx={{ borderRadius: 2 }}
+              >
+                Refresh
+              </Button>
+            </Box>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            {requests.length === 0 ? (
+              <Typography variant="body1" color="text.secondary">
+                No pending friend requests.
+              </Typography>
+            ) : (
+              <List sx={{ maxHeight: "60vh", overflowY: "auto" }}>
+                {requests.map((request) => (
+                  <ListItem
+                    key={request.id}
+                    sx={{
+                      bgcolor: "grey.50",
+                      borderRadius: 1,
+                      mb: 1,
+                      "&:hover": { bgcolor: "grey.100" },
+                    }}
                   >
-                    Accept
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    size="small"
-                    onClick={() => handleReject(request.id)}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    Reject
-                  </Button>
-                </Box>
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </Paper>
-    </Container>
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: "primary.main" }} />
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant="subtitle1"
+                          sx={{ fontWeight: "bold" }}
+                        >
+                          {request.senderName || "Unknown User"}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography variant="caption" color="text.secondary">
+                          Received:{" "}
+                          {new Date(request.createdAt).toLocaleString()}
+                        </Typography>
+                      }
+                    />
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={() => handleAccept(request.id)}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => handleReject(request.id)}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Reject
+                      </Button>
+                    </Box>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Paper>
+        </Box>
+      </div>
+    </div>
   );
 };
 

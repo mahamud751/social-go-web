@@ -134,7 +134,7 @@ const Chat = () => {
   return (
     <div style={{ width: "100%" }} className="mt-5">
       {/* Desktop View */}
-      <div className="navbar_lg">
+      {/* <div className="navbar_lg">
         <div>
           <i
             className="fa-solid fa-bars fs-2"
@@ -201,7 +201,7 @@ const Chat = () => {
             />
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Mobile View */}
       <div className="">

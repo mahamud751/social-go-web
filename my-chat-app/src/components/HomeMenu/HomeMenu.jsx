@@ -211,7 +211,7 @@ const HomeMenu = ({ location }) => {
                       </Link>
                     </ListItem>
 
-                    <ListItem disablePadding>
+                    {/* <ListItem disablePadding>
                       <Link to={"/friend_list"} style={{ width: "100%" }}>
                         <ListItemButton>
                           <ListItemIcon>
@@ -220,7 +220,7 @@ const HomeMenu = ({ location }) => {
                           <ListItemText primary="Friend List" />
                         </ListItemButton>
                       </Link>
-                    </ListItem>
+                    </ListItem> */}
 
                     <ListItem disablePadding>
                       <Link to={"/addMessenger"} style={{ width: "100%" }}>
@@ -373,7 +373,7 @@ const HomeMenu = ({ location }) => {
                   </ListItemButton>
                 </Link>
               </ListItem>
-              <ListItem disablePadding>
+              {/* <ListItem disablePadding>
                 <Link to={"/friend_list"} style={{ width: "100%" }}>
                   <ListItemButton>
                     <ListItemIcon>
@@ -382,7 +382,7 @@ const HomeMenu = ({ location }) => {
                     <ListItemText primary="Friend List" />
                   </ListItemButton>
                 </Link>
-              </ListItem>
+              </ListItem> */}
 
               <ListItem disablePadding>
                 <Link to={"/addMessenger"} style={{ width: "100%" }}>
