@@ -323,7 +323,8 @@ const ChatBox = ({
       );
       const uidStr = typeof uid === "number" ? uid.toString() : uid;
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/agora-token/${channelName}/${role}/${uidStr}`,
+        `
+https://${process.env.REACT_APP_API_URL}/api/agora-token/${channelName}/${role}/${uidStr}`,
         {
           method: "GET",
           headers: {
