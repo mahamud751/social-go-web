@@ -170,41 +170,30 @@ const Notification = () => {
   const isDarkTheme = currentTheme === "dark";
 
   return (
-    <div className="rightSide5" style={{ width: "22%", padding: "0 16px" }}>
-      <div
-        className="rightSide"
-        style={{ display: "flex", alignItems: "center" }}
-      >
-        <div className="navIcons">
-          <Badge
-            badgeContent={unreadCount}
-            sx={{
-              "& .MuiBadge-badge": {
-                backgroundColor: "var(--orange)",
-                color: "#FFFFFF",
-                fontSize: "0.75rem",
-                minWidth: "18px",
-                height: "18px",
-                padding: "0 4px",
-              },
-            }}
-          >
-            <NotificationsIcon
-              className="navIcons-img notification-icon"
+    <div className="notification-wrapper">
+      <div className="notification-container">
+        <Badge
+          badgeContent={unreadCount}
+          sx={{
+            "& .MuiBadge-badge": {
+              backgroundColor: "var(--orange)",
+              color: "#FFFFFF",
+              fontSize: "0.7rem",
+              minWidth: "16px",
+              height: "16px",
+              padding: "0 2px",
+              top: "6px",
+              right: "6px",
+            },
+          }}
+        >
+          <div className="notification-icon-wrapper">
+            <i
+              className="fa-solid fa-bell notification-icon"
               onClick={() => setModalOpened(true)}
-              sx={{
-                fontSize: "28px",
-                color: "var(--text-color)",
-                cursor: "pointer",
-                "&:hover": {
-                  color: "var(--yellow)",
-                  transform: "scale(1.1)",
-                  transition: "all 0.2s ease-in-out",
-                },
-              }}
-            />
-          </Badge>
-        </div>
+            ></i>
+          </div>
+        </Badge>
       </div>
 
       <Modal

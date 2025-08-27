@@ -11,24 +11,33 @@ import FriendList from "./pages/friendList/FriendList";
 import FriendRequests from "./pages/RequestList/FriendRequests";
 import ThemeToggle from "./components/ThemeToggle";
 import Notification from "./components/Notification/Notification";
+import NavIcons from "./components/NavIcons/NavIcons";
 
 function App({ toggleTheme, theme }) {
   const user = useSelector((state) => state.authReducer.authData);
   return (
     <div className="App">
-      <div
-        style={{
-          position: "fixed",
-          top: "0",
-          right: "0",
-          zIndex: "1000",
-          display: "flex",
-          justifyContent: "flex-end",
-          width: "100%",
-        }}
-      >
-        <Notification />
-        <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+      {/* Desktop Navigation - Top Center with Gradient */}
+      <div className="desktop-nav">
+        <div className="nav-content">
+          <div className="nav-spacer"></div>
+          <NavIcons />
+          <div className="nav-controls">
+            <Notification />
+            <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Top Bar for Notification and Theme Toggle */}
+      <div className="mobile-top-bar">
+        <div className="mobile-top-content">
+          <div className="mobile-spacer"></div>
+          <div className="mobile-controls">
+            <Notification />
+            <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+          </div>
+        </div>
       </div>
       <Routes>
         <Route
@@ -70,6 +79,11 @@ function App({ toggleTheme, theme }) {
           element={user ? <AddMessenger /> : <Navigate to="../auth" />}
         />
       </Routes>
+
+      {/* Mobile Navigation - Bottom Footer */}
+      <div className="mobile-nav">
+        <NavIcons />
+      </div>
     </div>
   );
 }

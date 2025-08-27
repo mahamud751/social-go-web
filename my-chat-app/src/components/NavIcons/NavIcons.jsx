@@ -1,27 +1,34 @@
 import React from "react";
-import Noti from "../../img/noti.png";
-import Setting from "../../img/setting.png";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import "./NavIcons.css";
 
 const NavIcons = () => {
+  const location = useLocation();
+
+  const isActive = (path) => {
+    return (
+      location.pathname === path ||
+      (path === "/home" && location.pathname === "/")
+    );
+  };
+
   return (
     <div className="navIcons">
-      <Link to="/home">
+      <Link to="/home" className={isActive("/home") ? "active" : ""}>
         <i className="fa-solid fa-house icon_bg"></i>
       </Link>
-      <img src={Setting} alt="" />
-      <img src={Noti} alt="" />
-      <Link to="../chat">
+      <Link to="/chat" className={isActive("/chat") ? "active" : ""}>
         <i className="fa-solid fa-message icon_bg"></i>
       </Link>
-      {/* <Link to="../home">
-        <img src={Home} alt="" />
+      <Link to="/friend" className={isActive("/friend") ? "active" : ""}>
+        <i className="fa-solid fa-user-group icon_bg"></i>
       </Link>
-      <UilSetting />
-      <img src={Noti} alt="" />
-      <Link to="../chat">
-        <img src={Comment} alt="" />
-      </Link> */}
+      <Link
+        to="/profile/1"
+        className={location.pathname.startsWith("/profile") ? "active" : ""}
+      >
+        <i className="fa-solid fa-user icon_bg"></i>
+      </Link>
     </div>
   );
 };

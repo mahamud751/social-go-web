@@ -92,3 +92,320 @@ h6 {
   text-decoration: none;
   color: var(--text-color);
 }
+
+/* Desktop Navigation - Top Center with Gradient */
+.desktop-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  padding: 16px 0;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 120px;
+  justify-content: flex-end;
+}
+
+.desktop-nav .navIcons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  flex: 1;
+  max-width: 400px;
+}
+
+.desktop-nav .navIcons a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.desktop-nav .navIcons a::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.desktop-nav .navIcons a:hover::before {
+  left: 100%;
+}
+
+.desktop-nav .navIcons a:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.desktop-nav .navIcons i {
+  color: white !important;
+  font-size: 22px;
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+
+.desktop-nav .navIcons a:hover i {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+}
+
+/* Enhanced styles for desktop nav controls */
+.desktop-nav .nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 120px;
+  justify-content: flex-end;
+}
+
+.desktop-nav .nav-controls > * {
+  /* Remove individual background as components now handle their own styling */
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.desktop-nav .nav-controls > *:hover {
+  transform: translateY(-1px);
+}
+
+.nav-spacer {
+  min-width: 120px;
+}
+
+/* Mobile Top Bar for Notification and Theme Toggle */
+.mobile-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 12px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-top-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.mobile-spacer {
+  flex: 1;
+}
+
+.mobile-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-controls > * {
+  /* Remove individual background as components now handle their own styling */
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.mobile-controls > *:hover {
+  transform: translateY(-1px);
+}
+
+/* Dark theme for mobile top bar */
+:root[data-theme="dark"] .mobile-top-bar {
+  background: rgba(24, 25, 26, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile Navigation - Bottom Footer */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 16px 0;
+  box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-nav .navIcons {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 24px;
+}
+
+.mobile-nav .navIcons a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-nav .navIcons a:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.mobile-nav .navIcons i {
+  color: var(--black) !important;
+  font-size: 24px;
+  transition: all 0.3s ease;
+}
+
+.mobile-nav .navIcons a:hover i {
+  color: white !important;
+  transform: scale(1.1);
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+  .desktop-nav {
+    display: none;
+  }
+
+  .mobile-nav {
+    display: block;
+  }
+
+  .mobile-top-bar {
+    display: block;
+  }
+
+  /* Add padding to prevent content from being hidden */
+  .App {
+    padding-top: 60px;
+    padding-bottom: 90px;
+  }
+}
+
+@media screen and (min-width: 769px) {
+  .mobile-nav {
+    display: none;
+  }
+
+  .mobile-top-bar {
+    display: none;
+  }
+
+  .desktop-nav {
+    display: block;
+  }
+
+  /* Add top padding to prevent content from being hidden behind desktop nav */
+  .App {
+    padding-top: 90px;
+    padding-bottom: 0;
+  }
+}
+
+/* Specific adjustments for larger screens */
+@media screen and (min-width: 1200px) {
+  .nav-content {
+    max-width: 1200px;
+    padding: 0 40px;
+  }
+
+  .desktop-nav .navIcons {
+    gap: 40px;
+  }
+}
+
+@media screen and (min-width: 1440px) {
+  .nav-content {
+    max-width: 1300px;
+    padding: 0 60px;
+  }
+
+  .desktop-nav .navIcons {
+    gap: 48px;
+    max-width: 500px;
+  }
+
+  .nav-controls {
+    gap: 20px;
+    min-width: 140px;
+  }
+}
+
+/* Ultra-wide screen support */
+@media screen and (min-width: 1920px) {
+  .nav-content {
+    max-width: 1600px;
+    padding: 0 80px;
+  }
+
+  .desktop-nav .navIcons {
+    max-width: 600px;
+  }
+}
+
+/* Dark theme adjustments for mobile nav */
+:root[data-theme="dark"] .mobile-nav {
+  background: rgba(24, 25, 26, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .mobile-nav .navIcons a {
+  background: linear-gradient(135deg, #2c2c2c 0%, #3a3a3a 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .mobile-nav .navIcons a:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+:root[data-theme="dark"] .mobile-nav .navIcons i {
+  color: var(--text-color) !important;
+}
+
+:root[data-theme="dark"] .mobile-nav .navIcons a:hover i {
+  color: white !important;
+}

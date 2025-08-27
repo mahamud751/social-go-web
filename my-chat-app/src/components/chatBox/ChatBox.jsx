@@ -1,44 +1,42 @@
-import React, { useEffect, useState, useRef } from "react";
+import {
+  Add as AddIcon,
+  CallEnd as CallEndIcon,
+  CheckCircle as CheckCircleIcon,
+  Close as CloseIcon,
+  Error as ErrorIcon,
+  Info as InfoIcon,
+  Mic as MicIcon,
+  MicOff as MicOffIcon,
+  Phone as PhoneIcon,
+  Send as SendIcon,
+  Videocam as VideocamIcon,
+  VideocamOff as VideocamOffIcon,
+  Videocam as VideocamOnIcon,
+  VolumeUp as VolumeUpIcon,
+  Warning as WarningIcon,
+} from "@mui/icons-material";
+import {
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  Fade,
+  IconButton,
+  Paper,
+  Slide,
+  Stack,
+  Typography,
+  Zoom,
+} from "@mui/material";
+import AgoraRTC from "agora-rtc-sdk-ng";
+import { useEffect, useRef, useState } from "react";
+import InputEmoji from "react-input-emoji";
+import { format } from "timeago.js";
 import { addMessage, getMessages } from "../../api/MessageRequest";
 import { getUser } from "../../api/UserRequest";
 import "./chatBox.css";
-import { format } from "timeago.js";
-import InputEmoji from "react-input-emoji";
-import AgoraRTC from "agora-rtc-sdk-ng";
-import {
-  Box,
-  Typography,
-  Avatar,
-  IconButton,
-  Chip,
-  Fade,
-  Zoom,
-  Slide,
-  Badge,
-  Button,
-  Paper,
-  Divider,
-  Alert,
-  Snackbar,
-  Stack,
-} from "@mui/material";
-import {
-  Phone as PhoneIcon,
-  Videocam as VideocamIcon,
-  CallEnd as CallEndIcon,
-  Send as SendIcon,
-  Add as AddIcon,
-  VolumeUp as VolumeUpIcon,
-  Mic as MicIcon,
-  MicOff as MicOffIcon,
-  Videocam as VideocamOnIcon,
-  VideocamOff as VideocamOffIcon,
-  Error as ErrorIcon,
-  Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
-  Close as CloseIcon,
-} from "@mui/icons-material";
 
 const ChatBox = ({
   chat,

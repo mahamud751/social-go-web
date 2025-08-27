@@ -1,32 +1,30 @@
-import React, { useRef, useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import Conversation from "../../components/conversation/Conversation";
-import LogoSearch from "../../components/logoSearch/LogoSearch";
-import ChatBox from "../../components/chatBox/ChatBox";
-import NavIcons from "../../components/NavIcons/NavIcons";
-import "./chat.css";
-import { userChats } from "../../api/ChatRequest";
 import {
-  Box,
-  Paper,
-  Typography,
-  IconButton,
-  Drawer,
-  useMediaQuery,
-  useTheme,
-  Fade,
-  Slide,
-  Badge,
-  Chip,
-  Stack,
-} from "@mui/material";
-import {
-  Menu as MenuIcon,
-  Chat as ChatIcon,
   Close as CloseIcon,
+  Menu as MenuIcon,
   Search as SearchIcon,
   Settings as SettingsIcon,
 } from "@mui/icons-material";
+import {
+  Badge,
+  Box,
+  Chip,
+  Drawer,
+  Fade,
+  IconButton,
+  Paper,
+  Slide,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { userChats } from "../../api/ChatRequest";
+import ChatBox from "../../components/chatBox/ChatBox";
+import Conversation from "../../components/conversation/Conversation";
+import LogoSearch from "../../components/logoSearch/LogoSearch";
+import "./chat.css";
 
 const Chat = () => {
   const dispatch = useDispatch();

@@ -1,0 +1,46 @@
+/* NavIcons Base Styles */
+.navIcons {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.navIcons a {
+  text-decoration: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navIcons i {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Active link indicator */
+.navIcons a.active::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Mobile specific adjustments */
+@media screen and (max-width: 768px) {
+  .navIcons {
+    gap: 0;
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .navIcons a.active::after {
+    bottom: -12px;
+    width: 8px;
+    height: 8px;
+  }
+}

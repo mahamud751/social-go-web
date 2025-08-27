@@ -1,35 +1,34 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import {
+  Chat as ChatIcon,
+  Group as GroupIcon,
+  Home as HomeIcon,
+  ExitToApp as LogoutIcon,
+  Menu as MenuIcon,
+  Message as MessageIcon,
+  PeopleAlt as PeopleAltIcon,
+  PersonAdd as PersonAddIcon,
+  School as SchoolIcon,
+} from "@mui/icons-material";
+import {
+  Avatar,
+  Badge,
   Box,
+  Divider,
+  Fade,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Menu,
-  Avatar,
-  Badge,
-  Typography,
-  Divider,
-  Fade,
-  Zoom,
   Tooltip,
-  IconButton,
+  Typography,
+  Zoom,
 } from "@mui/material";
-import {
-  PeopleAlt as PeopleAltIcon,
-  Home as HomeIcon,
-  PersonAdd as PersonAddIcon,
-  Message as MessageIcon,
-  Chat as ChatIcon,
-  ExitToApp as LogoutIcon,
-  Menu as MenuIcon,
-  Person as PersonIcon,
-  Group as GroupIcon,
-  School as SchoolIcon,
-} from "@mui/icons-material";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 import { logout } from "../../actions/AuthAction";
 import "./HomeMenu.css";
 
@@ -322,54 +321,6 @@ const HomeMenu = ({ location }) => {
                       </ListItem>
                     </Zoom>
                   ))}
-
-                  <Divider
-                    sx={{ backgroundColor: "var(--home-menu-border)", my: 2 }}
-                  />
-
-                  <Typography
-                    variant="h6"
-                    className="section-title"
-                    sx={{
-                      color: "var(--home-menu-accent)",
-                      fontWeight: 700,
-                      ml: 3,
-                      mb: 1,
-                    }}
-                  >
-                    Your Shortcuts
-                  </Typography>
-
-                  {shortcuts.map((shortcut, index) => (
-                    <Zoom
-                      in={true}
-                      key={shortcut.id}
-                      style={{
-                        transitionDelay: `${
-                          (index + menuItems.length) * 100
-                        }ms`,
-                      }}
-                    >
-                      <ListItem className="nav-item">
-                        <a href={shortcut.url} className="nav-link external">
-                          <ListItemButton className="nav-button">
-                            <ListItemIcon className="nav-icon">
-                              {shortcut.icon}
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={shortcut.label}
-                              sx={{
-                                "& .MuiListItemText-primary": {
-                                  color: "var(--home-menu-text)",
-                                  fontWeight: 500,
-                                },
-                              }}
-                            />
-                          </ListItemButton>
-                        </a>
-                      </ListItem>
-                    </Zoom>
-                  ))}
                 </List>
               </nav>
             </Box>
@@ -380,7 +331,7 @@ const HomeMenu = ({ location }) => {
       {/* Desktop Sidebar */}
       <div className={`navbar_sm ${isDarkTheme ? "dark" : "light"}`}>
         <Fade in={isVisible} timeout={800}>
-          <Box className="sidebar-container">
+          <Box className="sidebar-container" style={{ marginTop: "80px" }}>
             {/* Enhanced Profile Section */}
             {location !== "profilePage" && (
               <Zoom in={isVisible} style={{ transitionDelay: "200ms" }}>
