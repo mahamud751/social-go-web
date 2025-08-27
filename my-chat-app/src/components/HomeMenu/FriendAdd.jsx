@@ -292,7 +292,7 @@ const FriendAdd = ({ location }) => {
 
       {/* Results Section */}
       {filteredUsers.length === 0 ? (
-        <Fade in={true} timeout={1000}>
+        <Fade in={true} timeout={200}>
           <div className="empty-state">
             <div className="empty-animation">
               <PersonAddIcon className="empty-icon" />
@@ -309,7 +309,7 @@ const FriendAdd = ({ location }) => {
                 mb: 1,
               }}
             >
-              {searchTerm ? "No matches found" : "No friends to discover"}
+              {searchTerm ? "No matches found" : "Search for friends"}
             </Typography>
             <Typography
               variant="body1"
