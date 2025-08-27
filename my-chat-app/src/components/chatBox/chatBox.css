@@ -54,7 +54,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-height: 80vh;
+  max-height: 100vh;
+  min-height: 500px;
   position: relative;
   overflow: hidden;
   box-shadow: var(--chatbox-shadow);
@@ -84,15 +85,18 @@
   z-index: 0;
 }
 
-/* Enhanced Chat Header */
+/* Enhanced Chat Header - FIXED POSITIONING */
 .chat-header {
   background: var(--chatbox-glass) !important;
   backdrop-filter: blur(20px) !important;
   border-radius: 24px 24px 0 0 !important;
   padding: 1.5rem !important;
   border-bottom: 1px solid var(--chatbox-border) !important;
-  position: relative !important;
-  z-index: 2 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  flex-shrink: 0 !important;
+  min-height: auto !important;
 }
 
 .header-content {
@@ -172,7 +176,7 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Incoming Call Modal */
+/* Incoming Call Modal - ENHANCED POSITIONING */
 .incoming-call-modal {
   position: fixed !important;
   top: 50% !important;
@@ -185,7 +189,9 @@
   border: 1px solid var(--chatbox-border) !important;
   z-index: 9999 !important;
   min-width: 350px !important;
+  max-width: 450px !important;
   box-shadow: var(--chatbox-shadow) !important;
+  isolation: isolate !important;
 }
 
 .call-notification-content {
@@ -232,18 +238,22 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Video Call Section */
+/* Video Call Section - FIXED POSITIONING */
 .video-call-section {
   background: #000000 !important;
   border-radius: 0 !important;
   position: relative !important;
-  z-index: 2 !important;
+  z-index: 5 !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 
 .video-container {
   position: relative;
   width: 100%;
-  height: 400px;
+  height: 100%;
+  min-height: 300px;
   background: #000000;
   border-radius: 16px;
   overflow: hidden;
@@ -266,6 +276,7 @@
   overflow: hidden;
   border: 3px solid var(--chatbox-accent);
   background: #000000;
+  z-index: 20;
 }
 
 .local-video {
@@ -278,22 +289,29 @@
   position: absolute;
   bottom: 8px;
   left: 8px;
+  z-index: 25;
 }
 
 .video-info {
   position: absolute;
   top: 16px;
   left: 16px;
+  z-index: 20;
 }
 
-/* Audio Call Section */
+/* Audio Call Section - FIXED POSITIONING */
 .audio-call-section {
   background: var(--chatbox-glass) !important;
   backdrop-filter: blur(20px) !important;
   border-radius: 0 !important;
   padding: 2rem !important;
   position: relative !important;
-  z-index: 2 !important;
+  z-index: 5 !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .audio-call-display {
@@ -353,7 +371,7 @@
   animation-delay: 0.8s;
 }
 
-/* Chat Messages */
+/* Chat Messages - FIXED LAYOUT */
 .chat-messages-container {
   flex: 1;
   display: flex;
@@ -361,9 +379,12 @@
   position: relative;
   z-index: 1;
   background: transparent;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-messages-container.minimized {
+  flex: 0 0 200px;
   max-height: 200px;
 }
 
@@ -371,10 +392,12 @@
   flex: 1;
   padding: 1rem;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: 60vh;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .message-bubble {
@@ -411,15 +434,18 @@
   margin-top: 4px !important;
 }
 
-/* Message Input */
+/* Message Input - FIXED POSITIONING */
 .message-input-container {
   background: var(--chatbox-glass) !important;
   backdrop-filter: blur(20px) !important;
   border-radius: 0 0 24px 24px !important;
   padding: 1rem !important;
   border-top: 1px solid var(--chatbox-border) !important;
-  position: relative !important;
-  z-index: 2 !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
+  flex-shrink: 0 !important;
+  min-height: auto !important;
 }
 
 .message-input-container.minimized {
@@ -709,15 +735,19 @@
   opacity: 1;
 }
 
-/* Responsive Design */
+/* Responsive Design - ENHANCED FOR HEADER VISIBILITY */
 @media (max-width: 768px) {
   .chatbox-container {
     border-radius: 16px;
-    max-height: 70vh;
+    max-height: 100vh;
+    min-height: 400px;
   }
 
   .chat-header {
     padding: 1rem !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 15 !important;
   }
 
   .header-content {
@@ -729,6 +759,10 @@
     flex-direction: column;
     text-align: center;
     gap: 0.75rem;
+  }
+
+  .call-controls {
+    justify-content: center;
   }
 
   .message-bubble {
@@ -750,15 +784,36 @@
   .call-action-buttons {
     gap: 1rem;
   }
+
+  .messages-list {
+    padding: 0.75rem;
+  }
+
+  .message-input-container {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 15 !important;
+  }
 }
 
 @media (max-width: 480px) {
   .chatbox-container {
     border-radius: 12px;
+    min-height: 350px;
+  }
+
+  .chat-header {
+    padding: 0.75rem !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 20 !important;
   }
 
   .message-input-container {
     padding: 0.75rem !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 20 !important;
   }
 
   .input-section {
@@ -768,6 +823,52 @@
   .gradient-orb {
     display: none;
   }
+
+  .header-content {
+    gap: 0.5rem;
+  }
+
+  .user-info {
+    gap: 0.5rem;
+  }
+
+  .call-controls {
+    gap: 0.5rem;
+  }
+
+  .active-call-controls {
+    gap: 0.5rem;
+  }
+}
+
+/* Force header visibility in all scenarios */
+.chatbox-container .chat-header {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Ensure messages don't overlap header */
+.chat-messages-container {
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* Prevent scroll issues */
+.messages-list {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Enhanced z-index management */
+.chat-header,
+.message-input-container {
+  isolation: isolate;
+}
+
+/* Incoming call modal positioning fix */
+.incoming-call-modal {
+  z-index: 9999 !important;
+  position: fixed !important;
 }
 
 /* Accessibility */

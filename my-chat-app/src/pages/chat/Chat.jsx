@@ -6,11 +6,34 @@ import ChatBox from "../../components/chatBox/ChatBox";
 import NavIcons from "../../components/NavIcons/NavIcons";
 import "./chat.css";
 import { userChats } from "../../api/ChatRequest";
+import {
+  Box,
+  Paper,
+  Typography,
+  IconButton,
+  Drawer,
+  useMediaQuery,
+  useTheme,
+  Fade,
+  Slide,
+  Badge,
+  Chip,
+  Stack,
+} from "@mui/material";
+import {
+  Menu as MenuIcon,
+  Chat as ChatIcon,
+  Close as CloseIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+} from "@mui/icons-material";
 
 const Chat = () => {
   const dispatch = useDispatch();
   const socket = useRef(null);
   const { user } = useSelector((state) => state.authReducer.authData);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [chats, setChats] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -18,6 +41,37 @@ const Chat = () => {
   const [sendMessage, setSendMessage] = useState(null);
   const [receivedMessage, setReceivedMessage] = useState(null);
   const [callData, setCallData] = useState(null);
+  const [isDarkTheme, setIsDarkTheme] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Theme detection
+  useEffect(() => {
+    const checkTheme = () => {
+      const currentTheme =
+        document.documentElement.getAttribute("data-theme") || "dark";
+      setIsDarkTheme(currentTheme === "dark");
+    };
+
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Animation visibility
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+      setIsLoading(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Get the chat in chat section
   useEffect(() => {
@@ -34,9 +88,7 @@ const Chat = () => {
 
   // Connect to WebSocket
   useEffect(() => {
-    socket.current = new WebSocket(
-      `wss://${process.env.REACT_APP_API_URL}/ws/ws`
-    );
+    socket.current = new WebSocket(`wss://${process.env.REACT_APP_API_URL}/ws`);
 
     socket.current.onopen = () => {
       socket.current.send(
@@ -132,43 +184,160 @@ const Chat = () => {
   };
 
   return (
-    <div style={{ width: "100%" }} className="mt-5">
-      {/* Desktop View */}
-      {/* <div className="navbar_lg">
-        <div>
-          <i
-            className="fa-solid fa-bars fs-2"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#offcanvasExample"
-            aria-controls="offcanvasExample"
-            style={{
-              cursor: "pointer",
-              color: "white",
-              marginLeft: 10,
-              marginTop: 10,
-            }}
-          ></i>
-          <div
-            className="offcanvas offcanvas-start"
-            tabIndex={-1}
-            id="offcanvasExample"
-            aria-labelledby="offcanvasExampleLabel"
-            style={{ width: "75%", background: "black" }}
-          >
-            <div className="offcanvas-body">
-              <div className="Chat">
-                <div className="row">
-                  <div className="col-md-2">
-                    <div className="Left-side-chat">
+    <Fade in={isVisible} timeout={800}>
+      <Box className={`chat-page ${isDarkTheme ? "dark" : "light"}`}>
+        {/* Mobile Header */}
+        {isMobile && (
+          <Slide direction="down" in={isVisible} timeout={600}>
+            <Paper className="mobile-header" elevation={2}>
+              <Box className="header-content">
+                <IconButton
+                  className="menu-button"
+                  onClick={() => setSidebarOpen(true)}
+                  sx={{
+                    color: isDarkTheme ? "#ffffff" : "var(--chat-text)",
+                    backgroundColor: "var(--chat-accent)",
+                    "&:hover": {
+                      backgroundColor: "var(--chat-accent)",
+                      transform: "scale(1.1)",
+                      boxShadow: "var(--chat-glow)",
+                    },
+                  }}
+                >
+                  <MenuIcon />
+                </IconButton>
+
+                <Box className="header-info">
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      color: isDarkTheme
+                        ? "#ffffff !important"
+                        : "var(--chat-text) !important",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {currentChat ? (
+                      <Fade in={!!currentChat} timeout={400}>
+                        <span>Chat Active</span>
+                      </Fade>
+                    ) : (
+                      "Messages"
+                    )}
+                  </Typography>
+                  <Badge
+                    badgeContent={onlineUsers.length}
+                    color="success"
+                    sx={{
+                      "& .MuiBadge-badge": {
+                        backgroundColor: "var(--chat-success)",
+                        color: "#ffffff",
+                      },
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: isDarkTheme
+                          ? "#e0e0e0 !important"
+                          : "var(--chat-secondary-text) !important",
+                      }}
+                    >
+                      Online
+                    </Typography>
+                  </Badge>
+                </Box>
+
+                <Stack direction="row" spacing={1}>
+                  <IconButton
+                    className="header-action"
+                    sx={{
+                      color: isDarkTheme
+                        ? "#e0e0e0"
+                        : "var(--chat-secondary-text)",
+                      "&:hover": {
+                        color: "var(--chat-accent)",
+                        transform: "scale(1.1)",
+                      },
+                    }}
+                  >
+                    <SearchIcon />
+                  </IconButton>
+                  <IconButton
+                    className="header-action"
+                    sx={{
+                      color: isDarkTheme
+                        ? "#e0e0e0"
+                        : "var(--chat-secondary-text)",
+                      "&:hover": {
+                        color: "var(--chat-accent)",
+                        transform: "scale(1.1)",
+                      },
+                    }}
+                  >
+                    <SettingsIcon />
+                  </IconButton>
+                </Stack>
+              </Box>
+            </Paper>
+          </Slide>
+        )}
+
+        <Box className="chat-layout">
+          {/* Desktop Sidebar */}
+          {!isMobile && (
+            <Slide direction="right" in={isVisible} timeout={800}>
+              <Paper className="chat-sidebar desktop" elevation={3}>
+                <Box className="sidebar-content">
+                  {/* Enhanced Logo Section */}
+                  <Fade in={isVisible} timeout={1000}>
+                    <Box className="logo-section">
                       <LogoSearch />
-                      <div className="Chat-container">
-                        <h2>Chats</h2>
-                        <div className="Chat-list">
-                          {chats.map((chat) => (
-                            <div
-                              key={chat.ID}
+                    </Box>
+                  </Fade>
+
+                  {/* Enhanced Chat Container */}
+                  <Fade in={isVisible} timeout={1200}>
+                    <Box className="chats-container">
+                      <Box className="chats-header">
+                        <Typography
+                          variant="h5"
+                          className="chats-title"
+                          sx={{
+                            color: isDarkTheme
+                              ? "#ffffff !important"
+                              : "var(--chat-text) !important",
+                            fontWeight: 700,
+                            marginBottom: 2,
+                          }}
+                        >
+                          Messages
+                        </Typography>
+                        <Chip
+                          label={`${chats.length} conversations`}
+                          size="small"
+                          sx={{
+                            backgroundColor: "var(--chat-accent)",
+                            color: "#ffffff",
+                            fontWeight: 600,
+                          }}
+                        />
+                      </Box>
+
+                      <Box className="chat-list">
+                        {chats.map((chat, index) => (
+                          <Fade
+                            key={chat.ID}
+                            in={isVisible}
+                            timeout={1400 + index * 100}
+                          >
+                            <Box
+                              className={`conversation-wrapper ${
+                                currentChat?.ID === chat.ID ? "active" : ""
+                              }`}
                               onClick={() => {
                                 setCurrentChat(chat);
+                                if (isMobile) setSidebarOpen(false);
                               }}
                             >
                               <Conversation
@@ -176,71 +345,98 @@ const Chat = () => {
                                 currentUser={user.ID}
                                 online={checkOnlineStatus(chat)}
                               />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+                            </Box>
+                          </Fade>
+                        ))}
+                      </Box>
+                    </Box>
+                  </Fade>
+                </Box>
+              </Paper>
+            </Slide>
+          )}
 
-        <div className="col-md-10">
-          <div className="Right-side-chat">
-            <ChatBox
-              chat={currentChat}
-              currentUser={user.ID}
-              setSendMessage={setSendMessage}
-              receivedMessage={receivedMessage}
-              socket={socket}
-              callData={callData}
-              setCallData={setCallData}
-            />
-          </div>
-        </div>
-      </div> */}
-
-      {/* Mobile View */}
-      <div className="">
-        <div className="Chat">
-          <div className="row">
-            <div className="col-md-2">
-              <div className="Left-side-chat">
-                <LogoSearch />
-                <div className="Chat-container">
-                  <h2>Chats</h2>
-                  <div className="Chat-list">
-                    {chats.map((chat) => (
-                      <div
-                        key={chat.ID}
-                        onClick={() => {
-                          setCurrentChat(chat);
-                        }}
-                      >
-                        <Conversation
-                          data={chat}
-                          currentUser={user.ID}
-                          online={checkOnlineStatus(chat)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-md-10">
-              <div className="Right-side-chat">
-                <div
-                  style={{
-                    width: "20rem",
-                    alignSelf: "flex-end",
-                    marginRight: 30,
+          {/* Mobile Drawer */}
+          <Drawer
+            anchor="left"
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            PaperProps={{
+              className: `chat-sidebar mobile ${
+                isDarkTheme ? "dark" : "light"
+              }`,
+              sx: {
+                width: "85%",
+                maxWidth: 350,
+                backgroundColor: "var(--chat-bg)",
+                backgroundImage: "none",
+              },
+            }}
+          >
+            <Box className="mobile-sidebar-content">
+              {/* Mobile Sidebar Header */}
+              <Box className="mobile-sidebar-header">
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: isDarkTheme
+                      ? "#ffffff !important"
+                      : "var(--chat-text) !important",
+                    fontWeight: 700,
+                    flex: 1,
                   }}
-                ></div>
+                >
+                  Messages
+                </Typography>
+                <IconButton
+                  onClick={() => setSidebarOpen(false)}
+                  sx={{
+                    color: isDarkTheme
+                      ? "#e0e0e0"
+                      : "var(--chat-secondary-text)",
+                    "&:hover": {
+                      color: "var(--chat-accent)",
+                      transform: "rotate(90deg)",
+                    },
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+
+              {/* Mobile Logo */}
+              <Box className="mobile-logo-section">
+                <LogoSearch />
+              </Box>
+
+              {/* Mobile Chat List */}
+              <Box className="mobile-chat-list">
+                {chats.map((chat, index) => (
+                  <Box
+                    key={chat.ID}
+                    className={`conversation-wrapper mobile ${
+                      currentChat?.ID === chat.ID ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      setCurrentChat(chat);
+                      setSidebarOpen(false);
+                    }}
+                  >
+                    <Conversation
+                      data={chat}
+                      currentUser={user.ID}
+                      online={checkOnlineStatus(chat)}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          </Drawer>
+
+          {/* Enhanced Chat Area */}
+          <Slide direction="left" in={isVisible} timeout={1000}>
+            <Box className="chat-main-area">
+              <Box className="chatbox-container">
                 <ChatBox
                   chat={currentChat}
                   currentUser={user.ID}
@@ -250,12 +446,19 @@ const Chat = () => {
                   callData={callData}
                   setCallData={setCallData}
                 />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+              </Box>
+            </Box>
+          </Slide>
+        </Box>
+
+        {/* Background Effects */}
+        <Box className="background-effects">
+          <div className="gradient-orb orb-1"></div>
+          <div className="gradient-orb orb-2"></div>
+          <div className="gradient-orb orb-3"></div>
+        </Box>
+      </Box>
+    </Fade>
   );
 };
 
