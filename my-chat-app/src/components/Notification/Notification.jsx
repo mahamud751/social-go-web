@@ -29,6 +29,7 @@ import {
   Notifications as NotificationsIcon,
 } from "@mui/icons-material";
 import WebSocketService from "../../actions/WebSocketService";
+import "./notification.css";
 
 const Notification = () => {
   const [modalOpened, setModalOpened] = useState(false);
@@ -163,6 +164,11 @@ const Notification = () => {
   // Calculate unread notification count
   const unreadCount = notifications.filter((notif) => !notif.read).length;
 
+  // Get current theme from document
+  const currentTheme =
+    document.documentElement.getAttribute("data-theme") || "dark";
+  const isDarkTheme = currentTheme === "dark";
+
   return (
     <div className="rightSide5" style={{ width: "22%", padding: "0 16px" }}>
       <div
@@ -174,7 +180,7 @@ const Notification = () => {
             badgeContent={unreadCount}
             sx={{
               "& .MuiBadge-badge": {
-                backgroundColor: "#FF4D4F", // Red for badge
+                backgroundColor: "var(--orange)",
                 color: "#FFFFFF",
                 fontSize: "0.75rem",
                 minWidth: "18px",
@@ -184,14 +190,14 @@ const Notification = () => {
             }}
           >
             <NotificationsIcon
-              className="navIcons-img"
+              className="navIcons-img notification-icon"
               onClick={() => setModalOpened(true)}
               sx={{
                 fontSize: "28px",
-                color: "#1890FF", // Blue for icon
+                color: "var(--text-color)",
                 cursor: "pointer",
                 "&:hover": {
-                  color: "#40A9FF",
+                  color: "var(--yellow)",
                   transform: "scale(1.1)",
                   transition: "all 0.2s ease-in-out",
                 },
@@ -213,39 +219,52 @@ const Notification = () => {
         }}
       >
         <Box
+          className="notification-modal"
           sx={{
             width: "90%",
             maxWidth: 500,
-            bgcolor: "#FFFFFF", // White background
+            bgcolor: isDarkTheme ? "#2c2c2c" : "#FFFFFF",
             p: 3,
             borderRadius: 3,
             maxHeight: "85vh",
             overflowY: "auto",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
+            boxShadow: isDarkTheme
+              ? "0 8px 24px rgba(0, 0, 0, 0.5)"
+              : "0 8px 24px rgba(0, 0, 0, 0.15)",
             transform: modalOpened ? "scale(1)" : "scale(0.95)",
             transition: "transform 0.3s ease-in-out",
+            border: isDarkTheme ? "1px solid #404040" : "none",
           }}
         >
-          <p
-            style={{
+          <Typography
+            variant="h5"
+            className="notification-title"
+            sx={{
               mb: 2,
-              color: "#1F2A44", // Dark navy for title
-              borderBottom: "1px solid #E8ECEF", // Light gray border
+              color: "var(--text-color)",
+              borderBottom: isDarkTheme
+                ? "1px solid #404040"
+                : "1px solid #E8ECEF",
               pb: 1,
               fontSize: "1.5rem",
               fontWeight: "bold",
             }}
           >
             Notifications
-          </p>
+          </Typography>
           {error && (
             <Alert
               severity="error"
+              className="notification-error"
               sx={{
                 mb: 2,
                 borderRadius: 2,
-                bgcolor: "#FFF1F0", // Light red for error
-                color: "#CF1322", // Dark red text
+                bgcolor: isDarkTheme ? "#4a1f1f" : "#FFF1F0",
+                color: isDarkTheme ? "#ff7875" : "#CF1322",
+                border: isDarkTheme ? "1px solid #ff4d4f" : "none",
+                "& .MuiAlert-icon": {
+                  color: isDarkTheme ? "#ff7875" : "#CF1322",
+                },
               }}
             >
               {error}
@@ -254,8 +273,9 @@ const Notification = () => {
           {notifications.length === 0 ? (
             <Typography
               variant="body1"
+              className="notification-empty"
               sx={{
-                color: "#6B7280", // Gray for empty state
+                color: isDarkTheme ? "#b0b0b0" : "#6B7280",
                 textAlign: "center",
                 py: 4,
                 fontStyle: "italic",
@@ -267,16 +287,38 @@ const Notification = () => {
             <List sx={{ padding: 0 }}>
               {notifications.map((notification) => (
                 <Box
+                  className={`notification-item ${
+                    notification.read ? "read" : "unread"
+                  } ${isDarkTheme ? "dark" : "light"}`}
                   sx={{
-                    bgcolor: notification.read ? "#EDF2F7" : "#BAE0FF", // Light gray for read, light blue for unread
+                    bgcolor: isDarkTheme
+                      ? notification.read
+                        ? "#383838"
+                        : "#1f3a5f"
+                      : notification.read
+                      ? "#EDF2F7"
+                      : "#BAE0FF",
                     borderRadius: 2,
                     mb: 1.5,
                     p: 2,
                     transition: "all 0.2s ease-in-out",
+                    border: isDarkTheme
+                      ? notification.read
+                        ? "1px solid #505050"
+                        : "1px solid #4a90e2"
+                      : "none",
                     "&:hover": {
-                      bgcolor: notification.read ? "#EDF2F7" : "#BAE0FF",
+                      bgcolor: isDarkTheme
+                        ? notification.read
+                          ? "#404040"
+                          : "#2a4a70"
+                        : notification.read
+                        ? "#E2E8F0"
+                        : "#91D5FF",
                       transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                      boxShadow: isDarkTheme
+                        ? "0 4px 12px rgba(0, 0, 0, 0.3)"
+                        : "0 4px 12px rgba(0, 0, 0, 0.1)",
                       cursor: notification.postId ? "pointer" : "default",
                     },
                   }}
@@ -287,13 +329,19 @@ const Notification = () => {
                   >
                     <ListItemAvatar>
                       <Avatar
+                        className="notification-avatar"
                         sx={{
-                          bgcolor: "#1890FF", // Blue avatar
+                          bgcolor: isDarkTheme ? "var(--yellow)" : "#1890FF",
                           width: 40,
                           height: 40,
-                          border: `2px solid ${
-                            notification.read ? "#E8ECEF" : "#40A9FF"
-                          }`, // Gray or blue border
+                          border: isDarkTheme
+                            ? `2px solid ${
+                                notification.read ? "#606060" : "var(--yellow)"
+                              }`
+                            : `2px solid ${
+                                notification.read ? "#E8ECEF" : "#40A9FF"
+                              }`,
+                          color: isDarkTheme ? "#000" : "#fff",
                         }}
                       />
                     </ListItemAvatar>
@@ -301,9 +349,16 @@ const Notification = () => {
                       primary={
                         <Typography
                           variant="subtitle1"
+                          className="notification-message"
                           sx={{
                             fontWeight: 500,
-                            color: notification.read ? "#6B7280" : "#1F2A44", // Gray for read, dark navy for unread
+                            color: isDarkTheme
+                              ? notification.read
+                                ? "#b0b0b0"
+                                : "#ffffff"
+                              : notification.read
+                              ? "#6B7280"
+                              : "#1F2A44",
                             lineHeight: 1.4,
                           }}
                         >
@@ -313,8 +368,9 @@ const Notification = () => {
                       secondary={
                         <Typography
                           variant="caption"
+                          className="notification-timestamp"
                           sx={{
-                            color: "#8B95A6", // Lighter gray for timestamp
+                            color: isDarkTheme ? "#909090" : "#8B95A6",
                             mt: 0.5,
                             display: "block",
                           }}
@@ -346,6 +402,7 @@ const Notification = () => {
                         <Button
                           variant="contained"
                           size="small"
+                          className="notification-accept-btn"
                           startIcon={<CheckCircle />}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -356,10 +413,10 @@ const Notification = () => {
                             textTransform: "none",
                             fontWeight: 500,
                             px: 2,
-                            bgcolor: "#2ECC71", // Green for Accept
+                            bgcolor: "#2ECC71",
                             color: "#FFFFFF",
                             "&:hover": {
-                              bgcolor: "#27AE60", // Darker green on hover
+                              bgcolor: "#27AE60",
                               transform: "scale(1.05)",
                               transition: "all 0.2s ease-in-out",
                             },
@@ -370,6 +427,7 @@ const Notification = () => {
                         <Button
                           variant="outlined"
                           size="small"
+                          className="notification-reject-btn"
                           startIcon={<Cancel />}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -380,11 +438,12 @@ const Notification = () => {
                             textTransform: "none",
                             fontWeight: 500,
                             px: 2,
-                            borderColor: "#FF4D4F", // Red border for Reject
-                            color: "#FF4D4F", // Red text
+                            borderColor: "var(--orange)",
+                            color: "var(--orange)",
                             "&:hover": {
-                              bgcolor: "#FFF1F0", // Light red background on hover
-                              color: "#CF1322", // Darker red
+                              bgcolor: isDarkTheme ? "#4a1f1f" : "#FFF1F0",
+                              color: isDarkTheme ? "#ff7875" : "#CF1322",
+                              borderColor: isDarkTheme ? "#ff7875" : "#CF1322",
                               transform: "scale(1.05)",
                               transition: "all 0.2s ease-in-out",
                             },
@@ -398,6 +457,7 @@ const Notification = () => {
                       <Button
                         variant="outlined"
                         size="small"
+                        className="notification-read-btn"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleMarkAsRead(notification.id);
@@ -407,11 +467,12 @@ const Notification = () => {
                           textTransform: "none",
                           fontWeight: 500,
                           px: 2,
-                          borderColor: "#8B95A6", // Gray border for Mark as Read
-                          color: "#8B95A6", // Gray text
+                          borderColor: isDarkTheme ? "#707070" : "#8B95A6",
+                          color: isDarkTheme ? "#b0b0b0" : "#8B95A6",
                           "&:hover": {
-                            bgcolor: "#F7FAFC", // Light gray background on hover
-                            color: "#1F2A44", // Dark navy text
+                            bgcolor: isDarkTheme ? "#404040" : "#F7FAFC",
+                            color: "var(--text-color)",
+                            borderColor: "var(--text-color)",
                             transform: "scale(1.05)",
                             transition: "all 0.2s ease-in-out",
                           },

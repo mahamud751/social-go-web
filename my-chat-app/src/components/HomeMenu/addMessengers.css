@@ -1,0 +1,537 @@
+/* Enhanced AddMessengers Component Theme-Aware Styles */
+
+/* Theme Variables */
+:root[data-theme="dark"] {
+  --messengers-bg: #1a1a1a;
+  --messengers-card-bg: #2c2c2c;
+  --messengers-text: #ffffff;
+  --messengers-secondary-text: #b0b0b0;
+  --messengers-accent: #f5c32c;
+  --messengers-primary: #4a90e2;
+  --messengers-border: #404040;
+  --messengers-hover-bg: #383838;
+  --messengers-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --messengers-input-bg: #383838;
+  --messengers-input-border: #555555;
+  --messengers-button-bg: #404040;
+  --messengers-button-hover: #505050;
+  --messengers-gradient: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%);
+}
+
+:root[data-theme="light"] {
+  --messengers-bg: #f8f9fa;
+  --messengers-card-bg: #ffffff;
+  --messengers-text: #000000;
+  --messengers-secondary-text: #666666;
+  --messengers-accent: #1976d2;
+  --messengers-primary: #1976d2;
+  --messengers-border: #e0e0e0;
+  --messengers-hover-bg: #f5f5f5;
+  --messengers-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --messengers-input-bg: #ffffff;
+  --messengers-input-border: #ccc;
+  --messengers-button-bg: #f5f5f5;
+  --messengers-button-hover: #e0e0e0;
+  --messengers-gradient: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+/* Main Container */
+.add-messengers-container {
+  padding: 2rem;
+  background: var(--messengers-gradient);
+  min-height: 100vh;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.add-messengers-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+      circle at 20% 80%,
+      rgba(245, 195, 44, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(74, 144, 226, 0.1) 0%,
+      transparent 50%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.add-messengers-container > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Loading State */
+.add-messengers-container.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem;
+  background: var(--messengers-card-bg);
+  border-radius: 20px;
+  box-shadow: var(--messengers-shadow);
+  border: 1px solid var(--messengers-border);
+  animation: fadeInScale 0.5s ease-out;
+}
+
+.loading-text {
+  font-weight: 500;
+  opacity: 0.8;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Header Section */
+.messengers-header {
+  margin-bottom: 2rem;
+  background: var(--messengers-card-bg);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: var(--messengers-shadow);
+  border: 1px solid var(--messengers-border);
+  backdrop-filter: blur(10px);
+  animation: slideInDown 0.6s ease-out;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Title Section */
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.title-icon {
+  font-size: 2.5rem;
+  color: var(--messengers-accent);
+  animation: bounce 2s ease-in-out infinite;
+}
+
+.section-title {
+  color: var(--messengers-text);
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(
+    45deg,
+    var(--messengers-accent),
+    var(--messengers-primary)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease-in-out infinite;
+}
+
+/* Stats Section */
+.stats-section {
+  text-align: right;
+}
+
+.stats-text {
+  color: var(--messengers-secondary-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background: var(--messengers-hover-bg);
+  border-radius: 20px;
+  border: 1px solid var(--messengers-border);
+  transition: all 0.3s ease;
+}
+
+.stats-text:hover {
+  color: var(--messengers-accent);
+  transform: scale(1.05);
+}
+
+/* Controls Section */
+.controls-section {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Search Container */
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--messengers-secondary-text);
+  z-index: 2;
+  transition: color 0.3s ease;
+}
+
+.search-input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  background: var(--messengers-input-bg);
+  border: 2px solid var(--messengers-input-border);
+  border-radius: 12px;
+  color: var(--messengers-text);
+  font-size: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--messengers-secondary-text);
+  opacity: 0.7;
+}
+
+.search-input:focus {
+  border-color: var(--messengers-accent);
+  box-shadow: 0 0 0 3px rgba(245, 195, 44, 0.2);
+  transform: translateY(-2px);
+}
+
+.search-container:focus-within .search-icon {
+  color: var(--messengers-accent);
+  transform: scale(1.1);
+}
+
+/* Filter Button */
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: var(--messengers-button-bg);
+  border: 2px solid var(--messengers-border);
+  border-radius: 12px;
+  color: var(--messengers-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background: var(--messengers-button-hover);
+  border-color: var(--messengers-accent);
+  color: var(--messengers-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.filter-btn.active {
+  background: var(--messengers-accent);
+  border-color: var(--messengers-accent);
+  color: var(--messengers-card-bg);
+}
+
+.filter-icon {
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+}
+
+.filter-btn:hover .filter-icon {
+  transform: rotate(180deg);
+}
+
+/* Grid Container */
+.messengers-grid {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--messengers-card-bg);
+  border-radius: 20px;
+  box-shadow: var(--messengers-shadow);
+  border: 1px solid var(--messengers-border);
+  animation: fadeInScale 0.6s ease-out;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+.empty-title {
+  color: var(--messengers-text);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.empty-description {
+  color: var(--messengers-secondary-text);
+  max-width: 400px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Animations */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40%,
+  43% {
+    transform: translateY(-8px);
+  }
+  70% {
+    transform: translateY(-4px);
+  }
+  90% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .add-messengers-container {
+    padding: 1.5rem;
+  }
+
+  .messengers-header {
+    padding: 1.5rem;
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .title-section {
+    justify-content: center;
+  }
+
+  .stats-section {
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .add-messengers-container {
+    padding: 1rem;
+  }
+
+  .messengers-header {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .section-title {
+    font-size: 1.8rem;
+  }
+
+  .title-icon {
+    font-size: 2rem;
+  }
+
+  .controls-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-container {
+    min-width: auto;
+  }
+
+  .filter-btn {
+    justify-content: center;
+  }
+
+  .empty-state {
+    padding: 3rem 1rem;
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .add-messengers-container {
+    padding: 0.5rem;
+  }
+
+  .messengers-header {
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .title-icon {
+    font-size: 1.8rem;
+  }
+
+  .search-input {
+    padding: 0.875rem 0.875rem 0.875rem 2.5rem;
+    font-size: 0.9rem;
+  }
+
+  .search-icon {
+    left: 0.75rem;
+    font-size: 1.1rem;
+  }
+
+  .filter-btn {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.8rem;
+  }
+
+  .empty-state {
+    padding: 2rem 0.5rem;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .messengers-header,
+  .empty-state,
+  .loading-container {
+    border: 2px solid var(--messengers-text);
+  }
+
+  .search-input,
+  .filter-btn {
+    border: 2px solid var(--messengers-text);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .search-input:focus,
+  .filter-btn:hover {
+    transform: none !important;
+  }
+}
+
+/* Focus Styles for Accessibility */
+.search-input:focus,
+.filter-btn:focus {
+  outline: 2px solid var(--messengers-accent);
+  outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+  .add-messengers-container {
+    background: white !important;
+    color: black !important;
+  }
+
+  .controls-section,
+  .filter-btn {
+    display: none !important;
+  }
+
+  .messengers-header {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+}

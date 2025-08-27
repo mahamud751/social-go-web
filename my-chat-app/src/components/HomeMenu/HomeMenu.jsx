@@ -1,416 +1,496 @@
-import React from "react";
-
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import Box from "@mui/material/Box";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
-import HomeIcon from "@mui/icons-material/Home";
+import {
+  Box,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  Avatar,
+  Badge,
+  Typography,
+  Divider,
+  Fade,
+  Zoom,
+  Tooltip,
+  IconButton,
+} from "@mui/material";
+import {
+  PeopleAlt as PeopleAltIcon,
+  Home as HomeIcon,
+  PersonAdd as PersonAddIcon,
+  Message as MessageIcon,
+  Chat as ChatIcon,
+  ExitToApp as LogoutIcon,
+  Menu as MenuIcon,
+  Person as PersonIcon,
+  Group as GroupIcon,
+  School as SchoolIcon,
+} from "@mui/icons-material";
+import { logout } from "../../actions/AuthAction";
 import "./HomeMenu.css";
 
-import { Menu } from "@mui/material";
-import { logout } from "../../actions/AuthAction";
-
 const HomeMenu = ({ location }) => {
-  const [anchorElUser, setAnchorElUser] = React.useState(null);
+  const [anchorElUser, setAnchorElUser] = useState(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [activeItem, setActiveItem] = useState(location || "home");
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Get current theme from document
+  const currentTheme =
+    document.documentElement.getAttribute("data-theme") || "dark";
+  const isDarkTheme = currentTheme === "dark";
+
+  const { user } = useSelector((state) => state.authReducer.authData);
+  const admin = user?.IsAdmin;
+  const serverPublic = process.env.REACT_APP_PUBLIC_FOLDER;
+  const dispatch = useDispatch();
+
+  // Initialize animation
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
+    setIsAnimating(true);
   };
 
   const handleCloseUserMenu = () => {
-    setAnchorElUser(null);
+    setIsAnimating(false);
+    setTimeout(() => setAnchorElUser(null), 200);
   };
-  const { user } = useSelector((state) => state.authReducer.authData);
-  const admin = user.IsAdmin;
-  const serverPublic = process.env.REACT_APP_PUBLIC_FOLDER;
-  const dispatch = useDispatch();
+
   const handleLogOut = () => {
-    dispatch(logout());
+    setIsAnimating(true);
+    setTimeout(() => {
+      dispatch(logout());
+    }, 300);
   };
+
+  const handleItemClick = (itemName) => {
+    setActiveItem(itemName);
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 300);
+  };
+
+  // Menu items configuration
+  const menuItems = [
+    {
+      id: "home",
+      label: "Feed",
+      path: "/",
+      icon: <HomeIcon />,
+      color: "var(--home-menu-accent)",
+    },
+    {
+      id: "find-friends",
+      label: "Find Friends",
+      path: "/friend",
+      icon: <PersonAddIcon />,
+      color: "var(--home-menu-primary)",
+    },
+    {
+      id: "friend-request",
+      label: "Friend Request",
+      path: "/friend-request",
+      icon: <PeopleAltIcon />,
+      color: "var(--home-menu-success)",
+    },
+    {
+      id: "add-messenger",
+      label: "Add Messenger",
+      path: "/addMessenger",
+      icon: <MessageIcon />,
+      color: "var(--home-menu-info)",
+    },
+    {
+      id: "messenger",
+      label: "Messenger",
+      path: "/chat",
+      icon: <ChatIcon />,
+      color: "var(--home-menu-warning)",
+    },
+  ];
+
+  const shortcuts = [
+    {
+      id: "talkjs",
+      label: "Talk.js",
+      url: "https://www.facebook.com/groups/talkjs.net",
+      icon: <SchoolIcon />,
+    },
+    {
+      id: "cse-jobs",
+      label: "CSE/EEE/IT Jobs in Bangladesh",
+      url: "https://www.facebook.com/groups/161616437580654",
+      icon: <GroupIcon />,
+    },
+  ];
 
   return (
     <>
-      <div className="navbar_lg">
-        <div>
-          <div className="d-flex justify-content-between mb-4 mt-3 p-2">
+      {/* Mobile Navigation */}
+      <div className={`navbar_lg ${isDarkTheme ? "dark" : "light"}`}>
+        <Fade in={isVisible} timeout={600}>
+          <div className="mobile-header">
+            <div className="mobile-header-content">
+              <Tooltip title="Open Menu" arrow>
+                <IconButton
+                  className="menu-button"
+                  data-bs-toggle="offcanvas"
+                  data-bs-target="#offcanvasExample"
+                  aria-controls="offcanvasExample"
+                  sx={{
+                    color: "var(--home-menu-text)",
+                    "&:hover": {
+                      backgroundColor: "var(--home-menu-hover-bg)",
+                      transform: "scale(1.1)",
+                    },
+                  }}
+                >
+                  <MenuIcon fontSize="large" />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Profile Menu" arrow>
+                <Badge
+                  overlap="circular"
+                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                  badgeContent={<div className="online-indicator-small"></div>}
+                >
+                  <Avatar
+                    src={
+                      user?.ProfilePicture ||
+                      "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+                    }
+                    alt={user?.Username}
+                    onClick={handleOpenUserMenu}
+                    className="profile-avatar mobile"
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      cursor: "pointer",
+                      border: "2px solid var(--home-menu-accent)",
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      "&:hover": {
+                        transform: "scale(1.1)",
+                        boxShadow: "0 0 20px var(--home-menu-glow)",
+                      },
+                    }}
+                  />
+                </Badge>
+              </Tooltip>
+            </div>
+
+            {/* Enhanced User Menu */}
             <Menu
-              sx={{ mt: "45px", border: "none" }}
               anchorEl={anchorElUser}
-              anchorOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
               open={Boolean(anchorElUser)}
               onClose={handleCloseUserMenu}
-              MenuListProps={{
-                disablePadding: true,
+              className="user-menu"
+              transformOrigin={{ horizontal: "right", vertical: "top" }}
+              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+              sx={{
+                "& .MuiPaper-root": {
+                  backgroundColor: "var(--home-menu-card-bg)",
+                  border: "1px solid var(--home-menu-border)",
+                  borderRadius: "16px",
+                  boxShadow: "var(--home-menu-shadow)",
+                  backdropFilter: "blur(20px)",
+                  minWidth: "200px",
+                  mt: 1,
+                },
               }}
             >
-              <div style={{ background: "#18191A" }}>
-                <ListItem disablePadding>
-                  {location === "profilePage" ? (
-                    ""
-                  ) : (
-                    <span style={{ width: "100%" }}>
-                      <Link
-                        to={`/profile/${user.ID}`}
-                        style={{
-                          textDecoration: "none",
-                          color: "inherit",
-                        }}
-                      >
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <img
-                              src={
-                                user.ProfilePicture
-                                  ? user.ProfilePicture
-                                  : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-                              }
-                              alt="ProfileImage"
-                              style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: 50,
-                              }}
-                            />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={`${user.Username}`}
-                            sx={{ textTransform: "capitalize", color: "black" }}
+              {location !== "profilePage" && (
+                <Zoom
+                  in={Boolean(anchorElUser)}
+                  style={{ transitionDelay: "100ms" }}
+                >
+                  <ListItem className="menu-item">
+                    <Link
+                      to={`/profile/${user?.ID}`}
+                      className="menu-link"
+                      onClick={handleCloseUserMenu}
+                    >
+                      <ListItemButton className="menu-button-item">
+                        <ListItemIcon>
+                          <Avatar
+                            src={
+                              user?.ProfilePicture ||
+                              "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+                            }
+                            sx={{ width: 24, height: 24 }}
                           />
-                        </ListItemButton>
-                      </Link>
-                    </span>
-                  )}
-                </ListItem>
-                <ListItem disablePadding onClick={handleLogOut}>
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <i className="fa-solid fa-right-from-bracket icon_bg"></i>
-                    </ListItemIcon>
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={user?.Username}
+                          sx={{
+                            "& .MuiListItemText-primary": {
+                              color: "var(--home-menu-text)",
+                              textTransform: "capitalize",
+                              fontWeight: 600,
+                            },
+                          }}
+                        />
+                      </ListItemButton>
+                    </Link>
+                  </ListItem>
+                </Zoom>
+              )}
 
-                    <ListItemText primary="Log Out" />
+              <Divider sx={{ backgroundColor: "var(--home-menu-border)" }} />
+
+              <Zoom
+                in={Boolean(anchorElUser)}
+                style={{ transitionDelay: "200ms" }}
+              >
+                <ListItem className="menu-item">
+                  <ListItemButton
+                    onClick={handleLogOut}
+                    className="menu-button-item logout"
+                  >
+                    <ListItemIcon>
+                      <LogoutIcon sx={{ color: "var(--home-menu-error)" }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Log Out"
+                      sx={{
+                        "& .MuiListItemText-primary": {
+                          color: "var(--home-menu-error)",
+                          fontWeight: 600,
+                        },
+                      }}
+                    />
                   </ListItemButton>
                 </ListItem>
-              </div>
+              </Zoom>
             </Menu>
-            <i
-              className="fa-solid fa-bars fs-2"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#offcanvasExample"
-              aria-controls="offcanvasExample"
-              style={{ cursor: "pointer", color: "white" }}
-            ></i>
-            <img
-              src={
-                user.ProfilePicture
-                  ? user.ProfilePicture
-                  : serverPublic +
-                    "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-              }
-              alt="ProfileImage"
-              style={{ width: 30, height: 30, borderRadius: 50 }}
-              onClick={handleOpenUserMenu}
-            />
           </div>
-          <div
-            className="offcanvas offcanvas-start"
-            tabIndex={-1}
-            id="offcanvasExample"
-            aria-labelledby="offcanvasExampleLabel"
-            style={{ width: "75%", background: "#18191A" }}
-          >
-            <div className="offcanvas-body">
-              <Box
-                sx={{
-                  width: "100%",
-                  maxWidth: 360,
-                  background: "#242526",
-                  height: "100vh",
-                }}
-              >
-                <nav aria-label="main mailbox folders">
-                  <List>
-                    <ListItem disablePadding>
-                      <Link to={"/"} style={{ width: "100%" }}>
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <HomeIcon className="icon_bg" />
-                          </ListItemIcon>
-                          <ListItemText primary="Home" />
-                        </ListItemButton>
-                      </Link>
-                    </ListItem>
-                    <ListItem disablePadding>
-                      {location === "profilePage" ? (
-                        ""
-                      ) : (
-                        <span style={{ width: "100%" }}>
-                          <Link
-                            to={`/profile/${user.ID}`}
-                            style={{
-                              textDecoration: "none",
-                              color: "inherit",
-                            }}
+        </Fade>
+
+        {/* Enhanced Offcanvas */}
+        <div
+          className={`offcanvas offcanvas-start ${
+            isDarkTheme ? "dark" : "light"
+          }`}
+          tabIndex={-1}
+          id="offcanvasExample"
+          aria-labelledby="offcanvasExampleLabel"
+        >
+          <div className="offcanvas-body">
+            <Box className="offcanvas-content">
+              <nav aria-label="main navigation">
+                <List className="nav-list">
+                  {menuItems.map((item, index) => (
+                    <Zoom
+                      in={true}
+                      key={item.id}
+                      style={{ transitionDelay: `${index * 100}ms` }}
+                    >
+                      <ListItem className="nav-item">
+                        <Link
+                          to={item.path}
+                          className="nav-link"
+                          onClick={() => handleItemClick(item.id)}
+                        >
+                          <ListItemButton
+                            className={`nav-button ${
+                              activeItem === item.id ? "active" : ""
+                            }`}
                           >
-                            <ListItemButton>
-                              <ListItemIcon>
-                                <img
-                                  src={
-                                    user.ProfilePicture
-                                      ? user.ProfilePicture
-                                      : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-                                  }
-                                  alt="ProfileImage"
-                                  style={{
-                                    width: 20,
-                                    height: 20,
-                                    borderRadius: 50,
-                                  }}
-                                />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={`${user.Username}`}
-                                sx={{ textTransform: "capitalize" }}
-                              />
-                            </ListItemButton>
-                          </Link>
-                        </span>
-                      )}
-                    </ListItem>
-                    <hr />
-                    <ListItem disablePadding>
-                      <Link to={"/friend"} style={{ width: "100%" }}>
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <PeopleAltIcon className="icon_bg" />
-                          </ListItemIcon>
-                          <ListItemText primary="Find Friends" />
-                        </ListItemButton>
-                      </Link>
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <Link to={"/friend-request"} style={{ width: "100%" }}>
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <PeopleAltIcon className="icon_bg" />
-                          </ListItemIcon>
-                          <ListItemText primary="Friend Request" />
-                        </ListItemButton>
-                      </Link>
-                    </ListItem>
+                            <ListItemIcon className="nav-icon">
+                              {item.icon}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={item.label}
+                              sx={{
+                                "& .MuiListItemText-primary": {
+                                  color: "var(--home-menu-text)",
+                                  fontWeight:
+                                    activeItem === item.id ? 700 : 500,
+                                },
+                              }}
+                            />
+                          </ListItemButton>
+                        </Link>
+                      </ListItem>
+                    </Zoom>
+                  ))}
 
-                    {/* <ListItem disablePadding>
-                      <Link to={"/friend_list"} style={{ width: "100%" }}>
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <i className="fa-solid fa-message icon_bg"></i>
-                          </ListItemIcon>
-                          <ListItemText primary="Friend List" />
-                        </ListItemButton>
-                      </Link>
-                    </ListItem> */}
+                  <Divider
+                    sx={{ backgroundColor: "var(--home-menu-border)", my: 2 }}
+                  />
 
-                    <ListItem disablePadding>
-                      <Link to={"/addMessenger"} style={{ width: "100%" }}>
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <i className="fa-solid fa-message icon_bg"></i>
-                          </ListItemIcon>
-                          <ListItemText primary="Add Messenger" />
-                        </ListItemButton>
-                      </Link>
-                    </ListItem>
+                  <Typography
+                    variant="h6"
+                    className="section-title"
+                    sx={{
+                      color: "var(--home-menu-accent)",
+                      fontWeight: 700,
+                      ml: 3,
+                      mb: 1,
+                    }}
+                  >
+                    Your Shortcuts
+                  </Typography>
 
-                    <ListItem disablePadding>
-                      <Link to={"/chat"} style={{ width: "100%" }}>
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <i
-                              className="fa-brands fa-facebook-messenger icon_bg"
-                              // style={{ color: "red" }}
-                            ></i>
-                          </ListItemIcon>
-                          <ListItemText primary="Messenger" />
-                        </ListItemButton>
-                      </Link>
-                    </ListItem>
-                    <hr />
-                    <h6 className="ms-3">Your Shortcuts</h6>
-                    <ListItem disablePadding>
-                      <a
-                        href={"https://www.facebook.com/groups/talkjs.net"}
-                        style={{ width: "100%" }}
-                      >
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <i className="fa-solid fa-person-chalkboard icon_bg"></i>
-                          </ListItemIcon>
-                          <ListItemText primary="Talk.js" />
-                        </ListItemButton>
-                      </a>
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <a
-                        href={"https://www.facebook.com/groups/161616437580654"}
-                        style={{ width: "100%" }}
-                      >
-                        <ListItemButton>
-                          <ListItemIcon>
-                            <i className="fa-solid fa-person-chalkboard icon_bg"></i>
-                          </ListItemIcon>
-                          <ListItemText primary="CSE/EEE/IT Jobs in Bangladesh" />
-                        </ListItemButton>
-                      </a>
-                    </ListItem>
-                  </List>
-                </nav>
-              </Box>
-            </div>
+                  {shortcuts.map((shortcut, index) => (
+                    <Zoom
+                      in={true}
+                      key={shortcut.id}
+                      style={{
+                        transitionDelay: `${
+                          (index + menuItems.length) * 100
+                        }ms`,
+                      }}
+                    >
+                      <ListItem className="nav-item">
+                        <a href={shortcut.url} className="nav-link external">
+                          <ListItemButton className="nav-button">
+                            <ListItemIcon className="nav-icon">
+                              {shortcut.icon}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={shortcut.label}
+                              sx={{
+                                "& .MuiListItemText-primary": {
+                                  color: "var(--home-menu-text)",
+                                  fontWeight: 500,
+                                },
+                              }}
+                            />
+                          </ListItemButton>
+                        </a>
+                      </ListItem>
+                    </Zoom>
+                  ))}
+                </List>
+              </nav>
+            </Box>
           </div>
         </div>
       </div>
-      <div
-        className="navbar_sm"
-        style={{ position: "fixed", background: "unset" }}
-      >
-        <Box
-          sx={{
-            width: "100%",
-            maxWidth: 360,
-            height: "100vh",
-          }}
-        >
-          <nav aria-label="main mailbox folders" style={{ marginLeft: 20 }}>
-            <List>
-              <ListItem disablePadding>
-                {location === "profilePage" ? (
-                  ""
-                ) : (
-                  <>
-                    <div style={{ width: "100%" }}>
-                      <div className="profile">
-                        <div>
-                          {" "}
-                          <Link
-                            to={`/profile/${user.ID}`}
-                            style={{
-                              textDecoration: "none",
-                              color: "inherit",
-                            }}
-                          >
-                            <ListItemButton>
-                              <ListItemIcon>
-                                <img
-                                  src={
-                                    user?.ProfilePicture
-                                      ? user.ProfilePicture
-                                      : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-                                  }
-                                  alt="ProfileImage"
-                                  className="profileImage"
-                                />
-                              </ListItemIcon>
-                            </ListItemButton>
-                          </Link>
-                          <span className="profileName"> {user.Username}</span>
-                        </div>
-                      </div>
-                      <div className="followers">
-                        <div className="follow">
-                          <span>{user?.Followers?.length || 0}</span>
-                          <span>Followers</span>
-                        </div>
-                        <div className="vl"></div>
-                        <div className="follow">
-                          <span>{user?.Following?.length || 0}</span>
-                          <span>Following</span>
-                        </div>
-                      </div>
+
+      {/* Desktop Sidebar */}
+      <div className={`navbar_sm ${isDarkTheme ? "dark" : "light"}`}>
+        <Fade in={isVisible} timeout={800}>
+          <Box className="sidebar-container">
+            {/* Enhanced Profile Section */}
+            {location !== "profilePage" && (
+              <Zoom in={isVisible} style={{ transitionDelay: "200ms" }}>
+                <div className="profile-section">
+                  <div className="profile-header">
+                    <Link to={`/profile/${user?.ID}`} className="profile-link">
+                      <Badge
+                        overlap="circular"
+                        anchorOrigin={{
+                          vertical: "bottom",
+                          horizontal: "right",
+                        }}
+                        badgeContent={<div className="online-indicator"></div>}
+                      >
+                        <Avatar
+                          src={
+                            user?.ProfilePicture ||
+                            "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+                          }
+                          alt={user?.Username}
+                          className="profile-avatar desktop"
+                          sx={{
+                            width: 56,
+                            height: 56,
+                            border: "3px solid var(--home-menu-accent)",
+                          }}
+                        />
+                      </Badge>
+                      <Typography
+                        variant="h6"
+                        className="profile-name"
+                        sx={{
+                          color: "var(--home-menu-text)",
+                          fontWeight: 700,
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {user?.Username}
+                      </Typography>
+                    </Link>
+                  </div>
+
+                  <div className="followers-section">
+                    <div className="follower-stat">
+                      <Typography variant="h5" className="stat-number">
+                        {user?.Followers?.length || 0}
+                      </Typography>
+                      <Typography variant="body2" className="stat-label">
+                        Followers
+                      </Typography>
                     </div>
-                  </>
-                )}
-              </ListItem>
-              <hr />
-              <ListItem disablePadding>
-                <Link to={"/"} style={{ width: "100%" }}>
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <HomeIcon className="icon_bg" />
-                    </ListItemIcon>
-                    <ListItemText primary="Feed" />
-                  </ListItemButton>
-                </Link>
-              </ListItem>
-              <ListItem disablePadding>
-                <Link to={"/friend"} style={{ width: "100%" }}>
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <i className="fa-solid fa-person-chalkboard icon_bg"></i>
-                    </ListItemIcon>
-                    <ListItemText primary="Find Friends" />
-                  </ListItemButton>
-                </Link>
-              </ListItem>
-              <ListItem disablePadding>
-                <Link to={"/friend-request"} style={{ width: "100%" }}>
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <PeopleAltIcon className="icon_bg" />
-                    </ListItemIcon>
-                    <ListItemText primary="Friend Request" />
-                  </ListItemButton>
-                </Link>
-              </ListItem>
-              {/* <ListItem disablePadding>
-                <Link to={"/friend_list"} style={{ width: "100%" }}>
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <PeopleAltIcon className="icon_bg" />
-                    </ListItemIcon>
-                    <ListItemText primary="Friend List" />
-                  </ListItemButton>
-                </Link>
-              </ListItem> */}
+                    <div className="stat-divider"></div>
+                    <div className="follower-stat">
+                      <Typography variant="h5" className="stat-number">
+                        {user?.Following?.length || 0}
+                      </Typography>
+                      <Typography variant="body2" className="stat-label">
+                        Following
+                      </Typography>
+                    </div>
+                  </div>
+                </div>
+              </Zoom>
+            )}
 
-              <ListItem disablePadding>
-                <Link to={"/addMessenger"} style={{ width: "100%" }}>
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <i className="fa-solid fa-message icon_bg"></i>
-                    </ListItemIcon>
-                    <ListItemText primary="Add Messenger" />
-                  </ListItemButton>
-                </Link>
-              </ListItem>
+            <Divider
+              sx={{ backgroundColor: "var(--home-menu-border)", my: 2 }}
+            />
 
-              <ListItem disablePadding>
-                <Link to={"/chat"} style={{ width: "100%" }}>
-                  <ListItemButton>
-                    <ListItemIcon>
-                      <i
-                        className="fa-brands fa-facebook-messenger icon_bg"
-                        // style={{ color: "red" }}
-                      ></i>
-                    </ListItemIcon>
-                    <ListItemText primary="Messenger" />
-                  </ListItemButton>
-                </Link>
-              </ListItem>
-            </List>
-          </nav>
-        </Box>
+            {/* Enhanced Navigation */}
+            <nav aria-label="main navigation">
+              <List className="sidebar-nav">
+                {menuItems.map((item, index) => (
+                  <Zoom
+                    in={isVisible}
+                    key={item.id}
+                    style={{ transitionDelay: `${(index + 2) * 100}ms` }}
+                  >
+                    <ListItem className="sidebar-item">
+                      <Link
+                        to={item.path}
+                        className="sidebar-link"
+                        onClick={() => handleItemClick(item.id)}
+                      >
+                        <ListItemButton
+                          className={`sidebar-button ${
+                            activeItem === item.id ? "active" : ""
+                          }`}
+                        >
+                          <ListItemIcon className="sidebar-icon">
+                            {item.icon}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.label}
+                            sx={{
+                              "& .MuiListItemText-primary": {
+                                color: "var(--home-menu-text)",
+                                fontWeight: activeItem === item.id ? 700 : 500,
+                              },
+                            }}
+                          />
+                        </ListItemButton>
+                      </Link>
+                    </ListItem>
+                  </Zoom>
+                ))}
+              </List>
+            </nav>
+          </Box>
+        </Fade>
       </div>
     </>
   );

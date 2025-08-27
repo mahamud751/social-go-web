@@ -21,6 +21,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import ReplyIcon from "@mui/icons-material/Reply";
 import DeleteIcon from "@mui/icons-material/Delete";
+import "./commentModal.css";
 
 const reactions = {
   like: { emoji: "👍", label: "Like" },
@@ -41,6 +42,11 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
   const [reactionStates, setReactionStates] = useState({});
   const [showReactions, setShowReactions] = useState(null);
   const [hoverTimeout, setHoverTimeout] = useState(null); // For debouncing hover
+
+  // Get current theme from document
+  const currentTheme =
+    document.documentElement.getAttribute("data-theme") || "dark";
+  const isDarkTheme = currentTheme === "dark";
 
   // Fetch comments
   useEffect(() => {
@@ -284,31 +290,87 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
   const renderComment = (comment, depth = 0) => (
     <React.Fragment key={comment.ID}>
       <ListItem
+        className={`comment-item depth-${depth} ${
+          isDarkTheme ? "dark" : "light"
+        }`}
         sx={{
           pl: 2 + depth * 2,
-          bgcolor: depth % 2 === 0 ? "grey.50" : "white",
-          borderRadius: 1,
+          bgcolor: isDarkTheme
+            ? depth % 2 === 0
+              ? "#383838"
+              : "#2c2c2c"
+            : depth % 2 === 0
+            ? "#f8f9fa"
+            : "#ffffff",
+          borderRadius: 2,
           mb: 1,
-          "&:hover": { bgcolor: "grey.100" },
+          border: isDarkTheme ? "1px solid #404040" : "1px solid #e0e0e0",
+          transition: "all 0.3s ease-in-out",
+          "&:hover": {
+            bgcolor: isDarkTheme ? "#404040" : "#f0f2f5",
+            transform: "translateY(-1px)",
+            boxShadow: isDarkTheme
+              ? "0 4px 12px rgba(0, 0, 0, 0.3)"
+              : "0 4px 12px rgba(0, 0, 0, 0.1)",
+          },
         }}
       >
         <Avatar
           src={users[comment.UserID]?.profilePicture || ""}
-          sx={{ width: 32, height: 32, mr: 1 }}
+          className="comment-avatar"
+          sx={{
+            width: 36,
+            height: 36,
+            mr: 1.5,
+            border: isDarkTheme ? "2px solid #555" : "2px solid #e0e0e0",
+            transition: "all 0.3s ease-in-out",
+            "&:hover": {
+              transform: "scale(1.1)",
+              boxShadow: isDarkTheme
+                ? "0 4px 12px rgba(255, 255, 255, 0.1)"
+                : "0 4px 12px rgba(0, 0, 0, 0.2)",
+            },
+          }}
         />
         <ListItemText
           primary={
-            <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+            <Typography
+              variant="subtitle2"
+              className="comment-username"
+              sx={{
+                fontWeight: "bold",
+                color: "var(--text-color)",
+                fontSize: "0.95rem",
+              }}
+            >
               {users[comment.UserID]?.username || "Unknown User"}
             </Typography>
           }
           secondary={
             <>
-              <Typography variant="body2" sx={{ mb: 0.5 }}>
+              <Typography
+                variant="body2"
+                className="comment-text"
+                sx={{
+                  mb: 1,
+                  color: "var(--text-color)",
+                  lineHeight: 1.5,
+                  wordWrap: "break-word",
+                }}
+              >
                 {comment.Text}
               </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box
+                className="comment-actions"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  flexWrap: "wrap",
+                }}
+              >
                 <Box
+                  className="reaction-container"
                   sx={{ position: "relative" }}
                   onMouseEnter={() => handleMouseEnter(comment.ID)}
                   onMouseLeave={handleMouseLeave}
@@ -321,27 +383,41 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
                       </>
                     }
                     size="small"
+                    className="reaction-chip"
                     sx={{
                       cursor: "pointer",
-                      bgcolor: "primary.light",
-                      color: "white",
+                      bgcolor: isDarkTheme ? "#4a90e2" : "#1976d2",
+                      color: "#ffffff",
+                      fontSize: "0.8rem",
+                      transition: "all 0.2s ease-in-out",
+                      "&:hover": {
+                        bgcolor: isDarkTheme ? "#5ba3f5" : "#1565c0",
+                        transform: "scale(1.05)",
+                      },
                     }}
                   />
                   {showReactions === comment.ID && (
                     <Box
+                      className="reaction-menu"
                       sx={{
                         position: "absolute",
-                        top: "-40px", // Position above the Chip
+                        top: "-50px",
                         left: 0,
                         display: "flex",
-                        gap: 1,
-                        bgcolor: "white",
-                        p: 0.5,
-                        borderRadius: 2,
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        gap: 0.5,
+                        bgcolor: isDarkTheme ? "#2c2c2c" : "#ffffff",
+                        p: 1,
+                        borderRadius: 3,
+                        boxShadow: isDarkTheme
+                          ? "0 4px 20px rgba(0, 0, 0, 0.5)"
+                          : "0 4px 20px rgba(0, 0, 0, 0.15)",
+                        border: isDarkTheme
+                          ? "1px solid #404040"
+                          : "1px solid #e0e0e0",
                         zIndex: 10,
+                        animation: "slideIn 0.2s ease-out",
                       }}
-                      onMouseEnter={() => handleMouseEnter(comment.ID)} // Keep menu open when hovering over it
+                      onMouseEnter={() => handleMouseEnter(comment.ID)}
                       onMouseLeave={handleMouseLeave}
                     >
                       {Object.keys(reactions).map((type) => (
@@ -349,17 +425,40 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
                           key={type}
                           label={reactions[type].emoji}
                           onClick={() => handleReaction(comment.ID, type)}
+                          className={`reaction-option ${
+                            reactionStates[comment.ID] === type ? "active" : ""
+                          }`}
                           sx={{
                             cursor: "pointer",
-                            fontSize: "20px",
+                            fontSize: "18px",
+                            minWidth: "40px",
+                            height: "40px",
+                            transition: "all 0.2s ease-in-out",
                             bgcolor:
                               reactionStates[comment.ID] === type
-                                ? "primary.main"
-                                : "grey.200",
+                                ? isDarkTheme
+                                  ? "var(--yellow)"
+                                  : "#1976d2"
+                                : isDarkTheme
+                                ? "#404040"
+                                : "#f5f5f5",
                             color:
                               reactionStates[comment.ID] === type
-                                ? "white"
-                                : "black",
+                                ? isDarkTheme
+                                  ? "#000"
+                                  : "#fff"
+                                : "var(--text-color)",
+                            "&:hover": {
+                              transform: "scale(1.2)",
+                              bgcolor:
+                                reactionStates[comment.ID] === type
+                                  ? isDarkTheme
+                                    ? "var(--yellow)"
+                                    : "#1565c0"
+                                  : isDarkTheme
+                                  ? "#555"
+                                  : "#e0e0e0",
+                            },
                           }}
                           title={reactions[type].label}
                         />
@@ -372,13 +471,28 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
                   label="Reply"
                   size="small"
                   onClick={() => setReplyTo(comment)}
+                  className="reply-chip"
                   sx={{
                     cursor: "pointer",
-                    bgcolor: "secondary.light",
-                    color: "white",
+                    bgcolor: isDarkTheme ? "#2ECC71" : "#4caf50",
+                    color: "#ffffff",
+                    fontSize: "0.75rem",
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      bgcolor: isDarkTheme ? "#27AE60" : "#388e3c",
+                      transform: "scale(1.05)",
+                    },
                   }}
                 />
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  className="comment-timestamp"
+                  sx={{
+                    color: isDarkTheme ? "#b0b0b0" : "#666",
+                    fontSize: "0.7rem",
+                    fontStyle: "italic",
+                  }}
+                >
                   {new Date(comment.CreatedAt).toLocaleString()}
                 </Typography>
               </Box>
@@ -389,14 +503,30 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
           <IconButton
             edge="end"
             onClick={() => handleDeleteComment(comment.ID)}
-            sx={{ color: "error.main" }}
+            className="delete-button"
+            sx={{
+              color: "var(--orange)",
+              transition: "all 0.2s ease-in-out",
+              "&:hover": {
+                color: isDarkTheme ? "#ff7875" : "#d32f2f",
+                bgcolor: isDarkTheme ? "#4a1f1f" : "#ffebee",
+                transform: "scale(1.1)",
+              },
+            }}
           >
             <DeleteIcon />
           </IconButton>
         )}
       </ListItem>
       {comment.children?.map((child) => renderComment(child, depth + 1))}
-      <Divider sx={{ mx: 2 + depth * 2 }} />
+      <Divider
+        className="comment-divider"
+        sx={{
+          mx: 2 + depth * 2,
+          bgcolor: isDarkTheme ? "#404040" : "#e0e0e0",
+          opacity: 0.7,
+        }}
+      />
     </React.Fragment>
   );
 
@@ -406,65 +536,163 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
+      className={`comment-modal ${isDarkTheme ? "dark" : "light"}`}
       sx={{
         "& .MuiDialog-paper": {
-          borderRadius: 2,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-          bgcolor: "background.paper",
+          borderRadius: 3,
+          boxShadow: isDarkTheme
+            ? "0 8px 32px rgba(0, 0, 0, 0.6)"
+            : "0 8px 32px rgba(0, 0, 0, 0.15)",
+          bgcolor: isDarkTheme ? "#2c2c2c" : "#ffffff",
+          border: isDarkTheme ? "1px solid #404040" : "none",
+          maxHeight: "90vh",
         },
       }}
     >
       <DialogTitle
+        className="comment-modal-title"
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          bgcolor: isDarkTheme ? "#383838" : "#f8f9fa",
+          borderBottom: isDarkTheme ? "1px solid #404040" : "1px solid #e0e0e0",
+          py: 2,
         }}
       >
         <Typography
           variant="h5"
-          sx={{ fontWeight: "bold", color: "primary.main" }}
+          sx={{
+            fontWeight: "bold",
+            color: "var(--text-color)",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
         >
-          Comments
+          💬 Comments
         </Typography>
-        <IconButton onClick={handleClose} sx={{ color: "grey.600" }}>
+        <IconButton
+          onClick={handleClose}
+          className="close-button"
+          sx={{
+            color: "var(--text-color)",
+            transition: "all 0.2s ease-in-out",
+            "&:hover": {
+              bgcolor: isDarkTheme ? "#4a1f1f" : "#ffebee",
+              color: "var(--orange)",
+              transform: "rotate(90deg)",
+            },
+          }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      <DialogContent dividers>
-        <List sx={{ maxHeight: "60vh", overflowY: "auto", p: 0 }}>
+      <DialogContent
+        dividers
+        className="comment-modal-content"
+        sx={{
+          bgcolor: isDarkTheme ? "#2c2c2c" : "#ffffff",
+          borderColor: isDarkTheme ? "#404040" : "#e0e0e0",
+        }}
+      >
+        <List
+          className="comments-list"
+          sx={{
+            maxHeight: "60vh",
+            overflowY: "auto",
+            p: 0,
+            "&::-webkit-scrollbar": {
+              width: "8px",
+            },
+            "&::-webkit-scrollbar-track": {
+              background: "transparent",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              background: isDarkTheme ? "#555" : "#ccc",
+              borderRadius: "4px",
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              background: "var(--yellow)",
+            },
+          }}
+        >
           {comments.length > 0 ? (
             comments.map((comment) => renderComment(comment))
           ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-              No comments yet.
+            <Typography
+              variant="body2"
+              className="empty-comments"
+              sx={{
+                p: 3,
+                textAlign: "center",
+                color: isDarkTheme ? "#b0b0b0" : "#666",
+                fontStyle: "italic",
+                fontSize: "1rem",
+              }}
+            >
+              🗨️ No comments yet. Be the first to share your thoughts!
             </Typography>
           )}
         </List>
       </DialogContent>
-      <DialogActions sx={{ p: 2, bgcolor: "grey.50" }}>
+      <DialogActions
+        className="comment-modal-actions"
+        sx={{
+          p: 2,
+          bgcolor: isDarkTheme ? "#383838" : "#f8f9fa",
+          borderTop: isDarkTheme ? "1px solid #404040" : "1px solid #e0e0e0",
+        }}
+      >
         <Box
           component="form"
           onSubmit={handleCommentSubmit}
-          sx={{ display: "flex", gap: 1, width: "100%" }}
+          className="comment-form"
+          sx={{
+            display: "flex",
+            gap: 1.5,
+            width: "100%",
+            alignItems: "flex-end",
+          }}
         >
           <TextField
             fullWidth
             variant="outlined"
             placeholder={
               replyTo
-                ? `Replying to ${
+                ? `💬 Replying to ${
                     users[replyTo.UserID]?.username || "comment"
                   }...`
-                : "Write a comment..."
+                : "✍️ Write a comment..."
             }
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             size="small"
+            multiline
+            maxRows={3}
+            className="comment-input"
             sx={{
               "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-                bgcolor: "white",
+                borderRadius: 3,
+                bgcolor: isDarkTheme ? "#404040" : "#ffffff",
+                color: "var(--text-color)",
+                transition: "all 0.2s ease-in-out",
+                "& fieldset": {
+                  borderColor: isDarkTheme ? "#555" : "#ccc",
+                },
+                "&:hover fieldset": {
+                  borderColor: isDarkTheme ? "var(--yellow)" : "#1976d2",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: isDarkTheme ? "var(--yellow)" : "#1976d2",
+                  borderWidth: "2px",
+                },
+              },
+              "& .MuiInputBase-input": {
+                color: "var(--text-color)",
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: isDarkTheme ? "#b0b0b0" : "#666",
               },
             }}
           />
@@ -473,18 +701,51 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
             variant="contained"
             color="primary"
             disabled={!newComment.trim()}
-            sx={{ borderRadius: 2, px: 3 }}
+            className="submit-button"
+            sx={{
+              borderRadius: 3,
+              px: 3,
+              py: 1,
+              bgcolor: isDarkTheme ? "#4a90e2" : "#1976d2",
+              color: "#ffffff",
+              fontWeight: "bold",
+              minWidth: "80px",
+              transition: "all 0.2s ease-in-out",
+              "&:hover": {
+                bgcolor: isDarkTheme ? "#5ba3f5" : "#1565c0",
+                transform: "scale(1.05)",
+              },
+              "&:disabled": {
+                bgcolor: isDarkTheme ? "#555" : "#ccc",
+                color: isDarkTheme ? "#888" : "#999",
+              },
+            }}
           >
-            {replyTo ? "Reply" : "Post"}
+            {replyTo ? "💬 Reply" : "📝 Post"}
           </Button>
           {replyTo && (
             <Button
               variant="outlined"
               color="secondary"
               onClick={() => setReplyTo(null)}
-              sx={{ borderRadius: 2 }}
+              className="cancel-button"
+              sx={{
+                borderRadius: 3,
+                px: 2,
+                py: 1,
+                borderColor: "var(--orange)",
+                color: "var(--orange)",
+                fontWeight: "bold",
+                transition: "all 0.2s ease-in-out",
+                "&:hover": {
+                  bgcolor: isDarkTheme ? "#4a1f1f" : "#ffebee",
+                  borderColor: isDarkTheme ? "#ff7875" : "#d32f2f",
+                  color: isDarkTheme ? "#ff7875" : "#d32f2f",
+                  transform: "scale(1.05)",
+                },
+              }}
             >
-              Cancel
+              ❌ Cancel
             </Button>
           )}
         </Box>

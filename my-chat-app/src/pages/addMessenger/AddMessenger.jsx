@@ -9,11 +9,8 @@ const AddMessenger = () => {
       <div className="col-md-3 mt-3">
         <HomeMenu />
       </div>
-      <div className="col-md-6 mt-5">
+      <div className="col-md-9 mt-5">
         <AddMessengers />
-      </div>
-      <div className="col-md-3 home_main_sm">
-        <RightSide />
       </div>
     </div>
   );

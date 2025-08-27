@@ -24,7 +24,10 @@ function Root() {
     <Provider store={store}>
       <BrowserRouter>
         <Routes>
-          <Route path="*" element={<App toggleTheme={toggleTheme} />} />
+          <Route
+            path="*"
+            element={<App toggleTheme={toggleTheme} theme={theme} />}
+          />
         </Routes>
       </BrowserRouter>
     </Provider>

@@ -1,78 +1,690 @@
-/* Inherit variables from App.css, add user-specific ones */
+/* Enhanced User Component Theme-Aware Styles */
+
+/* Theme Variables */
 :root[data-theme="dark"] {
-  --user-card-bg: #242526; /* Matches post.css, postShare.css, navbar.css */
-  --user-text-color: #ffffff; /* Matches original Typography color */
-  --user-secondary-text: #b0b3b8; /* Matches commentModal.css, navbar.css */
-  --user-button-bg: linear-gradient(
-    98.63deg,
-    #8f00ff 0%,
-    #ff18b7 100%
-  ); /* From App.css */
-  --user-button-text: #ffffff;
-  --user-button-hover-bg: transparent;
-  --user-button-hover-border: 2px solid var(--orange); /* From App.css */
-  --user-button-hover-text: var(--orange);
-  --user-error-bg: #3a3b3c; /* Darker for alerts */
+  --user-card-bg: #2c2c2c;
+  --user-card-hover: #383838;
+  --user-text-color: #ffffff;
+  --user-secondary-text: #b0b3b8;
+  --user-accent: #f5c32c;
+  --user-primary: #4a90e2;
+  --user-success: #2ecc71;
+  --user-error: #ff7875;
+  --user-border: #404040;
+  --user-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --user-hover-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+  --user-glow: 0 0 20px rgba(245, 195, 44, 0.3);
+  --user-button-bg: linear-gradient(135deg, #4a90e2 0%, #5ba3f5 100%);
+  --user-glass: rgba(44, 44, 44, 0.8);
+  --user-skeleton: #383838;
 }
 
 :root[data-theme="light"] {
-  --user-card-bg: #f0f2f5; /* Matches post.css, postShare.css, navbar.css */
+  --user-card-bg: #ffffff;
+  --user-card-hover: #f8f9fa;
   --user-text-color: #000000;
-  --user-secondary-text: #666666; /* Matches commentModal.css, navbar.css */
-  --user-button-bg: linear-gradient(
-    98.63deg,
-    #8f00ff 0%,
-    #ff18b7 100%
-  ); /* From App.css */
-  --user-button-text: #ffffff;
-  --user-button-hover-bg: transparent;
-  --user-button-hover-border: 2px solid var(--orange);
-  --user-button-hover-text: var(--orange);
-  --user-error-bg: #ffebee; /* Lighter for alerts */
+  --user-secondary-text: #666666;
+  --user-accent: #1976d2;
+  --user-primary: #1976d2;
+  --user-success: #4caf50;
+  --user-error: #d32f2f;
+  --user-border: #e0e0e0;
+  --user-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --user-hover-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  --user-glow: 0 0 20px rgba(25, 118, 210, 0.2);
+  --user-button-bg: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  --user-glass: rgba(255, 255, 255, 0.9);
+  --user-skeleton: #f0f0f0;
 }
 
-/* Override MUI Card styles */
-.MuiCard-root {
+/* Main User Card */
+.user-card {
   background: var(--user-card-bg) !important;
+  border: 1px solid var(--user-border) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--user-shadow) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+  position: relative !important;
+  cursor: pointer !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.user-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--user-accent),
+    var(--user-primary),
+    var(--user-success)
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 2;
+}
+
+.user-card:hover {
+  transform: translateY(-8px) scale(1.02) !important;
+  box-shadow: var(--user-hover-shadow) !important;
+  background: var(--user-card-hover) !important;
+}
+
+.user-card:hover::before {
+  opacity: 1;
+}
+
+.user-card.hovered {
+  animation: cardPulse 0.6s ease-out;
+}
+
+/* Card Glow Effect */
+.card-glow {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(
+    45deg,
+    var(--user-accent),
+    var(--user-primary),
+    var(--user-success)
+  );
+  border-radius: 26px;
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+  filter: blur(8px);
+}
+
+.user-card:hover .card-glow {
+  opacity: 0.3;
+}
+
+/* Card Header */
+.card-header {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+/* Image Container */
+.image-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 2rem auto 0;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid var(--user-border);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.user-card:hover .image-container {
+  border-color: var(--user-accent);
+  transform: scale(1.1);
+  box-shadow: var(--user-glow);
+}
+
+/* Profile Image */
+.profile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.user-card:hover .profile-image {
+  transform: scale(1.1);
+}
+
+/* Status Indicator */
+.status-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--user-card-bg);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+  z-index: 3;
+}
+
+/* Image Overlay */
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, var(--user-accent), var(--user-primary));
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.user-card:hover .image-overlay {
+  opacity: 0.8;
+}
+
+.overlay-icon {
+  color: #ffffff;
+  font-size: 2rem;
+  transform: scale(0);
+  transition: transform 0.3s ease;
+}
+
+.user-card:hover .overlay-icon {
+  transform: scale(1);
+}
+
+/* Image Skeleton */
+.image-skeleton {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--user-skeleton);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeleton-pulse {
+  width: 40px;
+  height: 40px;
+  background: var(--user-accent);
+  border-radius: 50%;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* Mutual Friends Chip */
+.mutual-friends-chip {
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: chipFloat 3s ease-in-out infinite;
+}
+
+/* Card Content */
+.card-content {
+  padding: 1.5rem !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+}
+
+/* User Info */
+.user-info {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.username {
   color: var(--user-text-color) !important;
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+  font-size: 1.3rem !important;
+  transition: all 0.3s ease !important;
+  background: linear-gradient(
+    45deg,
+    var(--user-text-color),
+    var(--user-accent)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  background-size: 200% 200%;
 }
 
-/* Override MUI Typography styles */
-.MuiTypography-root {
-  color: var(--user-text-color) !important;
+.user-card:hover .username {
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 2s ease-in-out infinite;
 }
 
-/* Override MUI Button styles */
-.MuiButton-contained {
-  background: var(--user-button-bg) !important;
-  color: var(--user-button-text) !important;
+.user-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--user-secondary-text);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-.MuiButton-outlined {
-  background: var(--user-button-hover-bg) !important;
-  border: var(--user-button-hover-border) !important;
-  color: var(--user-button-hover-text) !important;
+.status-icon {
+  font-size: 1rem;
+  opacity: 0.8;
 }
 
-.MuiButton-root:disabled {
-  background: silver !important;
+.status-text {
+  transition: color 0.3s ease;
+}
+
+.user-card:hover .status-text {
+  color: var(--user-accent);
+}
+
+/* User Details */
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--user-glass);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid var(--user-border);
+  animation: slideInUp 0.3s ease-out;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--user-secondary-text);
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+}
+
+.detail-item:hover {
+  color: var(--user-accent);
+  transform: translateX(4px);
+}
+
+.detail-icon {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.detail-text {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+/* Stats Row */
+.stats-row {
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--user-border);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  transition: transform 0.3s ease;
+}
+
+.stat-item:hover {
+  transform: scale(1.1);
+}
+
+.stat-number {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--user-accent);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--user-secondary-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* Card Actions */
+.card-actions {
+  padding: 1rem 1.5rem 1.5rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Action Buttons */
+.action-btn {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  flex: 1 !important;
+}
+
+.action-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  transform: translate(-50%, -50%);
+}
+
+.action-btn:hover::before {
+  width: 200px;
+  height: 200px;
+}
+
+.visit-btn {
+  min-height: 40px !important;
+}
+
+.follow-btn {
+  min-height: 40px !important;
+}
+
+.follow-btn.following {
+  animation: followingPulse 2s ease-in-out infinite;
+}
+
+.friend-request-btn {
+  min-height: 48px !important;
+  font-size: 0.9rem !important;
+}
+
+.friend-request-btn.friend {
+  animation: successGlow 2s ease-in-out infinite;
+}
+
+.friend-request-btn.pending,
+.friend-request-btn.sent {
+  animation: pendingPulse 1.5s ease-in-out infinite;
+}
+
+/* Error Alert */
+.error-alert {
+  background: var(--user-error) !important;
   color: #ffffff !important;
+  border-radius: 12px !important;
+  animation: errorShake 0.5s ease-out;
 }
 
-/* Override MUI Alert styles */
-.MuiAlert-root {
-  background: var(--user-error-bg) !important;
-  color: var(--user-text-color) !important;
-}
-
-/* Custom class for buttons to match App.css .button */
+/* Legacy Style Overrides */
+.MuiCard-root,
+.MuiTypography-root,
+.MuiButton-contained,
+.MuiButton-outlined,
+.MuiButton-root,
+.MuiAlert-root,
 .fc-button {
-  border-radius: 0.5rem !important;
-  transition: all 200ms ease-out !important;
+  /* Reset legacy styles */
+  all: unset;
 }
 
-.fc-button:hover {
-  background: var(--user-button-hover-bg) !important;
-  border: var(--user-button-hover-border) !important;
-  color: var(--user-button-hover-text) !important;
+/* Animations */
+@keyframes cardPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+@keyframes chipFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes textShimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes followingPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--user-error);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 120, 117, 0.3);
+  }
+}
+
+@keyframes successGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--user-success);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(46, 204, 113, 0.3);
+  }
+}
+
+@keyframes pendingPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--user-accent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 195, 44, 0.3);
+  }
+}
+
+@keyframes errorShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .user-card {
+    border-radius: 20px !important;
+  }
+
+  .card-header {
+    height: 180px;
+  }
+
+  .image-container {
+    width: 100px;
+    height: 100px;
+    margin-top: 1.5rem;
+  }
+
+  .card-content {
+    padding: 1rem !important;
+  }
+
+  .username {
+    font-size: 1.1rem !important;
+  }
+
+  .user-details {
+    padding: 0.75rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .stats-row {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-card {
+    border-radius: 16px !important;
+  }
+
+  .card-header {
+    height: 160px;
+  }
+
+  .image-container {
+    width: 80px;
+    height: 80px;
+    margin-top: 1rem;
+  }
+
+  .card-content {
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .username {
+    font-size: 1rem !important;
+  }
+
+  .user-status {
+    font-size: 0.8rem;
+  }
+
+  .detail-item {
+    font-size: 0.8rem;
+  }
+
+  .action-btn {
+    font-size: 0.8rem !important;
+    padding: 0.5rem 1rem !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .user-card {
+    border: 2px solid var(--user-text-color) !important;
+  }
+
+  .action-btn {
+    border: 2px solid var(--user-text-color) !important;
+  }
+
+  .image-container {
+    border: 4px solid var(--user-text-color);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .user-card:hover {
+    transform: none !important;
+  }
+
+  .action-btn:hover {
+    transform: none !important;
+  }
+}
+
+/* Focus Styles for Accessibility */
+.action-btn:focus {
+  outline: 2px solid var(--user-accent) !important;
+  outline-offset: 2px !important;
+}
+
+.user-card:focus {
+  outline: 2px solid var(--user-accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* Print Styles */
+@media print {
+  .user-card {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+
+  .card-actions {
+    display: none !important;
+  }
+
+  .user-details {
+    background: transparent !important;
+  }
 }

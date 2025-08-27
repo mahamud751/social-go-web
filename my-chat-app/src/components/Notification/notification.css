@@ -1,0 +1,226 @@
+/* Notification Component Theme-Aware Styles */
+
+/* Notification Icon Styles */
+.notification-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  transition: all 0.3s ease-in-out;
+}
+
+[data-theme="dark"] .notification-icon {
+  filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.1));
+}
+
+/* Modal Backdrop */
+.notification-modal {
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .notification-modal {
+  background: linear-gradient(135deg, #2c2c2c 0%, #383838 100%);
+}
+
+[data-theme="light"] .notification-modal {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+/* Notification Title */
+.notification-title {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .notification-title {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+/* Notification Items */
+.notification-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--yellow), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.notification-item.unread::before {
+  opacity: 1;
+}
+
+[data-theme="dark"] .notification-item.unread::before {
+  background: linear-gradient(90deg, transparent, var(--yellow), transparent);
+}
+
+[data-theme="light"] .notification-item.unread::before {
+  background: linear-gradient(90deg, transparent, #1890ff, transparent);
+}
+
+/* Notification Avatar Animation */
+.notification-avatar {
+  transition: all 0.3s ease-in-out;
+}
+
+.notification-item:hover .notification-avatar {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .notification-item:hover .notification-avatar {
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+/* Button Hover Effects */
+.notification-accept-btn,
+.notification-reject-btn,
+.notification-read-btn {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-accept-btn::before,
+.notification-reject-btn::before,
+.notification-read-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease-in-out;
+  transform: translate(-50%, -50%);
+}
+
+.notification-accept-btn:hover::before,
+.notification-reject-btn:hover::before,
+.notification-read-btn:hover::before {
+  width: 100px;
+  height: 100px;
+}
+
+/* Error Alert Styling */
+.notification-error {
+  animation: slideInError 0.3s ease-out;
+}
+
+@keyframes slideInError {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Empty State Styling */
+.notification-empty {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Scrollbar Styling */
+.notification-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.notification-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notification-modal::-webkit-scrollbar-thumb {
+  background: var(--gray);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .notification-modal::-webkit-scrollbar-thumb {
+  background: #555;
+}
+
+[data-theme="light"] .notification-modal::-webkit-scrollbar-thumb {
+  background: #ccc;
+}
+
+.notification-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--yellow);
+}
+
+/* Message Text Styling */
+.notification-message {
+  word-wrap: break-word;
+  line-height: 1.5;
+}
+
+.notification-timestamp {
+  font-variant: small-caps;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .notification-modal {
+    width: 95% !important;
+    margin: 10px;
+  }
+
+  .notification-item {
+    padding: 12px !important;
+  }
+
+  .notification-accept-btn,
+  .notification-reject-btn,
+  .notification-read-btn {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .notification-item {
+    border: 2px solid var(--text-color);
+  }
+
+  .notification-accept-btn,
+  .notification-reject-btn,
+  .notification-read-btn {
+    border-width: 2px !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .notification-icon,
+  .notification-avatar,
+  .notification-accept-btn,
+  .notification-reject-btn,
+  .notification-read-btn {
+    transition: none !important;
+  }
+
+  .notification-item {
+    transform: none !important;
+  }
+
+  .notification-item:hover {
+    transform: none !important;
+  }
+}
