@@ -421,7 +421,7 @@ const ChatBox = ({
     });
   }, []);
 
-  // Start a call
+  // Start a call - Fixed version
   const startCall = async (type) => {
     try {
       setCallType(type);
@@ -438,7 +438,7 @@ const ChatBox = ({
         currentUser
       );
 
-      // Fetch Agora token
+      // Fetch Agora token for the initiator
       const tokenData = await fetchAgoraToken(
         channelName,
         "publisher",
@@ -451,14 +451,17 @@ const ChatBox = ({
       await joinAgoraChannel(channelName, tokenData.token, currentUser);
       console.log("Joined channel successfully");
 
-      // Send call-request signal
+      // Send call-request signal to the receiver
       const receiverId = chat.Members.find((id) => id !== currentUser);
       if (!receiverId) {
         throw new Error("Receiver ID not found");
       }
+
       if (socket.current?.readyState !== WebSocket.OPEN) {
         throw new Error("WebSocket is not open");
       }
+
+      // Send the call request with all necessary information
       socket.current.send(
         JSON.stringify({
           type: "agora-signal",
@@ -468,32 +471,33 @@ const ChatBox = ({
             targetId: receiverId,
             channel: channelName,
             callType: type,
+            token: tokenData.token, // Send token to receiver
+            appId: tokenData.appId, // Send appId to receiver
           },
         })
       );
       console.log("Sent call-request signal to:", receiverId);
 
+      // Set timeout for call initiation
       callTimeoutRef.current = setTimeout(() => {
-        console.log("Call timed out");
+        console.log("Call timed out - no response from peer");
+        showToast("No answer from user", "warning", 3000);
         endCall();
       }, 30000);
     } catch (error) {
       console.error("Error starting call:", error);
-      alert(
-        `Failed to start call: ${error.message}. Please check your microphone and camera permissions.`
-      );
+      showToast(`Failed to start call: ${error.message}`, "error", 5000);
       endCall();
     }
   };
 
-  // Answer a call
+  // Answer a call - Fixed version
   const answerCall = async () => {
     try {
       if (
         callStatus !== "incoming" ||
         !incomingCallOffer ||
-        !incomingCallOffer.channel ||
-        !incomingCallOffer.callerId
+        !incomingCallOffer.channel
       ) {
         throw new Error("Invalid or missing call data");
       }
@@ -501,6 +505,7 @@ const ChatBox = ({
       setCallStatus("in-progress");
       setCallType(incomingCallOffer.callType);
 
+      // Fetch Agora token for the answerer
       const tokenData = await fetchAgoraToken(
         incomingCallOffer.channel,
         "publisher",
@@ -508,12 +513,14 @@ const ChatBox = ({
       );
       setAgoraToken(tokenData.token);
 
+      // Join the same Agora channel
       await joinAgoraChannel(
         incomingCallOffer.channel,
         tokenData.token,
         currentUser
       );
 
+      // Send call-accepted signal back to the initiator
       socket.current.send(
         JSON.stringify({
           type: "agora-signal",
@@ -527,19 +534,18 @@ const ChatBox = ({
       );
 
       setIncomingCallOffer(null);
+
+      // Clear the incoming call timeout
       if (callTimeoutRef.current) {
         clearTimeout(callTimeoutRef.current);
         callTimeoutRef.current = null;
       }
     } catch (error) {
       console.error("Error answering call:", error);
-      alert(
-        "Failed to answer call. Please check your microphone and camera permissions."
-      );
+      showToast(`Failed to answer call: ${error.message}`, "error", 5000);
       endCall();
     }
   };
-
   // Decline a call
   const declineCall = () => {
     if (
@@ -568,8 +574,11 @@ const ChatBox = ({
     }
   };
 
-  // End a call
+  // End a call with proper cleanup
   const endCall = () => {
+    console.log("Ending call and cleaning up resources");
+
+    // Clean up local tracks
     if (localAudioTrack.current) {
       localAudioTrack.current.close();
       localAudioTrack.current = null;
@@ -578,34 +587,46 @@ const ChatBox = ({
       localVideoTrack.current.close();
       localVideoTrack.current = null;
     }
+
+    // Leave the Agora channel
     if (agoraClient.current) {
       agoraClient.current.leave();
     }
-    const peerId = chat?.Members.find((id) => id !== currentUser);
-    if (peerId && socket.current?.readyState === WebSocket.OPEN) {
-      socket.current.send(
-        JSON.stringify({
-          type: "agora-signal",
-          userId: currentUser,
-          data: {
-            action: "call-ended",
-            targetId: peerId,
-            channel:
-              incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`,
-          },
-        })
-      );
+
+    // Notify the other user if we're in a call
+    if (callStatus !== "idle") {
+      const peerId = chat?.Members.find((id) => id !== currentUser);
+      if (peerId && socket.current?.readyState === WebSocket.OPEN) {
+        socket.current.send(
+          JSON.stringify({
+            type: "agora-signal",
+            userId: currentUser,
+            data: {
+              action: "call-ended",
+              targetId: peerId,
+              channel:
+                incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`,
+            },
+          })
+        );
+      }
     }
+
+    // Reset all call states
     setCallStatus("idle");
     setCallType(null);
     setIsCallInitiator(false);
     setIncomingCallOffer(null);
     setCallData(null);
     setAgoraToken(null);
+
+    // Clear any timeouts
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
     }
+
+    console.log("Call ended and resources cleaned up");
   };
 
   // Handle Agora signaling through WebSocket
@@ -619,15 +640,18 @@ const ChatBox = ({
         "isCallInitiator:",
         isCallInitiator
       );
-      switch (callData.type) {
-        case "agora-signal":
-          const {
-            action,
-            channel,
-            callType: incomingCallType,
-            targetId,
-          } = callData.data;
-          if (action === "call-request" && callStatus === "idle") {
+
+      const {
+        action,
+        channel,
+        callType: incomingCallType,
+        targetId,
+      } = callData.data;
+
+      switch (action) {
+        case "call-request":
+          if (callStatus === "idle") {
+            console.log("Incoming call request received");
             setCallStatus("incoming");
             setCallType(incomingCallType);
             setIncomingCallOffer({
@@ -635,32 +659,46 @@ const ChatBox = ({
               channel,
               callType: incomingCallType,
             });
+
+            // Set timeout for incoming call
             callTimeoutRef.current = setTimeout(() => {
               console.log("Incoming call timed out");
               declineCall();
             }, 30000);
-          } else if (action === "call-accepted" && isCallInitiator) {
+          }
+          break;
+
+        case "call-accepted":
+          if (isCallInitiator) {
+            console.log("Call accepted by peer");
             setCallStatus("in-progress");
+
+            // Clear the calling timeout
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
               callTimeoutRef.current = null;
             }
-          } else if (action === "call-rejected" && isCallInitiator) {
-            console.log("Call rejected by peer");
-            endCall();
-          } else if (action === "call-ended") {
-            if (callStatus === "incoming" && incomingCallOffer) {
-              console.log("Caller ended call before answering");
-              alert(`${userData?.Username || "Caller"} hung up`);
-              declineCall();
-            } else if (callStatus !== "idle") {
-              console.log("Call ended by peer");
-              endCall();
-            }
           }
           break;
+
+        case "call-rejected":
+          if (isCallInitiator) {
+            console.log("Call rejected by peer");
+            showToast("Call was rejected", "info", 3000);
+            endCall();
+          }
+          break;
+
+        case "call-ended":
+          console.log("Call ended by peer");
+          if (callStatus !== "idle") {
+            showToast("Call ended", "info", 3000);
+            endCall();
+          }
+          break;
+
         default:
-          console.log("Unhandled call data type:", callData.type);
+          console.log("Unhandled call action:", action);
       }
     }
   }, [callData]);
