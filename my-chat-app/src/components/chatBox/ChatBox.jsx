@@ -62,6 +62,8 @@ const ChatBox = ({
   const [isTyping, setIsTyping] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [remoteAudioMuted, setRemoteAudioMuted] = useState(false);
+  const [remoteVideoOff, setRemoteVideoOff] = useState(false);
 
   // Toast notification states
   const [toasts, setToasts] = useState([]);
@@ -88,7 +90,6 @@ const ChatBox = ({
     setToasts((prev) => [...prev, newToast]);
     setToastIdCounter((prev) => prev + 1);
 
-    // Auto remove toast after duration
     setTimeout(() => {
       removeToast(newToast.id);
     }, duration);
@@ -151,7 +152,6 @@ const ChatBox = ({
     const timer = setTimeout(() => setIsVisible(true), 100);
     return () => {
       clearTimeout(timer);
-      // Cleanup typing timeout on unmount
       if (window.typingTimeout) {
         clearTimeout(window.typingTimeout);
       }
@@ -160,18 +160,13 @@ const ChatBox = ({
 
   const handleChange = (newMessage) => {
     setNewMessage(newMessage);
-
-    // Show typing indicator temporarily
     setIsTyping(true);
-
-    // Clear typing indicator after user stops typing
     clearTimeout(window.typingTimeout);
     window.typingTimeout = setTimeout(() => {
       setIsTyping(false);
     }, 1000);
   };
 
-  // Handle keyboard events for message input
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -183,7 +178,6 @@ const ChatBox = ({
     }
   };
 
-  // Handle Enter key for InputEmoji
   const onEnter = () => {
     if (newMessage.trim()) {
       const mockEvent = { preventDefault: () => {} };
@@ -196,9 +190,55 @@ const ChatBox = ({
   // Initialize Agora client
   useEffect(() => {
     agoraClient.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+    // Handle remote user events
+    agoraClient.current.on("user-published", async (user, mediaType) => {
+      await agoraClient.current.subscribe(user, mediaType);
+      console.log(
+        "Subscribed to remote user:",
+        user.uid,
+        "mediaType:",
+        mediaType
+      );
+      if (mediaType === "video") {
+        user.videoTrack.play(remoteMediaRef.current);
+        setRemoteVideoOff(false);
+        showToast("Remote user video enabled", "info", 3000);
+      }
+      if (mediaType === "audio") {
+        user.audioTrack.play();
+        setRemoteAudioMuted(false);
+        showToast("Remote user audio enabled", "info", 3000);
+      }
+    });
+
+    agoraClient.current.on("user-unpublished", (user, mediaType) => {
+      console.log(
+        "Remote user unpublished:",
+        user.uid,
+        "mediaType:",
+        mediaType
+      );
+      if (mediaType === "video") {
+        setRemoteVideoOff(true);
+        showToast("Remote user turned off video", "info", 3000);
+      }
+      if (mediaType === "audio") {
+        setRemoteAudioMuted(true);
+        showToast("Remote user muted audio", "info", 3000);
+      }
+    });
+
+    agoraClient.current.on("user-left", (user, reason) => {
+      console.log("Remote user left:", user.uid, "reason:", reason);
+      showToast("Remote user ended the call", "info", 3000);
+      endCall();
+    });
+
     return () => {
       if (agoraClient.current) {
         agoraClient.current.leave();
+        agoraClient.current = null;
       }
     };
   }, []);
@@ -212,6 +252,7 @@ const ChatBox = ({
         setUserData(data);
       } catch (error) {
         console.log(error);
+        showToast("Failed to load user data", "error", 5000);
       }
     };
 
@@ -226,6 +267,7 @@ const ChatBox = ({
         setMessages(data);
       } catch (error) {
         console.log(error);
+        showToast("Failed to load messages", "error", 5000);
       }
     };
 
@@ -259,13 +301,8 @@ const ChatBox = ({
       setMessages([...messages, data]);
       setNewMessage("");
       setIsTyping(false);
-
-      // Show subtle success feedback (optional, can be disabled)
-      // showToast("✓ Message sent", "success", 1500);
     } catch (error) {
       console.error("Error sending message:", error);
-
-      // Parse error message from server response
       let errorMessage = "Failed to send message";
 
       if (error.response?.data?.message) {
@@ -274,7 +311,6 @@ const ChatBox = ({
         errorMessage = error.message;
       }
 
-      // Check for specific error messages and customize toast
       if (errorMessage.includes("Users must be friends to send messages")) {
         showToast(
           "🚫 You must be friends to send messages. Send a friend request first!",
@@ -324,14 +360,11 @@ const ChatBox = ({
         role
       );
 
-      // ADD QUERY PARAMETERS TO THE URL
       const apiUrl = `https://${
         process.env.REACT_APP_API_URL
       }/api/agora-token?channel=${encodeURIComponent(
         channelName
       )}&role=${encodeURIComponent(role)}&uid=${encodeURIComponent(uid)}`;
-
-      console.log("Fetching token from URL:", apiUrl);
 
       const response = await fetch(apiUrl, {
         method: "GET",
@@ -372,14 +405,20 @@ const ChatBox = ({
 
       // Create and publish local tracks
       if (callType === "audio" || callType === "video") {
-        localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack();
+        localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
+          mute: isMuted,
+        });
         if (callType === "video") {
-          localVideoTrack.current = await AgoraRTC.createCameraVideoTrack();
+          localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
+            mute: isVideoOff,
+          });
           localVideoTrack.current.play(localVideoRef.current);
         }
         await agoraClient.current.publish([
           localAudioTrack.current,
-          ...(callType === "video" ? [localVideoTrack.current] : []),
+          ...(callType === "video" && !isVideoOff
+            ? [localVideoTrack.current]
+            : []),
         ]);
       }
     } catch (error) {
@@ -388,40 +427,50 @@ const ChatBox = ({
     }
   };
 
-  // Handle remote users joining
-  useEffect(() => {
-    agoraClient.current.on("user-published", async (user, mediaType) => {
-      await agoraClient.current.subscribe(user, mediaType);
-      console.log(
-        "Subscribed to remote user:",
-        user.uid,
-        "mediaType:",
-        mediaType
-      );
-      if (mediaType === "video") {
-        user.videoTrack.play(remoteMediaRef.current);
+  // Toggle audio mute
+  const toggleMute = async () => {
+    if (localAudioTrack.current) {
+      try {
+        await localAudioTrack.current.setMuted(!isMuted);
+        setIsMuted(!isMuted);
+        showToast(
+          isMuted ? "Microphone unmuted" : "Microphone muted",
+          "info",
+          3000
+        );
+      } catch (error) {
+        console.error("Error toggling mute:", error);
+        showToast("Failed to toggle mute", "error", 3000);
       }
-      if (mediaType === "audio") {
-        user.audioTrack.play();
+    }
+  };
+
+  // Toggle video on/off
+  const toggleVideo = async () => {
+    if (localVideoTrack.current) {
+      try {
+        if (isVideoOff) {
+          await localVideoTrack.current.setMuted(false);
+          localVideoTrack.current.play(localVideoRef.current);
+          await agoraClient.current.publish(localVideoTrack.current);
+        } else {
+          await localVideoTrack.current.setMuted(true);
+          await agoraClient.current.unpublish(localVideoTrack.current);
+        }
+        setIsVideoOff(!isVideoOff);
+        showToast(
+          isVideoOff ? "Video enabled" : "Video disabled",
+          "info",
+          3000
+        );
+      } catch (error) {
+        console.error("Error toggling video:", error);
+        showToast("Failed to toggle video", "error", 3000);
       }
-    });
+    }
+  };
 
-    agoraClient.current.on("user-unpublished", (user, mediaType) => {
-      console.log(
-        "Remote user unpublished:",
-        user.uid,
-        "mediaType:",
-        mediaType
-      );
-    });
-
-    agoraClient.current.on("user-left", (user, reason) => {
-      console.log("Remote user left:", user.uid, "reason:", reason);
-      endCall();
-    });
-  }, []);
-
-  // Start a call - Fixed version
+  // Start a call
   const startCall = async (type) => {
     try {
       setCallType(type);
@@ -444,12 +493,10 @@ const ChatBox = ({
         "publisher",
         currentUser
       );
-      console.log("Token fetched:", tokenData);
       setAgoraToken(tokenData.token);
 
       // Join Agora channel
       await joinAgoraChannel(channelName, tokenData.token, currentUser);
-      console.log("Joined channel successfully");
 
       // Send call-request signal to the receiver
       const receiverId = chat.Members.find((id) => id !== currentUser);
@@ -461,7 +508,6 @@ const ChatBox = ({
         throw new Error("WebSocket is not open");
       }
 
-      // Send the call request with all necessary information
       socket.current.send(
         JSON.stringify({
           type: "agora-signal",
@@ -471,8 +517,8 @@ const ChatBox = ({
             targetId: receiverId,
             channel: channelName,
             callType: type,
-            token: tokenData.token, // Send token to receiver
-            appId: tokenData.appId, // Send appId to receiver
+            token: tokenData.token,
+            appId: tokenData.appId,
           },
         })
       );
@@ -491,7 +537,7 @@ const ChatBox = ({
     }
   };
 
-  // Answer a call - Fixed version
+  // Answer a call
   const answerCall = async () => {
     try {
       if (
@@ -505,12 +551,22 @@ const ChatBox = ({
       setCallStatus("in-progress");
       setCallType(incomingCallOffer.callType);
 
-      // Fetch Agora token for the answerer
-      const tokenData = await fetchAgoraToken(
-        incomingCallOffer.channel,
-        "publisher",
-        currentUser
-      );
+      // Use the token provided in the call request if available, otherwise fetch a new one
+      let tokenData;
+      if (incomingCallOffer.token && incomingCallOffer.appId) {
+        tokenData = {
+          token: incomingCallOffer.token,
+          appId: incomingCallOffer.appId,
+          channel: incomingCallOffer.channel,
+          uid: currentUser,
+        };
+      } else {
+        tokenData = await fetchAgoraToken(
+          incomingCallOffer.channel,
+          "publisher",
+          currentUser
+        );
+      }
       setAgoraToken(tokenData.token);
 
       // Join the same Agora channel
@@ -529,13 +585,13 @@ const ChatBox = ({
             action: "call-accepted",
             targetId: incomingCallOffer.callerId,
             channel: incomingCallOffer.channel,
+            token: tokenData.token, // Include answerer's token
           },
         })
       );
 
       setIncomingCallOffer(null);
 
-      // Clear the incoming call timeout
       if (callTimeoutRef.current) {
         clearTimeout(callTimeoutRef.current);
         callTimeoutRef.current = null;
@@ -546,6 +602,7 @@ const ChatBox = ({
       endCall();
     }
   };
+
   // Decline a call
   const declineCall = () => {
     if (
@@ -567,7 +624,6 @@ const ChatBox = ({
     setCallStatus("idle");
     setCallType(null);
     setIncomingCallOffer(null);
-    setCallData(null);
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
@@ -575,25 +631,37 @@ const ChatBox = ({
   };
 
   // End a call with proper cleanup
-  const endCall = () => {
+  const endCall = async () => {
     console.log("Ending call and cleaning up resources");
 
-    // Clean up local tracks
+    // Unpublish and close local tracks
     if (localAudioTrack.current) {
+      await agoraClient.current
+        .unpublish(localAudioTrack.current)
+        .catch((err) => {
+          console.error("Error unpublishing audio track:", err);
+        });
       localAudioTrack.current.close();
       localAudioTrack.current = null;
     }
     if (localVideoTrack.current) {
+      await agoraClient.current
+        .unpublish(localVideoTrack.current)
+        .catch((err) => {
+          console.error("Error unpublishing video track:", err);
+        });
       localVideoTrack.current.close();
       localVideoTrack.current = null;
     }
 
     // Leave the Agora channel
     if (agoraClient.current) {
-      agoraClient.current.leave();
+      await agoraClient.current.leave().catch((err) => {
+        console.error("Error leaving Agora channel:", err);
+      });
     }
 
-    // Notify the other user if we're in a call
+    // Notify the other user
     if (callStatus !== "idle") {
       const peerId = chat?.Members.find((id) => id !== currentUser);
       if (peerId && socket.current?.readyState === WebSocket.OPEN) {
@@ -617,10 +685,12 @@ const ChatBox = ({
     setCallType(null);
     setIsCallInitiator(false);
     setIncomingCallOffer(null);
-    setCallData(null);
     setAgoraToken(null);
+    setIsMuted(false);
+    setIsVideoOff(false);
+    setRemoteAudioMuted(false);
+    setRemoteVideoOff(false);
 
-    // Clear any timeouts
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
@@ -646,6 +716,8 @@ const ChatBox = ({
         channel,
         callType: incomingCallType,
         targetId,
+        token,
+        appId,
       } = callData.data;
 
       switch (action) {
@@ -658,11 +730,21 @@ const ChatBox = ({
               callerId: callData.userId,
               channel,
               callType: incomingCallType,
+              token,
+              appId,
             });
 
-            // Set timeout for incoming call
+            showToast(
+              `Incoming ${incomingCallType} call from ${
+                userData?.Username || "user"
+              }`,
+              "info",
+              5000
+            );
+
             callTimeoutRef.current = setTimeout(() => {
               console.log("Incoming call timed out");
+              showToast("Missed call", "warning", 3000);
               declineCall();
             }, 30000);
           }
@@ -672,8 +754,8 @@ const ChatBox = ({
           if (isCallInitiator) {
             console.log("Call accepted by peer");
             setCallStatus("in-progress");
+            showToast("Call connected", "success", 3000);
 
-            // Clear the calling timeout
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
               callTimeoutRef.current = null;
@@ -692,7 +774,7 @@ const ChatBox = ({
         case "call-ended":
           console.log("Call ended by peer");
           if (callStatus !== "idle") {
-            showToast("Call ended", "info", 3000);
+            showToast("Call ended by peer", "info", 3000);
             endCall();
           }
           break;
@@ -701,7 +783,7 @@ const ChatBox = ({
           console.log("Unhandled call action:", action);
       }
     }
-  }, [callData]);
+  }, [callData, userData]);
 
   return (
     <Fade in={isVisible} timeout={800}>
@@ -754,7 +836,7 @@ const ChatBox = ({
                               ? "Calling..."
                               : callStatus === "incoming"
                               ? "Incoming Call..."
-                              : "In Call"
+                              : `In ${callType} Call`
                           }
                           size="small"
                           className="status-chip"
@@ -778,6 +860,36 @@ const ChatBox = ({
                         >
                           Typing...
                         </Typography>
+                      )}
+                      {callStatus === "in-progress" && (
+                        <Box>
+                          {remoteAudioMuted && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: isDarkTheme
+                                  ? "#e0e0e0 !important"
+                                  : "var(--chatbox-secondary-text) !important",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Remote user muted
+                            </Typography>
+                          )}
+                          {remoteVideoOff && callType === "video" && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: isDarkTheme
+                                  ? "#e0e0e0 !important"
+                                  : "var(--chatbox-secondary-text) !important",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Remote user video off
+                            </Typography>
+                          )}
+                        </Box>
                       )}
                     </Box>
                   </Box>
@@ -826,7 +938,7 @@ const ChatBox = ({
                         {callType === "audio" && (
                           <IconButton
                             className="call-control-button"
-                            onClick={() => setIsMuted(!isMuted)}
+                            onClick={toggleMute}
                             sx={{
                               backgroundColor: isMuted
                                 ? "var(--chatbox-error)"
@@ -841,7 +953,7 @@ const ChatBox = ({
                           <>
                             <IconButton
                               className="call-control-button"
-                              onClick={() => setIsMuted(!isMuted)}
+                              onClick={toggleMute}
                               sx={{
                                 backgroundColor: isMuted
                                   ? "var(--chatbox-error)"
@@ -853,7 +965,7 @@ const ChatBox = ({
                             </IconButton>
                             <IconButton
                               className="call-control-button"
-                              onClick={() => setIsVideoOff(!isVideoOff)}
+                              onClick={toggleVideo}
                               sx={{
                                 backgroundColor: isVideoOff
                                   ? "var(--chatbox-error)"
@@ -1388,7 +1500,6 @@ const ChatBox = ({
                       "toastSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
                   }}
                 >
-                  {/* Toast Progress Bar */}
                   <Box
                     className="toast-progress"
                     sx={{
@@ -1406,7 +1517,6 @@ const ChatBox = ({
                     className="toast-content"
                     sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}
                   >
-                    {/* Toast Icon */}
                     <Box
                       className="toast-icon"
                       sx={{
@@ -1422,7 +1532,6 @@ const ChatBox = ({
                       {getToastIcon(toast.type)}
                     </Box>
 
-                    {/* Toast Message */}
                     <Box className="toast-message" sx={{ flex: 1 }}>
                       <Typography
                         variant="body1"
@@ -1454,7 +1563,6 @@ const ChatBox = ({
                       </Typography>
                     </Box>
 
-                    {/* Close Button */}
                     <IconButton
                       className="toast-close"
                       onClick={() => removeToast(toast.id)}
@@ -1476,7 +1584,6 @@ const ChatBox = ({
                     </IconButton>
                   </Box>
 
-                  {/* Toast Background Effect */}
                   <Box
                     className="toast-bg-effect"
                     sx={{
