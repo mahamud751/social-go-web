@@ -18,6 +18,8 @@ import {
   Button,
   Paper,
   Divider,
+  Alert,
+  Snackbar,
   Stack,
 } from "@mui/material";
 import {
@@ -60,8 +62,6 @@ const ChatBox = ({
   const [isTyping, setIsTyping] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
-  const [remoteAudioMuted, setRemoteAudioMuted] = useState(false);
-  const [remoteVideoOff, setRemoteVideoOff] = useState(false);
 
   // Toast notification states
   const [toasts, setToasts] = useState([]);
@@ -88,6 +88,7 @@ const ChatBox = ({
     setToasts((prev) => [...prev, newToast]);
     setToastIdCounter((prev) => prev + 1);
 
+    // Auto remove toast after duration
     setTimeout(() => {
       removeToast(newToast.id);
     }, duration);
@@ -150,6 +151,7 @@ const ChatBox = ({
     const timer = setTimeout(() => setIsVisible(true), 100);
     return () => {
       clearTimeout(timer);
+      // Cleanup typing timeout on unmount
       if (window.typingTimeout) {
         clearTimeout(window.typingTimeout);
       }
@@ -158,13 +160,18 @@ const ChatBox = ({
 
   const handleChange = (newMessage) => {
     setNewMessage(newMessage);
+
+    // Show typing indicator temporarily
     setIsTyping(true);
+
+    // Clear typing indicator after user stops typing
     clearTimeout(window.typingTimeout);
     window.typingTimeout = setTimeout(() => {
       setIsTyping(false);
     }, 1000);
   };
 
+  // Handle keyboard events for message input
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -176,6 +183,7 @@ const ChatBox = ({
     }
   };
 
+  // Handle Enter key for InputEmoji
   const onEnter = () => {
     if (newMessage.trim()) {
       const mockEvent = { preventDefault: () => {} };
@@ -188,55 +196,9 @@ const ChatBox = ({
   // Initialize Agora client
   useEffect(() => {
     agoraClient.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-
-    // Handle remote user events
-    agoraClient.current.on("user-published", async (user, mediaType) => {
-      await agoraClient.current.subscribe(user, mediaType);
-      console.log(
-        "Subscribed to remote user:",
-        user.uid,
-        "mediaType:",
-        mediaType
-      );
-      if (mediaType === "video") {
-        user.videoTrack.play(remoteMediaRef.current);
-        setRemoteVideoOff(false);
-        showToast("Remote user video enabled", "info", 3000);
-      }
-      if (mediaType === "audio") {
-        user.audioTrack.play();
-        setRemoteAudioMuted(false);
-        showToast("Remote user audio enabled", "info", 3000);
-      }
-    });
-
-    agoraClient.current.on("user-unpublished", (user, mediaType) => {
-      console.log(
-        "Remote user unpublished:",
-        user.uid,
-        "mediaType:",
-        mediaType
-      );
-      if (mediaType === "video") {
-        setRemoteVideoOff(true);
-        showToast("Remote user turned off video", "info", 3000);
-      }
-      if (mediaType === "audio") {
-        setRemoteAudioMuted(true);
-        showToast("Remote user muted audio", "info", 3000);
-      }
-    });
-
-    agoraClient.current.on("user-left", (user, reason) => {
-      console.log("Remote user left:", user.uid, "reason:", reason);
-      showToast("Remote user ended the call", "info", 3000);
-      endCall();
-    });
-
     return () => {
       if (agoraClient.current) {
         agoraClient.current.leave();
-        agoraClient.current = null;
       }
     };
   }, []);
@@ -250,7 +212,6 @@ const ChatBox = ({
         setUserData(data);
       } catch (error) {
         console.log(error);
-        showToast("Failed to load user data", "error", 5000);
       }
     };
 
@@ -265,7 +226,6 @@ const ChatBox = ({
         setMessages(data);
       } catch (error) {
         console.log(error);
-        showToast("Failed to load messages", "error", 5000);
       }
     };
 
@@ -299,8 +259,13 @@ const ChatBox = ({
       setMessages([...messages, data]);
       setNewMessage("");
       setIsTyping(false);
+
+      // Show subtle success feedback (optional, can be disabled)
+      // showToast("✓ Message sent", "success", 1500);
     } catch (error) {
       console.error("Error sending message:", error);
+
+      // Parse error message from server response
       let errorMessage = "Failed to send message";
 
       if (error.response?.data?.message) {
@@ -309,6 +274,7 @@ const ChatBox = ({
         errorMessage = error.message;
       }
 
+      // Check for specific error messages and customize toast
       if (errorMessage.includes("Users must be friends to send messages")) {
         showToast(
           "🚫 You must be friends to send messages. Send a friend request first!",
@@ -346,45 +312,33 @@ const ChatBox = ({
     }
   }, [receivedMessage, chat?.ID]);
 
-  // Setup call using /api/setup-call/ endpoint
-  const setupCall = async (type) => {
+  // Fetch Agora token
+  const fetchAgoraToken = async (channelName, role, uid) => {
     try {
-      setCallType(type);
-      setIsCallInitiator(true);
-      setCallStatus("calling");
-
-      const channelName = `chat_${chat.ID}_${Date.now()}`;
-      const receiverId = chat.Members.find((id) => id !== currentUser);
-      if (!receiverId) {
-        throw new Error("Receiver ID not found");
-      }
-
       console.log(
-        "Setting up call: channel=",
+        "Fetching token for uid:",
+        uid,
+        "channel:",
         channelName,
-        "type=",
-        type,
-        "callerId=",
-        currentUser,
-        "calleeId=",
-        receiverId
+        "role:",
+        role
       );
 
-      const response = await fetch(
-        `https://${process.env.REACT_APP_API_URL}/api/setup-call/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            channel: channelName,
-            callerId: currentUser,
-            calleeId: receiverId,
-            callType: type,
-          }),
-        }
-      );
+      // ADD QUERY PARAMETERS TO THE URL
+      const apiUrl = `https://${
+        process.env.REACT_APP_API_URL
+      }/api/agora-token?channel=${encodeURIComponent(
+        channelName
+      )}&role=${encodeURIComponent(role)}&uid=${encodeURIComponent(uid)}`;
+
+      console.log("Fetching token from URL:", apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -392,19 +346,16 @@ const ChatBox = ({
       }
 
       const data = await response.json();
-      console.log("Setup call response:", data);
+      console.log("Token response:", data);
 
-      if (!data.success || !data.tokens.caller.token) {
-        throw new Error("Invalid setup call response");
+      if (data.token && data.appId) {
+        return data;
+      } else {
+        throw new Error("Invalid token response: " + JSON.stringify(data));
       }
-
-      setAgoraToken(data.tokens.caller.token);
-
-      // The WebSocket notification (call-initiated) will handle joining the channel
     } catch (error) {
-      console.error("Error setting up call:", error);
-      showToast(`Failed to setup call: ${error.message}`, "error", 5000);
-      endCall();
+      console.error("Error fetching Agora token:", error);
+      throw error;
     }
   };
 
@@ -419,21 +370,16 @@ const ChatBox = ({
       );
       console.log("Joined Agora channel:", channelName);
 
+      // Create and publish local tracks
       if (callType === "audio" || callType === "video") {
-        localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
-          mute: isMuted,
-        });
+        localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack();
         if (callType === "video") {
-          localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
-            mute: isVideoOff,
-          });
+          localVideoTrack.current = await AgoraRTC.createCameraVideoTrack();
           localVideoTrack.current.play(localVideoRef.current);
         }
         await agoraClient.current.publish([
           localAudioTrack.current,
-          ...(callType === "video" && !isVideoOff
-            ? [localVideoTrack.current]
-            : []),
+          ...(callType === "video" ? [localVideoTrack.current] : []),
         ]);
       }
     } catch (error) {
@@ -442,55 +388,118 @@ const ChatBox = ({
     }
   };
 
-  // Toggle audio mute
-  const toggleMute = async () => {
-    if (localAudioTrack.current) {
+  // Handle remote users joining
+  useEffect(() => {
+    agoraClient.current.on("user-published", async (user, mediaType) => {
       try {
-        await localAudioTrack.current.setMuted(!isMuted);
-        setIsMuted(!isMuted);
-        showToast(
-          isMuted ? "Microphone unmuted" : "Microphone muted",
-          "info",
-          3000
+        await agoraClient.current.subscribe(user, mediaType);
+        console.log(
+          "Subscribed to remote user:",
+          user.uid,
+          "mediaType:",
+          mediaType
         );
-      } catch (error) {
-        console.error("Error toggling mute:", error);
-        showToast("Failed to toggle mute", "error", 3000);
-      }
-    }
-  };
-
-  // Toggle video on/off
-  const toggleVideo = async () => {
-    if (localVideoTrack.current) {
-      try {
-        if (isVideoOff) {
-          await localVideoTrack.current.setMuted(false);
-          localVideoTrack.current.play(localVideoRef.current);
-          await agoraClient.current.publish(localVideoTrack.current);
-        } else {
-          await localVideoTrack.current.setMuted(true);
-          await agoraClient.current.unpublish(localVideoTrack.current);
+        if (mediaType === "video") {
+          user.videoTrack.play(remoteMediaRef.current);
         }
-        setIsVideoOff(!isVideoOff);
-        showToast(
-          isVideoOff ? "Video enabled" : "Video disabled",
-          "info",
-          3000
-        );
+        if (mediaType === "audio") {
+          user.audioTrack.play();
+        }
       } catch (error) {
-        console.error("Error toggling video:", error);
-        showToast("Failed to toggle video", "error", 3000);
+        console.error("Subscribe error:", error);
+        showToast(
+          `Failed to subscribe to remote stream: ${error.message}`,
+          "error",
+          5000
+        );
       }
+    });
+
+    agoraClient.current.on("user-unpublished", (user, mediaType) => {
+      console.log(
+        "Remote user unpublished:",
+        user.uid,
+        "mediaType:",
+        mediaType
+      );
+    });
+
+    agoraClient.current.on("user-left", (user, reason) => {
+      console.log("Remote user left:", user.uid, "reason:", reason);
+      endCall();
+    });
+  }, []);
+
+  // Start a call - Fixed version
+  const startCall = async (type) => {
+    try {
+      setCallType(type);
+      setIsCallInitiator(true);
+      setCallStatus("calling");
+
+      const channelName = `chat_${chat.ID}_${Date.now()}`;
+      console.log(
+        "Starting call with channel:",
+        channelName,
+        "type:",
+        type,
+        "uid:",
+        currentUser
+      );
+
+      // Fetch Agora token for the initiator
+      const tokenData = await fetchAgoraToken(
+        channelName,
+        "publisher",
+        currentUser
+      );
+      console.log("Token fetched:", tokenData);
+      setAgoraToken(tokenData.token);
+
+      // Join Agora channel
+      await joinAgoraChannel(channelName, tokenData.token, currentUser);
+      console.log("Joined channel successfully");
+
+      // Send call-request signal to the receiver
+      const receiverId = chat.Members.find((id) => id !== currentUser);
+      if (!receiverId) {
+        throw new Error("Receiver ID not found");
+      }
+
+      if (socket.current?.readyState !== WebSocket.OPEN) {
+        throw new Error("WebSocket is not open");
+      }
+
+      // Send the call request with all necessary information
+      // Removed sending token and appId as receiver fetches own
+      socket.current.send(
+        JSON.stringify({
+          type: "agora-signal",
+          userId: currentUser,
+          data: {
+            action: "call-request",
+            targetId: receiverId,
+            channel: channelName,
+            callType: type,
+          },
+        })
+      );
+      console.log("Sent call-request signal to:", receiverId);
+
+      // Set timeout for call initiation
+      callTimeoutRef.current = setTimeout(() => {
+        console.log("Call timed out - no response from peer");
+        showToast("No answer from user", "warning", 3000);
+        endCall();
+      }, 30000);
+    } catch (error) {
+      console.error("Error starting call:", error);
+      showToast(`Failed to start call: ${error.message}`, "error", 5000);
+      endCall();
     }
   };
 
-  // Start a call
-  const startCall = async (type) => {
-    await setupCall(type); // Use setup-call endpoint
-  };
-
-  // Answer a call
+  // Answer a call - Fixed version
   const answerCall = async () => {
     try {
       if (
@@ -504,15 +513,22 @@ const ChatBox = ({
       setCallStatus("in-progress");
       setCallType(incomingCallOffer.callType);
 
-      const token = incomingCallOffer.token;
-      if (!token) {
-        throw new Error("No token provided in call offer");
-      }
+      // Fetch Agora token for the answerer
+      const tokenData = await fetchAgoraToken(
+        incomingCallOffer.channel,
+        "publisher",
+        currentUser
+      );
+      setAgoraToken(tokenData.token);
 
-      setAgoraToken(token);
+      // Join the same Agora channel
+      await joinAgoraChannel(
+        incomingCallOffer.channel,
+        tokenData.token,
+        currentUser
+      );
 
-      await joinAgoraChannel(incomingCallOffer.channel, token, currentUser);
-
+      // Send call-accepted signal back to the initiator
       socket.current.send(
         JSON.stringify({
           type: "agora-signal",
@@ -527,6 +543,7 @@ const ChatBox = ({
 
       setIncomingCallOffer(null);
 
+      // Clear the incoming call timeout
       if (callTimeoutRef.current) {
         clearTimeout(callTimeoutRef.current);
         callTimeoutRef.current = null;
@@ -537,7 +554,6 @@ const ChatBox = ({
       endCall();
     }
   };
-
   // Decline a call
   const declineCall = () => {
     if (
@@ -559,6 +575,7 @@ const ChatBox = ({
     setCallStatus("idle");
     setCallType(null);
     setIncomingCallOffer(null);
+    setCallData(null);
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
@@ -566,34 +583,25 @@ const ChatBox = ({
   };
 
   // End a call with proper cleanup
-  const endCall = async () => {
+  const endCall = () => {
     console.log("Ending call and cleaning up resources");
 
+    // Clean up local tracks
     if (localAudioTrack.current) {
-      await agoraClient.current
-        .unpublish(localAudioTrack.current)
-        .catch((err) => {
-          console.error("Error unpublishing audio track:", err);
-        });
       localAudioTrack.current.close();
       localAudioTrack.current = null;
     }
     if (localVideoTrack.current) {
-      await agoraClient.current
-        .unpublish(localVideoTrack.current)
-        .catch((err) => {
-          console.error("Error unpublishing video track:", err);
-        });
       localVideoTrack.current.close();
       localVideoTrack.current = null;
     }
 
+    // Leave the Agora channel
     if (agoraClient.current) {
-      await agoraClient.current.leave().catch((err) => {
-        console.error("Error leaving Agora channel:", err);
-      });
+      agoraClient.current.leave();
     }
 
+    // Notify the other user if we're in a call
     if (callStatus !== "idle") {
       const peerId = chat?.Members.find((id) => id !== currentUser);
       if (peerId && socket.current?.readyState === WebSocket.OPEN) {
@@ -612,22 +620,41 @@ const ChatBox = ({
       }
     }
 
+    // Reset all call states
     setCallStatus("idle");
     setCallType(null);
     setIsCallInitiator(false);
     setIncomingCallOffer(null);
+    setCallData(null);
     setAgoraToken(null);
     setIsMuted(false);
     setIsVideoOff(false);
-    setRemoteAudioMuted(false);
-    setRemoteVideoOff(false);
 
+    // Clear any timeouts
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
     }
 
     console.log("Call ended and resources cleaned up");
+  };
+
+  // Toggle mute
+  const toggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    if (localAudioTrack.current) {
+      localAudioTrack.current.setEnabled(!newMuted);
+    }
+  };
+
+  // Toggle video
+  const toggleVideo = () => {
+    const newOff = !isVideoOff;
+    setIsVideoOff(newOff);
+    if (localVideoTrack.current) {
+      localVideoTrack.current.setEnabled(!newOff);
+    }
   };
 
   // Handle Agora signaling through WebSocket
@@ -647,37 +674,9 @@ const ChatBox = ({
         channel,
         callType: incomingCallType,
         targetId,
-        token,
-        appId,
       } = callData.data;
 
       switch (action) {
-        case "call-initiated":
-          if (isCallInitiator && callStatus === "calling") {
-            console.log("Call initiated for caller");
-            setAgoraToken(token);
-            joinAgoraChannel(channel, token, currentUser)
-              .then(() => {
-                showToast("Call setup completed", "success", 3000);
-              })
-              .catch((error) => {
-                console.error("Error joining channel for caller:", error);
-                showToast(
-                  "Failed to join call: " + error.message,
-                  "error",
-                  5000
-                );
-                endCall();
-              });
-
-            callTimeoutRef.current = setTimeout(() => {
-              console.log("Call timed out - no response from peer");
-              showToast("No answer from user", "warning", 3000);
-              endCall();
-            }, 30000);
-          }
-          break;
-
         case "call-request":
           if (callStatus === "idle") {
             console.log("Incoming call request received");
@@ -687,21 +686,11 @@ const ChatBox = ({
               callerId: callData.userId,
               channel,
               callType: incomingCallType,
-              token,
-              appId,
             });
 
-            showToast(
-              `Incoming ${incomingCallType} call from ${
-                userData?.Username || "user"
-              }`,
-              "info",
-              5000
-            );
-
+            // Set timeout for incoming call
             callTimeoutRef.current = setTimeout(() => {
               console.log("Incoming call timed out");
-              showToast("Missed call", "warning", 3000);
               declineCall();
             }, 30000);
           }
@@ -711,8 +700,8 @@ const ChatBox = ({
           if (isCallInitiator) {
             console.log("Call accepted by peer");
             setCallStatus("in-progress");
-            showToast("Call connected", "success", 3000);
 
+            // Clear the calling timeout
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
               callTimeoutRef.current = null;
@@ -731,7 +720,7 @@ const ChatBox = ({
         case "call-ended":
           console.log("Call ended by peer");
           if (callStatus !== "idle") {
-            showToast("Call ended by peer", "info", 3000);
+            showToast("Call ended", "info", 3000);
             endCall();
           }
           break;
@@ -740,7 +729,7 @@ const ChatBox = ({
           console.log("Unhandled call action:", action);
       }
     }
-  }, [callData, userData, isCallInitiator, callStatus]);
+  }, [callData]);
 
   return (
     <Fade in={isVisible} timeout={800}>
@@ -793,7 +782,7 @@ const ChatBox = ({
                               ? "Calling..."
                               : callStatus === "incoming"
                               ? "Incoming Call..."
-                              : `In ${callType} Call`
+                              : "In Call"
                           }
                           size="small"
                           className="status-chip"
@@ -817,36 +806,6 @@ const ChatBox = ({
                         >
                           Typing...
                         </Typography>
-                      )}
-                      {callStatus === "in-progress" && (
-                        <Box>
-                          {remoteAudioMuted && (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                color: isDarkTheme
-                                  ? "#e0e0e0 !important"
-                                  : "var(--chatbox-secondary-text) !important",
-                                fontStyle: "italic",
-                              }}
-                            >
-                              Remote user muted
-                            </Typography>
-                          )}
-                          {remoteVideoOff && callType === "video" && (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                color: isDarkTheme
-                                  ? "#e0e0e0 !important"
-                                  : "var(--chatbox-secondary-text) !important",
-                                fontStyle: "italic",
-                              }}
-                            >
-                              Remote user video off
-                            </Typography>
-                          )}
-                        </Box>
                       )}
                     </Box>
                   </Box>
@@ -892,7 +851,7 @@ const ChatBox = ({
                   {callStatus === "in-progress" && (
                     <Fade in={callStatus === "in-progress"} timeout={500}>
                       <Box className="active-call-controls">
-                        {callType === "audio" && (
+                        {callType === "audio" || callType === "video" ? (
                           <IconButton
                             className="call-control-button"
                             onClick={toggleMute}
@@ -905,38 +864,24 @@ const ChatBox = ({
                           >
                             {isMuted ? <MicOffIcon /> : <MicIcon />}
                           </IconButton>
-                        )}
+                        ) : null}
                         {callType === "video" && (
-                          <>
-                            <IconButton
-                              className="call-control-button"
-                              onClick={toggleMute}
-                              sx={{
-                                backgroundColor: isMuted
-                                  ? "var(--chatbox-error)"
-                                  : "var(--chatbox-border)",
-                                color: "#ffffff",
-                              }}
-                            >
-                              {isMuted ? <MicOffIcon /> : <MicIcon />}
-                            </IconButton>
-                            <IconButton
-                              className="call-control-button"
-                              onClick={toggleVideo}
-                              sx={{
-                                backgroundColor: isVideoOff
-                                  ? "var(--chatbox-error)"
-                                  : "var(--chatbox-border)",
-                                color: "#ffffff",
-                              }}
-                            >
-                              {isVideoOff ? (
-                                <VideocamOffIcon />
-                              ) : (
-                                <VideocamOnIcon />
-                              )}
-                            </IconButton>
-                          </>
+                          <IconButton
+                            className="call-control-button"
+                            onClick={toggleVideo}
+                            sx={{
+                              backgroundColor: isVideoOff
+                                ? "var(--chatbox-error)"
+                                : "var(--chatbox-border)",
+                              color: "#ffffff",
+                            }}
+                          >
+                            {isVideoOff ? (
+                              <VideocamOffIcon />
+                            ) : (
+                              <VideocamOnIcon />
+                            )}
+                          </IconButton>
                         )}
                         <IconButton
                           className="call-button end-call"
@@ -1457,6 +1402,7 @@ const ChatBox = ({
                       "toastSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
                   }}
                 >
+                  {/* Toast Progress Bar */}
                   <Box
                     className="toast-progress"
                     sx={{
@@ -1474,6 +1420,7 @@ const ChatBox = ({
                     className="toast-content"
                     sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}
                   >
+                    {/* Toast Icon */}
                     <Box
                       className="toast-icon"
                       sx={{
@@ -1489,6 +1436,7 @@ const ChatBox = ({
                       {getToastIcon(toast.type)}
                     </Box>
 
+                    {/* Toast Message */}
                     <Box className="toast-message" sx={{ flex: 1 }}>
                       <Typography
                         variant="body1"
@@ -1520,6 +1468,7 @@ const ChatBox = ({
                       </Typography>
                     </Box>
 
+                    {/* Close Button */}
                     <IconButton
                       className="toast-close"
                       onClick={() => removeToast(toast.id)}
@@ -1541,6 +1490,7 @@ const ChatBox = ({
                     </IconButton>
                   </Box>
 
+                  {/* Toast Background Effect */}
                   <Box
                     className="toast-bg-effect"
                     sx={{
