@@ -559,8 +559,6 @@ const ChatBox = ({
             targetId: receiverId,
             channel: channelName,
             callType: type,
-            token: tokenData.token,
-            appId: process.env.REACT_APP_AGORA_APP_ID,
           },
         })
       );
@@ -580,6 +578,8 @@ const ChatBox = ({
   };
 
   // Answer a call - Fixed version
+
+  // Answer a call - Alternative version (receiver fetches own token)
   const answerCall = async () => {
     try {
       if (
@@ -603,12 +603,12 @@ const ChatBox = ({
       setCallStatus("in-progress");
       setCallType(incomingCallOffer.callType);
 
-      // Use the token and appId from the incoming call offer
-      const tokenData = {
-        token: incomingCallOffer.token,
-        appId: incomingCallOffer.appId,
-      };
-
+      // Fetch Agora token for the answerer (receiver fetches their own token)
+      const tokenData = await fetchAgoraToken(
+        incomingCallOffer.channel,
+        "publisher",
+        currentUser
+      );
       setAgoraToken(tokenData.token);
 
       // Join the same Agora channel
