@@ -75,7 +75,6 @@ const ChatBox = ({
   const agoraClient = useRef(null);
   const localAudioTrack = useRef(null);
   const localVideoTrack = useRef(null);
-  const remoteUser = useRef(null);
 
   // Toast notification functions
   const showToast = (message, type = "error", duration = 5000) => {
@@ -197,40 +196,6 @@ const ChatBox = ({
   // Initialize Agora client
   useEffect(() => {
     agoraClient.current = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-
-    // Setup event listeners for Agora
-    agoraClient.current.on("user-published", async (user, mediaType) => {
-      console.log("User published:", user.uid, "mediaType:", mediaType);
-      await agoraClient.current.subscribe(user, mediaType);
-
-      if (mediaType === "video") {
-        remoteUser.current = user;
-        user.videoTrack.play(remoteMediaRef.current);
-      }
-
-      if (mediaType === "audio") {
-        user.audioTrack.play();
-      }
-    });
-
-    agoraClient.current.on("user-unpublished", (user, mediaType) => {
-      console.log("User unpublished:", user.uid, "mediaType:", mediaType);
-      if (mediaType === "video") {
-        // Remove video stream
-        if (remoteMediaRef.current) {
-          remoteMediaRef.current.srcObject = null;
-        }
-      }
-    });
-
-    agoraClient.current.on("user-left", (user, reason) => {
-      console.log("User left:", user.uid, "reason:", reason);
-      if (remoteMediaRef.current) {
-        remoteMediaRef.current.srcObject = null;
-      }
-      endCall();
-    });
-
     return () => {
       if (agoraClient.current) {
         agoraClient.current.leave();
@@ -294,8 +259,13 @@ const ChatBox = ({
       setMessages([...messages, data]);
       setNewMessage("");
       setIsTyping(false);
+
+      // Show subtle success feedback (optional, can be disabled)
+      // showToast("✓ Message sent", "success", 1500);
     } catch (error) {
       console.error("Error sending message:", error);
+
+      // Parse error message from server response
       let errorMessage = "Failed to send message";
 
       if (error.response?.data?.message) {
@@ -304,6 +274,7 @@ const ChatBox = ({
         errorMessage = error.message;
       }
 
+      // Check for specific error messages and customize toast
       if (errorMessage.includes("Users must be friends to send messages")) {
         showToast(
           "🚫 You must be friends to send messages. Send a friend request first!",
@@ -353,6 +324,7 @@ const ChatBox = ({
         role
       );
 
+      // ADD QUERY PARAMETERS TO THE URL
       const apiUrl = `https://${
         process.env.REACT_APP_API_URL
       }/api/agora-token?channel=${encodeURIComponent(
@@ -401,47 +373,14 @@ const ChatBox = ({
       // Create and publish local tracks
       if (callType === "audio" || callType === "video") {
         localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack();
-
-        // Handle mute state
-        if (isMuted) {
-          localAudioTrack.current.setEnabled(false);
-        }
-
-        await agoraClient.current.publish([localAudioTrack.current]);
-
         if (callType === "video") {
           localVideoTrack.current = await AgoraRTC.createCameraVideoTrack();
-
-          // Handle video off state
-          if (isVideoOff) {
-            localVideoTrack.current.setEnabled(false);
-          }
-
           localVideoTrack.current.play(localVideoRef.current);
-          await agoraClient.current.publish([localVideoTrack.current]);
         }
-      }
-
-      // Manually subscribe to existing remote users' tracks
-      for (const user of agoraClient.current.remoteUsers) {
-        console.log("Existing remote user:", user.uid);
-        try {
-          if (
-            (callType === "audio" || callType === "video") &&
-            user.hasAudio &&
-            !user.audioTrack
-          ) {
-            await agoraClient.current.subscribe(user, "audio");
-            user.audioTrack.play();
-          }
-          if (callType === "video" && user.hasVideo && !user.videoTrack) {
-            await agoraClient.current.subscribe(user, "video");
-            user.videoTrack.play(remoteMediaRef.current);
-            remoteUser.current = user;
-          }
-        } catch (err) {
-          console.error("Error subscribing to existing user:", err);
-        }
+        await agoraClient.current.publish([
+          localAudioTrack.current,
+          ...(callType === "video" ? [localVideoTrack.current] : []),
+        ]);
       }
     } catch (error) {
       console.error("Error joining Agora channel:", error);
@@ -449,7 +388,40 @@ const ChatBox = ({
     }
   };
 
-  // Start a call
+  // Handle remote users joining
+  useEffect(() => {
+    agoraClient.current.on("user-published", async (user, mediaType) => {
+      await agoraClient.current.subscribe(user, mediaType);
+      console.log(
+        "Subscribed to remote user:",
+        user.uid,
+        "mediaType:",
+        mediaType
+      );
+      if (mediaType === "video") {
+        user.videoTrack.play(remoteMediaRef.current);
+      }
+      if (mediaType === "audio") {
+        user.audioTrack.play();
+      }
+    });
+
+    agoraClient.current.on("user-unpublished", (user, mediaType) => {
+      console.log(
+        "Remote user unpublished:",
+        user.uid,
+        "mediaType:",
+        mediaType
+      );
+    });
+
+    agoraClient.current.on("user-left", (user, reason) => {
+      console.log("Remote user left:", user.uid, "reason:", reason);
+      endCall();
+    });
+  }, []);
+
+  // Start a call - Fixed version
   const startCall = async (type) => {
     try {
       setCallType(type);
@@ -499,8 +471,8 @@ const ChatBox = ({
             targetId: receiverId,
             channel: channelName,
             callType: type,
-            token: tokenData.token,
-            appId: tokenData.appId,
+            token: tokenData.token, // Send token to receiver
+            appId: tokenData.appId, // Send appId to receiver
           },
         })
       );
@@ -519,7 +491,7 @@ const ChatBox = ({
     }
   };
 
-  // Answer a call
+  // Answer a call - Fixed version
   const answerCall = async () => {
     try {
       if (
@@ -574,7 +546,6 @@ const ChatBox = ({
       endCall();
     }
   };
-
   // Decline a call
   const declineCall = () => {
     if (
@@ -648,8 +619,6 @@ const ChatBox = ({
     setIncomingCallOffer(null);
     setCallData(null);
     setAgoraToken(null);
-    setIsMuted(false);
-    setIsVideoOff(false);
 
     // Clear any timeouts
     if (callTimeoutRef.current) {
@@ -658,24 +627,6 @@ const ChatBox = ({
     }
 
     console.log("Call ended and resources cleaned up");
-  };
-
-  // Toggle mute during call
-  const toggleMute = () => {
-    if (localAudioTrack.current) {
-      const newMuteState = !isMuted;
-      localAudioTrack.current.setEnabled(!newMuteState);
-      setIsMuted(newMuteState);
-    }
-  };
-
-  // Toggle video during call
-  const toggleVideo = () => {
-    if (localVideoTrack.current) {
-      const newVideoState = !isVideoOff;
-      localVideoTrack.current.setEnabled(!newVideoState);
-      setIsVideoOff(newVideoState);
-    }
   };
 
   // Handle Agora signaling through WebSocket
