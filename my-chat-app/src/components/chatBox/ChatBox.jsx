@@ -787,6 +787,7 @@ const ChatBox = ({
   };
 
   // Handle Agora signaling through WebSocket
+  // Handle Agora signaling through WebSocket
   useEffect(() => {
     if (callData) {
       console.log(
@@ -803,6 +804,8 @@ const ChatBox = ({
         channel,
         callType: incomingCallType,
         targetId,
+        token, // Add token from callData
+        appId, // Add appId from callData
       } = callData.data;
 
       switch (action) {
