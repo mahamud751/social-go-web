@@ -323,11 +323,14 @@ const ChatBox = ({
         "role:",
         role
       );
+
+      // ADD QUERY PARAMETERS TO THE URL
       const apiUrl = `https://${
         process.env.REACT_APP_API_URL
-      }/api/agora-token/${encodeURIComponent(channelName)}/${encodeURIComponent(
-        role
-      )}/${encodeURIComponent(uid)}`;
+      }/api/agora-token?channel=${encodeURIComponent(
+        channelName
+      )}&role=${encodeURIComponent(role)}&uid=${encodeURIComponent(uid)}`;
+
       console.log("Fetching token from URL:", apiUrl);
 
       const response = await fetch(apiUrl, {
@@ -336,12 +339,15 @@ const ChatBox = ({
           "Content-Type": "application/json",
         },
       });
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
+
       const data = await response.json();
       console.log("Token response:", data);
+
       if (data.token && data.appId) {
         return data;
       } else {
