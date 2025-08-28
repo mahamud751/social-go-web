@@ -421,6 +421,28 @@ const ChatBox = ({
           await agoraClient.current.publish([localVideoTrack.current]);
         }
       }
+
+      // Manually subscribe to existing remote users' tracks
+      for (const user of agoraClient.current.remoteUsers) {
+        console.log("Existing remote user:", user.uid);
+        try {
+          if (
+            (callType === "audio" || callType === "video") &&
+            user.hasAudio &&
+            !user.audioTrack
+          ) {
+            await agoraClient.current.subscribe(user, "audio");
+            user.audioTrack.play();
+          }
+          if (callType === "video" && user.hasVideo && !user.videoTrack) {
+            await agoraClient.current.subscribe(user, "video");
+            user.videoTrack.play(remoteMediaRef.current);
+            remoteUser.current = user;
+          }
+        } catch (err) {
+          console.error("Error subscribing to existing user:", err);
+        }
+      }
     } catch (error) {
       console.error("Error joining Agora channel:", error);
       throw error;
