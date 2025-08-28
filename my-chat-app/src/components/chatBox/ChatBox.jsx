@@ -18,8 +18,6 @@ import {
   Button,
   Paper,
   Divider,
-  Alert,
-  Snackbar,
   Stack,
 } from "@mui/material";
 import {
@@ -348,30 +346,45 @@ const ChatBox = ({
     }
   }, [receivedMessage, chat?.ID]);
 
-  // Fetch Agora token
-  const fetchAgoraToken = async (channelName, role, uid) => {
+  // Setup call using /api/setup-call/ endpoint
+  const setupCall = async (type) => {
     try {
+      setCallType(type);
+      setIsCallInitiator(true);
+      setCallStatus("calling");
+
+      const channelName = `chat_${chat.ID}_${Date.now()}`;
+      const receiverId = chat.Members.find((id) => id !== currentUser);
+      if (!receiverId) {
+        throw new Error("Receiver ID not found");
+      }
+
       console.log(
-        "Fetching token for uid:",
-        uid,
-        "channel:",
+        "Setting up call: channel=",
         channelName,
-        "role:",
-        role
+        "type=",
+        type,
+        "callerId=",
+        currentUser,
+        "calleeId=",
+        receiverId
       );
 
-      const apiUrl = `https://${
-        process.env.REACT_APP_API_URL
-      }/api/agora-token?channel=${encodeURIComponent(
-        channelName
-      )}&role=${encodeURIComponent(role)}&uid=${encodeURIComponent(uid)}`;
-
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `https://${process.env.REACT_APP_API_URL}/api/setup-call/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            channel: channelName,
+            callerId: currentUser,
+            calleeId: receiverId,
+            callType: type,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -379,16 +392,19 @@ const ChatBox = ({
       }
 
       const data = await response.json();
-      console.log("Token response:", data);
+      console.log("Setup call response:", data);
 
-      if (data.token && data.appId) {
-        return data;
-      } else {
-        throw new Error("Invalid token response: " + JSON.stringify(data));
+      if (!data.success || !data.tokens.caller.token) {
+        throw new Error("Invalid setup call response");
       }
+
+      setAgoraToken(data.tokens.caller.token);
+
+      // The WebSocket notification (call-initiated) will handle joining the channel
     } catch (error) {
-      console.error("Error fetching Agora token:", error);
-      throw error;
+      console.error("Error setting up call:", error);
+      showToast(`Failed to setup call: ${error.message}`, "error", 5000);
+      endCall();
     }
   };
 
@@ -403,7 +419,6 @@ const ChatBox = ({
       );
       console.log("Joined Agora channel:", channelName);
 
-      // Create and publish local tracks
       if (callType === "audio" || callType === "video") {
         localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
           mute: isMuted,
@@ -472,69 +487,7 @@ const ChatBox = ({
 
   // Start a call
   const startCall = async (type) => {
-    try {
-      setCallType(type);
-      setIsCallInitiator(true);
-      setCallStatus("calling");
-
-      const channelName = `chat_${chat.ID}_${Date.now()}`;
-      console.log(
-        "Starting call with channel:",
-        channelName,
-        "type:",
-        type,
-        "uid:",
-        currentUser
-      );
-
-      // Fetch Agora token for the initiator
-      const tokenData = await fetchAgoraToken(
-        channelName,
-        "publisher",
-        currentUser
-      );
-      setAgoraToken(tokenData.token);
-
-      // Join Agora channel
-      await joinAgoraChannel(channelName, tokenData.token, currentUser);
-
-      // Send call-request signal to the receiver
-      const receiverId = chat.Members.find((id) => id !== currentUser);
-      if (!receiverId) {
-        throw new Error("Receiver ID not found");
-      }
-
-      if (socket.current?.readyState !== WebSocket.OPEN) {
-        throw new Error("WebSocket is not open");
-      }
-
-      socket.current.send(
-        JSON.stringify({
-          type: "agora-signal",
-          userId: currentUser,
-          data: {
-            action: "call-request",
-            targetId: receiverId,
-            channel: channelName,
-            callType: type,
-            token: tokenData.token,
-            appId: tokenData.appId,
-          },
-        })
-      );
-      console.log("Sent call-request signal to:", receiverId);
-
-      // Set timeout for call initiation
-      callTimeoutRef.current = setTimeout(() => {
-        console.log("Call timed out - no response from peer");
-        showToast("No answer from user", "warning", 3000);
-        endCall();
-      }, 30000);
-    } catch (error) {
-      console.error("Error starting call:", error);
-      showToast(`Failed to start call: ${error.message}`, "error", 5000);
-      endCall();
-    }
+    await setupCall(type); // Use setup-call endpoint
   };
 
   // Answer a call
@@ -551,32 +504,15 @@ const ChatBox = ({
       setCallStatus("in-progress");
       setCallType(incomingCallOffer.callType);
 
-      // Use the token provided in the call request if available, otherwise fetch a new one
-      let tokenData;
-      if (incomingCallOffer.token && incomingCallOffer.appId) {
-        tokenData = {
-          token: incomingCallOffer.token,
-          appId: incomingCallOffer.appId,
-          channel: incomingCallOffer.channel,
-          uid: currentUser,
-        };
-      } else {
-        tokenData = await fetchAgoraToken(
-          incomingCallOffer.channel,
-          "publisher",
-          currentUser
-        );
+      const token = incomingCallOffer.token;
+      if (!token) {
+        throw new Error("No token provided in call offer");
       }
-      setAgoraToken(tokenData.token);
 
-      // Join the same Agora channel
-      await joinAgoraChannel(
-        incomingCallOffer.channel,
-        tokenData.token,
-        currentUser
-      );
+      setAgoraToken(token);
 
-      // Send call-accepted signal back to the initiator
+      await joinAgoraChannel(incomingCallOffer.channel, token, currentUser);
+
       socket.current.send(
         JSON.stringify({
           type: "agora-signal",
@@ -585,7 +521,6 @@ const ChatBox = ({
             action: "call-accepted",
             targetId: incomingCallOffer.callerId,
             channel: incomingCallOffer.channel,
-            token: tokenData.token, // Include answerer's token
           },
         })
       );
@@ -634,7 +569,6 @@ const ChatBox = ({
   const endCall = async () => {
     console.log("Ending call and cleaning up resources");
 
-    // Unpublish and close local tracks
     if (localAudioTrack.current) {
       await agoraClient.current
         .unpublish(localAudioTrack.current)
@@ -654,14 +588,12 @@ const ChatBox = ({
       localVideoTrack.current = null;
     }
 
-    // Leave the Agora channel
     if (agoraClient.current) {
       await agoraClient.current.leave().catch((err) => {
         console.error("Error leaving Agora channel:", err);
       });
     }
 
-    // Notify the other user
     if (callStatus !== "idle") {
       const peerId = chat?.Members.find((id) => id !== currentUser);
       if (peerId && socket.current?.readyState === WebSocket.OPEN) {
@@ -680,7 +612,6 @@ const ChatBox = ({
       }
     }
 
-    // Reset all call states
     setCallStatus("idle");
     setCallType(null);
     setIsCallInitiator(false);
@@ -721,6 +652,32 @@ const ChatBox = ({
       } = callData.data;
 
       switch (action) {
+        case "call-initiated":
+          if (isCallInitiator && callStatus === "calling") {
+            console.log("Call initiated for caller");
+            setAgoraToken(token);
+            joinAgoraChannel(channel, token, currentUser)
+              .then(() => {
+                showToast("Call setup completed", "success", 3000);
+              })
+              .catch((error) => {
+                console.error("Error joining channel for caller:", error);
+                showToast(
+                  "Failed to join call: " + error.message,
+                  "error",
+                  5000
+                );
+                endCall();
+              });
+
+            callTimeoutRef.current = setTimeout(() => {
+              console.log("Call timed out - no response from peer");
+              showToast("No answer from user", "warning", 3000);
+              endCall();
+            }, 30000);
+          }
+          break;
+
         case "call-request":
           if (callStatus === "idle") {
             console.log("Incoming call request received");
@@ -783,7 +740,7 @@ const ChatBox = ({
           console.log("Unhandled call action:", action);
       }
     }
-  }, [callData, userData]);
+  }, [callData, userData, isCallInitiator, callStatus]);
 
   return (
     <Fade in={isVisible} timeout={800}>
