@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { addMessage, getMessages } from "../../api/MessageRequest";
 import { getUser } from "../../api/UserRequest";
 import "./chatBox.css";
@@ -313,7 +313,7 @@ const ChatBox = ({
   }, [receivedMessage, chat?.ID]);
 
   // Fetch Agora token
-  const fetchAgoraToken = async (channelName, role, uid) => {
+  const fetchAgoraToken = useCallback(async (channelName, role, uid) => {
     try {
       console.log(
         "Fetching token for uid:",
@@ -357,377 +357,37 @@ const ChatBox = ({
       console.error("Error fetching Agora token:", error);
       throw error;
     }
-  };
-
-  // Join Agora channel
-  const joinAgoraChannel = async (channelName, token, uid) => {
-    try {
-      // Set up event listeners before joining
-      agoraClient.current.on("user-published", async (user, mediaType) => {
-        console.log("User published:", user.uid, mediaType);
-        try {
-          await agoraClient.current.subscribe(user, mediaType);
-
-          if (mediaType === "video") {
-            user.videoTrack.play(remoteMediaRef.current);
-          }
-          if (mediaType === "audio") {
-            user.audioTrack.play();
-          }
-        } catch (error) {
-          console.error("Error subscribing to user:", error);
-          handleDeviceError(error);
-        }
-      });
-
-      agoraClient.current.on("user-unpublished", (user) => {
-        console.log("User unpublished:", user.uid);
-      });
-
-      agoraClient.current.on("user-left", (user) => {
-        console.log("User left:", user.uid);
-        endCall();
-      });
-
-      // Join the channel
-      await agoraClient.current.join(
-        process.env.REACT_APP_AGORA_APP_ID,
-        channelName,
-        token,
-        uid
-      );
-      console.log("Joined Agora channel:", channelName);
-
-      // Create and publish local tracks
-      if (callType === "audio" || callType === "video") {
-        try {
-          localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack();
-          await agoraClient.current.publish([localAudioTrack.current]);
-
-          if (callType === "video") {
-            localVideoTrack.current = await AgoraRTC.createCameraVideoTrack();
-            await agoraClient.current.publish([localVideoTrack.current]);
-            localVideoTrack.current.play(localVideoRef.current);
-          }
-        } catch (error) {
-          console.error("Error creating local tracks:", error);
-          handleDeviceError(error);
-          throw error;
-        }
-      }
-    } catch (error) {
-      console.error("Error joining Agora channel:", error);
-      throw error;
-    }
-  };
-
-  // Handle remote users joining
-  useEffect(() => {
-    agoraClient.current.on("user-published", async (user, mediaType) => {
-      try {
-        await agoraClient.current.subscribe(user, mediaType);
-        console.log(
-          "Subscribed to remote user:",
-          user.uid,
-          "mediaType:",
-          mediaType
-        );
-        if (mediaType === "video") {
-          user.videoTrack.play(remoteMediaRef.current);
-        }
-        if (mediaType === "audio") {
-          user.audioTrack.play();
-        }
-      } catch (error) {
-        console.error("Subscribe error:", error);
-        showToast(
-          `Failed to subscribe to remote stream: ${error.message}`,
-          "error",
-          5000
-        );
-      }
-    });
-
-    agoraClient.current.on("user-unpublished", (user, mediaType) => {
-      console.log(
-        "Remote user unpublished:",
-        user.uid,
-        "mediaType:",
-        mediaType
-      );
-    });
-
-    agoraClient.current.on("user-left", (user, reason) => {
-      console.log("Remote user left:", user.uid, "reason:", reason);
-      endCall();
-    });
   }, []);
 
-  const checkMediaPermissions = async (requireVideo = false) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: requireVideo,
-      });
-      // Stop all tracks to release the devices
-      stream.getTracks().forEach((track) => track.stop());
-      return true;
-    } catch (error) {
-      console.error("Media permissions error:", error);
-
-      let errorMessage = "Please allow microphone access";
-      if (requireVideo) {
-        errorMessage = "Please allow camera and microphone access";
-      }
-
-      showToast(errorMessage, "error", 5000);
-      return false;
-    }
-  };
-  useEffect(() => {
-    const handleConnectionStateChange = (state) => {
-      console.log("Connection state changed:", state);
-      if (state === "DISCONNECTED") {
-        showToast("Connection lost", "error", 3000);
-        endCall();
-      }
-    };
-
-    if (agoraClient.current) {
-      agoraClient.current.on(
-        "connection-state-change",
-        handleConnectionStateChange
-      );
-    }
-
-    return () => {
-      if (agoraClient.current) {
-        agoraClient.current.off(
-          "connection-state-change",
-          handleConnectionStateChange
-        );
-      }
-    };
-  }, []);
-
-  // Start a call - Fixed version
-  const startCall = async (type) => {
-    try {
-      // Check media permissions before starting call
-      const hasPermissions = await checkMediaPermissions(type === "video");
-      if (!hasPermissions) {
-        setCallStatus("idle");
-        return;
-      }
-
-      setCallType(type);
-      setIsCallInitiator(true);
-      setCallStatus("calling");
-
-      const channelName = `chat_${chat.ID}_${Date.now()}`;
-      console.log("Starting call with channel:", channelName);
-
-      // Fetch Agora token for the initiator
-      const tokenData = await fetchAgoraToken(
-        channelName,
-        "publisher",
-        currentUser
-      );
-      setAgoraToken(tokenData.token);
-
-      // Join Agora channel
-      await joinAgoraChannel(channelName, tokenData.token, currentUser);
-      console.log("Joined channel successfully");
-
-      // Send call-request signal to the receiver
-      const receiverId = chat.Members.find((id) => id !== currentUser);
-      if (!receiverId) {
-        throw new Error("Receiver ID not found");
-      }
-
-      if (socket.current?.readyState !== WebSocket.OPEN) {
-        throw new Error("WebSocket is not open");
-      }
-
-      // Send the call request with all necessary information
-      socket.current.send(
-        JSON.stringify({
-          type: "agora-signal",
-          userId: currentUser,
-          data: {
-            action: "call-request",
-            targetId: receiverId,
-            channel: channelName,
-            callType: type,
-          },
-        })
-      );
-      console.log("Sent call-request signal to:", receiverId);
-
-      // Set timeout for call initiation
-      callTimeoutRef.current = setTimeout(() => {
-        console.log("Call timed out - no response from peer");
-        showToast("No answer from user", "warning", 3000);
-        endCall();
-      }, 30000);
-    } catch (error) {
-      console.error("Error starting call:", error);
-      showToast(`Failed to start call: ${error.message}`, "error", 5000);
-      endCall();
-    }
-  };
-
-  // Answer a call - Fixed version
-
-  // Answer a call - Alternative version (receiver fetches own token)
-  const answerCall = async () => {
-    try {
-      if (
-        callStatus !== "incoming" ||
-        !incomingCallOffer ||
-        !incomingCallOffer.channel
-      ) {
-        throw new Error("Invalid or missing call data");
-      }
-
-      // Check media permissions before answering call
-      const hasPermissions = await checkMediaPermissions(
-        incomingCallOffer.callType === "video"
-      );
-      if (!hasPermissions) {
-        setCallStatus("idle");
-        setIncomingCallOffer(null);
-        return;
-      }
-
-      setCallStatus("in-progress");
-      setCallType(incomingCallOffer.callType);
-
-      // Fetch Agora token for the answerer (receiver fetches their own token)
-      const tokenData = await fetchAgoraToken(
-        incomingCallOffer.channel,
-        "publisher",
-        currentUser
-      );
-      setAgoraToken(tokenData.token);
-
-      // Join the same Agora channel
-      await joinAgoraChannel(
-        incomingCallOffer.channel,
-        tokenData.token,
-        currentUser
-      );
-
-      // Send call-accepted signal back to the initiator
-      socket.current.send(
-        JSON.stringify({
-          type: "agora-signal",
-          userId: currentUser,
-          data: {
-            action: "call-accepted",
-            targetId: incomingCallOffer.callerId,
-            channel: incomingCallOffer.channel,
-          },
-        })
-      );
-
-      setIncomingCallOffer(null);
-
-      // Clear the incoming call timeout
-      if (callTimeoutRef.current) {
-        clearTimeout(callTimeoutRef.current);
-        callTimeoutRef.current = null;
-      }
-    } catch (error) {
-      console.error("Error answering call:", error);
-      showToast(`Failed to answer call: ${error.message}`, "error", 5000);
-      endCall();
-    }
-  };
-  const handleDeviceError = (error) => {
-    console.error("Device error:", error);
-
-    if (error.name === "NotAllowedError") {
-      showToast(
-        "Camera/microphone access denied. Please check your browser permissions.",
-        "error",
-        5000
-      );
-    } else if (
-      error.name === "NotFoundError" ||
-      error.name === "OverconstrainedError"
-    ) {
-      showToast(
-        "Required device not found. Please check if your camera/microphone is connected.",
-        "error",
-        5000
-      );
-    } else if (error.name === "NotReadableError") {
-      showToast(
-        "Camera/microphone is already in use by another application.",
-        "error",
-        5000
-      );
-    } else {
-      showToast(
-        "Failed to access camera/microphone: " + error.message,
-        "error",
-        5000
-      );
-    }
-
-    endCall();
-  };
-  // Decline a call
-  const declineCall = () => {
-    if (
-      incomingCallOffer?.callerId &&
-      socket.current?.readyState === WebSocket.OPEN
-    ) {
-      socket.current.send(
-        JSON.stringify({
-          type: "agora-signal",
-          userId: currentUser,
-          data: {
-            action: "call-rejected",
-            targetId: incomingCallOffer.callerId,
-            channel: incomingCallOffer.channel,
-          },
-        })
-      );
-    }
-    setCallStatus("idle");
-    setCallType(null);
-    setIncomingCallOffer(null);
-    setCallData(null);
-    if (callTimeoutRef.current) {
-      clearTimeout(callTimeoutRef.current);
-      callTimeoutRef.current = null;
-    }
-  };
-
-  // End a call with proper cleanup
-  const endCall = () => {
+  // End a call with proper cleanup - MOVED BEFORE OTHER FUNCTIONS
+  const endCall = useCallback(() => {
     console.log("Ending call and cleaning up resources");
 
     // Clean up local tracks
     if (localAudioTrack.current) {
       localAudioTrack.current.close();
       localAudioTrack.current = null;
+      console.log("Local audio track cleaned up");
     }
     if (localVideoTrack.current) {
       localVideoTrack.current.close();
       localVideoTrack.current = null;
+      console.log("Local video track cleaned up");
     }
 
-    // Clear remote video element
+    // Clear video elements
     if (remoteMediaRef.current) {
       remoteMediaRef.current.srcObject = null;
+    }
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
     }
 
     // Leave the Agora channel
     if (agoraClient.current) {
-      agoraClient.current.leave();
+      agoraClient.current.leave().catch((error) => {
+        console.warn("Error leaving Agora channel:", error);
+      });
     }
 
     // Notify the other user if we're in a call
@@ -766,25 +426,488 @@ const ChatBox = ({
     }
 
     console.log("Call ended and resources cleaned up");
-  };
+  }, [callStatus, chat, currentUser, incomingCallOffer, socket]);
+
+  // Handle remote user publishing media with proper error handling
+  const handleUserPublished = useCallback(
+    async (user, mediaType) => {
+      console.log("User published:", user.uid, mediaType);
+      try {
+        await agoraClient.current.subscribe(user, mediaType);
+        console.log("Successfully subscribed to:", user.uid, mediaType);
+
+        if (mediaType === "video") {
+          // Ensure the remote video element exists before playing
+          if (remoteMediaRef.current) {
+            user.videoTrack.play(remoteMediaRef.current);
+            console.log("Remote video track started playing");
+          } else {
+            console.warn("Remote video element not available");
+          }
+        }
+
+        if (mediaType === "audio") {
+          // Multiple fallback strategies for audio playback
+          try {
+            if (callType === "audio" && remoteMediaRef.current) {
+              user.audioTrack.play(remoteMediaRef.current);
+            } else {
+              user.audioTrack.play();
+            }
+            console.log("Remote audio track started playing");
+          } catch (audioError) {
+            console.warn("Audio playback fallback:", audioError);
+            user.audioTrack.play();
+          }
+        }
+      } catch (error) {
+        console.error("Error subscribing to user:", error);
+        showToast(
+          `Failed to receive ${mediaType} from remote user: ${error.message}`,
+          "error",
+          5000
+        );
+      }
+    },
+    [callType, showToast]
+  );
+
+  // Handle remote user unpublishing media
+  const handleUserUnpublished = useCallback((user, mediaType) => {
+    console.log("User unpublished:", user.uid, mediaType);
+    // Clear the remote video if video is unpublished
+    if (mediaType === "video" && remoteMediaRef.current) {
+      remoteMediaRef.current.srcObject = null;
+    }
+  }, []);
+
+  // Handle remote user leaving
+  const handleUserLeft = useCallback(
+    (user, reason) => {
+      console.log("Remote user left:", user.uid, "reason:", reason);
+      // Clear remote media when user leaves
+      if (remoteMediaRef.current) {
+        remoteMediaRef.current.srcObject = null;
+      }
+      showToast("Remote user left the call", "info", 3000);
+      // Set a flag to end the call, will be handled by useEffect
+      setCallStatus("idle");
+    },
+    [showToast]
+  );
+
+  const handleDeviceError = useCallback(
+    (error) => {
+      console.error("Device error:", error);
+
+      if (error.name === "NotAllowedError") {
+        showToast(
+          "Camera/microphone access denied. Please check your browser permissions.",
+          "error",
+          5000
+        );
+      } else if (
+        error.name === "NotFoundError" ||
+        error.name === "OverconstrainedError"
+      ) {
+        showToast(
+          "Required device not found. Please check if your camera/microphone is connected.",
+          "error",
+          5000
+        );
+      } else if (error.name === "NotReadableError") {
+        showToast(
+          "Camera/microphone is already in use by another application.",
+          "error",
+          5000
+        );
+      } else {
+        showToast(
+          "Failed to access camera/microphone: " + error.message,
+          "error",
+          5000
+        );
+      }
+
+      // Don't call endCall here to avoid circular dependency
+      // Let the calling function handle cleanup
+    },
+    [showToast]
+  );
+
+  // Join Agora channel with enhanced track management
+  const joinAgoraChannel = useCallback(
+    async (channelName, token, uid) => {
+      try {
+        console.log("Joining Agora channel:", channelName, "as uid:", uid);
+
+        // Join the channel first
+        await agoraClient.current.join(
+          process.env.REACT_APP_AGORA_APP_ID,
+          channelName,
+          token,
+          uid
+        );
+        console.log("Successfully joined Agora channel:", channelName);
+
+        // Create and publish local tracks with enhanced settings
+        if (callType === "audio" || callType === "video") {
+          try {
+            // Enhanced audio track with quality optimizations
+            localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack(
+              {
+                encoderConfig: "music_standard",
+                ANS: true, // Automatic noise suppression
+                AEC: true, // Acoustic echo cancellation
+                AGC: true, // Automatic gain control
+              }
+            );
+
+            const tracksToPublish = [localAudioTrack.current];
+
+            if (callType === "video") {
+              // Enhanced video track with optimizations
+              localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
+                encoderConfig: "720p_1",
+                optimizationMode: "motion",
+              });
+              tracksToPublish.push(localVideoTrack.current);
+
+              // Display local video immediately
+              if (localVideoRef.current) {
+                localVideoTrack.current.play(localVideoRef.current);
+                console.log("Local video track started playing");
+              }
+            }
+
+            // Publish all tracks at once
+            await agoraClient.current.publish(tracksToPublish);
+            console.log(
+              "Successfully published local tracks:",
+              tracksToPublish.length
+            );
+          } catch (trackError) {
+            console.error(
+              "Error creating/publishing local tracks:",
+              trackError
+            );
+            handleDeviceError(trackError);
+            throw trackError;
+          }
+        }
+      } catch (error) {
+        console.error("Error joining Agora channel:", error);
+        showToast(`Failed to join call: ${error.message}`, "error", 5000);
+        throw error;
+      }
+    },
+    [callType, handleDeviceError, showToast]
+  );
+
+  // Set up Agora event listeners with proper cleanup
+  useEffect(() => {
+    if (agoraClient.current) {
+      // Add event listeners with proper callback functions
+      agoraClient.current.on("user-published", handleUserPublished);
+      agoraClient.current.on("user-unpublished", handleUserUnpublished);
+      agoraClient.current.on("user-left", handleUserLeft);
+
+      console.log("Agora event listeners attached");
+    }
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      if (agoraClient.current) {
+        agoraClient.current.off("user-published", handleUserPublished);
+        agoraClient.current.off("user-unpublished", handleUserUnpublished);
+        agoraClient.current.off("user-left", handleUserLeft);
+        console.log("Agora event listeners removed");
+      }
+    };
+  }, [handleUserPublished, handleUserUnpublished, handleUserLeft]);
+
+  const checkMediaPermissions = useCallback(
+    async (requireVideo = false) => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: requireVideo,
+        });
+        // Stop all tracks to release the devices
+        stream.getTracks().forEach((track) => track.stop());
+        return true;
+      } catch (error) {
+        console.error("Media permissions error:", error);
+
+        let errorMessage = "Please allow microphone access";
+        if (requireVideo) {
+          errorMessage = "Please allow camera and microphone access";
+        }
+
+        showToast(errorMessage, "error", 5000);
+        return false;
+      }
+    },
+    [showToast]
+  );
+  useEffect(() => {
+    const handleConnectionStateChange = (state) => {
+      console.log("Connection state changed:", state);
+      if (state === "DISCONNECTED") {
+        showToast("Connection lost", "error", 3000);
+        endCall();
+      }
+    };
+
+    if (agoraClient.current) {
+      agoraClient.current.on(
+        "connection-state-change",
+        handleConnectionStateChange
+      );
+    }
+
+    return () => {
+      if (agoraClient.current) {
+        agoraClient.current.off(
+          "connection-state-change",
+          handleConnectionStateChange
+        );
+      }
+    };
+  }, []);
+
+  // Start a call - Enhanced version with proper error handling
+  const startCall = useCallback(
+    async (type) => {
+      try {
+        // Check media permissions before starting call
+        const hasPermissions = await checkMediaPermissions(type === "video");
+        if (!hasPermissions) {
+          setCallStatus("idle");
+          return;
+        }
+
+        setCallType(type);
+        setIsCallInitiator(true);
+        setCallStatus("calling");
+
+        const channelName = `chat_${chat.ID}_${Date.now()}`;
+        console.log("Starting call with channel:", channelName, "type:", type);
+
+        // Fetch Agora token for the initiator
+        const tokenData = await fetchAgoraToken(
+          channelName,
+          "publisher",
+          currentUser
+        );
+        setAgoraToken(tokenData.token);
+
+        // Join Agora channel with enhanced logic
+        await joinAgoraChannel(channelName, tokenData.token, currentUser);
+        console.log("Joined channel successfully");
+
+        // Send call-request signal to the receiver
+        const receiverId = chat.Members.find((id) => id !== currentUser);
+        if (!receiverId) {
+          throw new Error("Receiver ID not found");
+        }
+
+        if (socket.current?.readyState !== WebSocket.OPEN) {
+          throw new Error("WebSocket is not open");
+        }
+
+        // Send the call request with all necessary information
+        socket.current.send(
+          JSON.stringify({
+            type: "agora-signal",
+            userId: currentUser,
+            data: {
+              action: "call-request",
+              targetId: receiverId,
+              channel: channelName,
+              callType: type,
+            },
+          })
+        );
+        console.log("Sent call-request signal to:", receiverId);
+
+        // Set timeout for call initiation
+        callTimeoutRef.current = setTimeout(() => {
+          console.log("Call timed out - no response from peer");
+          showToast("No answer from user", "warning", 3000);
+          endCall();
+        }, 30000);
+      } catch (error) {
+        console.error("Error starting call:", error);
+        showToast(`Failed to start call: ${error.message}`, "error", 5000);
+        endCall();
+      }
+    },
+    [
+      chat,
+      currentUser,
+      socket,
+      checkMediaPermissions,
+      fetchAgoraToken,
+      joinAgoraChannel,
+      showToast,
+      endCall,
+    ]
+  );
+
+  // Answer a call - Fixed version
+
+  // Answer a call - Enhanced version with proper error handling
+  const answerCall = useCallback(async () => {
+    try {
+      if (
+        callStatus !== "incoming" ||
+        !incomingCallOffer ||
+        !incomingCallOffer.channel
+      ) {
+        throw new Error("Invalid or missing call data");
+      }
+
+      // Check media permissions before answering call
+      const hasPermissions = await checkMediaPermissions(
+        incomingCallOffer.callType === "video"
+      );
+      if (!hasPermissions) {
+        setCallStatus("idle");
+        setIncomingCallOffer(null);
+        return;
+      }
+
+      setCallStatus("in-progress");
+      setCallType(incomingCallOffer.callType);
+
+      console.log(
+        "Answering call, channel:",
+        incomingCallOffer.channel,
+        "callType:",
+        incomingCallOffer.callType
+      );
+
+      // Fetch Agora token for the answerer (receiver fetches their own token)
+      const tokenData = await fetchAgoraToken(
+        incomingCallOffer.channel,
+        "publisher",
+        currentUser
+      );
+      setAgoraToken(tokenData.token);
+
+      // Join the same Agora channel with enhanced logic
+      await joinAgoraChannel(
+        incomingCallOffer.channel,
+        tokenData.token,
+        currentUser
+      );
+      console.log("Successfully joined call channel");
+
+      // Send call-accepted signal back to the initiator
+      if (socket.current?.readyState === WebSocket.OPEN) {
+        socket.current.send(
+          JSON.stringify({
+            type: "agora-signal",
+            userId: currentUser,
+            data: {
+              action: "call-accepted",
+              targetId: incomingCallOffer.callerId,
+              channel: incomingCallOffer.channel,
+            },
+          })
+        );
+        console.log("Sent call-accepted signal");
+      }
+
+      setIncomingCallOffer(null);
+
+      // Clear the incoming call timeout
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
+    } catch (error) {
+      console.error("Error answering call:", error);
+      showToast(`Failed to answer call: ${error.message}`, "error", 5000);
+      endCall();
+    }
+  }, [
+    callStatus,
+    incomingCallOffer,
+    currentUser,
+    socket,
+    checkMediaPermissions,
+    fetchAgoraToken,
+    joinAgoraChannel,
+    showToast,
+    endCall,
+  ]);
+  // Decline a call
+  const declineCall = useCallback(() => {
+    if (
+      incomingCallOffer?.callerId &&
+      socket.current?.readyState === WebSocket.OPEN
+    ) {
+      socket.current.send(
+        JSON.stringify({
+          type: "agora-signal",
+          userId: currentUser,
+          data: {
+            action: "call-rejected",
+            targetId: incomingCallOffer.callerId,
+            channel: incomingCallOffer.channel,
+          },
+        })
+      );
+    }
+    setCallStatus("idle");
+    setCallType(null);
+    setIncomingCallOffer(null);
+    setCallData(null);
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
+  }, [incomingCallOffer, socket, currentUser]);
 
   // Toggle mute
-  const toggleMute = () => {
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-    if (localAudioTrack.current) {
-      localAudioTrack.current.setEnabled(!newMuted);
+  const toggleMute = useCallback(async () => {
+    try {
+      const newMuted = !isMuted;
+      if (localAudioTrack.current) {
+        await localAudioTrack.current.setEnabled(!newMuted);
+        setIsMuted(newMuted);
+        showToast(
+          newMuted ? "Microphone muted" : "Microphone enabled",
+          "success",
+          2000
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling mute:", error);
+      showToast("Failed to toggle microphone", "error", 3000);
     }
-  };
+  }, [isMuted, showToast]);
 
   // Toggle video
-  const toggleVideo = () => {
-    const newOff = !isVideoOff;
-    setIsVideoOff(newOff);
-    if (localVideoTrack.current) {
-      localVideoTrack.current.setEnabled(!newOff);
+  const toggleVideo = useCallback(async () => {
+    try {
+      const newOff = !isVideoOff;
+      if (localVideoTrack.current) {
+        await localVideoTrack.current.setEnabled(!newOff);
+        setIsVideoOff(newOff);
+        showToast(
+          newOff ? "Camera disabled" : "Camera enabled",
+          "success",
+          2000
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling video:", error);
+      showToast("Failed to toggle camera", "error", 3000);
     }
-  };
+  }, [isVideoOff, showToast]);
 
   // Handle Agora signaling through WebSocket
   // Handle Agora signaling through WebSocket
@@ -1164,12 +1287,28 @@ const ChatBox = ({
               <Fade in={callStatus === "in-progress"} timeout={800}>
                 <Paper className="video-call-section" elevation={0}>
                   <Box className="video-container">
+                    {/* Remote Video - Main display */}
                     <video
                       ref={remoteMediaRef}
                       autoPlay
                       playsInline
                       className="remote-video"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        backgroundColor: "#000000",
+                      }}
+                      onLoadedMetadata={() => {
+                        console.log("Remote video metadata loaded");
+                      }}
+                      onError={(e) => {
+                        console.error("Remote video error:", e);
+                        showToast("Remote video stream error", "warning", 3000);
+                      }}
                     />
+
+                    {/* Local Video - Picture-in-picture */}
                     <Box className="local-video-container">
                       <video
                         ref={localVideoRef}
@@ -1177,6 +1316,23 @@ const ChatBox = ({
                         playsInline
                         muted
                         className="local-video"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          backgroundColor: "#000000",
+                        }}
+                        onLoadedMetadata={() => {
+                          console.log("Local video metadata loaded");
+                        }}
+                        onError={(e) => {
+                          console.error("Local video error:", e);
+                          showToast(
+                            "Local video stream error",
+                            "warning",
+                            3000
+                          );
+                        }}
                       />
                       <Box className="video-overlay">
                         <Typography
@@ -1193,6 +1349,7 @@ const ChatBox = ({
                         </Typography>
                       </Box>
                     </Box>
+
                     <Box className="video-info">
                       <Chip
                         label={`Video call with ${userData?.Username}`}
@@ -1212,7 +1369,18 @@ const ChatBox = ({
             {callStatus === "in-progress" && callType === "audio" && (
               <Fade in={callStatus === "in-progress"} timeout={800}>
                 <Paper className="audio-call-section" elevation={0}>
-                  <audio ref={remoteMediaRef} autoPlay />
+                  <audio
+                    ref={remoteMediaRef}
+                    autoPlay
+                    style={{ display: "none" }}
+                    onLoadedMetadata={() => {
+                      console.log("Remote audio metadata loaded");
+                    }}
+                    onError={(e) => {
+                      console.error("Remote audio error:", e);
+                      showToast("Remote audio stream error", "warning", 3000);
+                    }}
+                  />
                   <Box className="audio-call-display">
                     <Box className="audio-avatar-section">
                       <Badge
