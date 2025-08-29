@@ -598,7 +598,9 @@ const ChatBox = ({
     console.log("Socket State:", socket.current?.readyState);
     console.log("=========================");
   };
-  console.log("Debugging Agora State", debugAgoraState);
+  useEffect(() => {
+    debugAgoraState();
+  }, [debugAgoraState]);
 
   // Call this when needed for debugging
   // You can add a button to trigger this or call it in useEffect

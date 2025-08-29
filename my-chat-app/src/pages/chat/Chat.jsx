@@ -97,6 +97,7 @@ const Chat = () => {
       );
     };
 
+    // In your Chat.jsx file, find the WebSocket message handler
     socket.current.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       console.log("WebSocket Message:", msg);
@@ -123,11 +124,12 @@ const Chat = () => {
           }
           break;
         case "agora-signal":
+          // Allow token-generated signals to pass through
           if (
             msg.data &&
             msg.data.action &&
-            msg.data.targetId &&
-            msg.data.channel
+            (msg.data.action === "token-generated" ||
+              (msg.data.targetId && msg.data.channel))
           ) {
             setCallData({
               type: "agora-signal",
