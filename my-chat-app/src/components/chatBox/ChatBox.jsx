@@ -485,12 +485,53 @@ const ChatBox = ({
   }, [callStatus, chat, currentUser, incomingCallOffer, socket]);
 
   // Join Agora channel - FIXED to remove duplicate event listeners
+  // Join Agora channel - Enhanced version
   const joinAgoraChannel = useCallback(
     async (channelName, token, uid) => {
       try {
         console.log("Joining Agora channel:", channelName, "as uid:", uid);
 
-        // Join the channel first
+        // Enhanced Agora client configuration
+        agoraClient.current = AgoraRTC.createClient({
+          mode: "rtc",
+          codec: "vp8",
+        });
+
+        // Set up event listeners
+        agoraClient.current.on("user-published", async (user, mediaType) => {
+          console.log("User published:", user.uid, mediaType);
+          try {
+            await agoraClient.current.subscribe(user, mediaType);
+
+            if (mediaType === "video") {
+              user.videoTrack.play(remoteMediaRef.current);
+              console.log("Remote video track started playing");
+            }
+            if (mediaType === "audio") {
+              user.audioTrack.play();
+              console.log("Remote audio track started playing");
+            }
+          } catch (error) {
+            console.error("Error subscribing to user:", error);
+            showToast(
+              `Failed to receive media: ${error.message}`,
+              "error",
+              5000
+            );
+          }
+        });
+
+        agoraClient.current.on("user-unpublished", (user) => {
+          console.log("User unpublished:", user.uid);
+        });
+
+        agoraClient.current.on("user-left", (user) => {
+          console.log("User left:", user.uid);
+          showToast("Other user left the call", "info", 3000);
+          endCall();
+        });
+
+        // Join the channel
         await agoraClient.current.join(
           process.env.REACT_APP_AGORA_APP_ID,
           channelName,
@@ -502,46 +543,31 @@ const ChatBox = ({
         // Create and publish local tracks with enhanced settings
         if (callType === "audio" || callType === "video") {
           try {
-            // Enhanced audio track with quality optimizations
             localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack(
               {
                 encoderConfig: "music_standard",
-                ANS: true, // Automatic noise suppression
                 AEC: true, // Acoustic echo cancellation
-                AGC: true, // Automatic gain control
+                ANS: true, // Automatic noise suppression
               }
             );
-
-            const tracksToPublish = [localAudioTrack.current];
+            await agoraClient.current.publish([localAudioTrack.current]);
 
             if (callType === "video") {
-              // Enhanced video track with optimizations
               localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
                 encoderConfig: "720p_1",
                 optimizationMode: "motion",
               });
-              tracksToPublish.push(localVideoTrack.current);
+              await agoraClient.current.publish([localVideoTrack.current]);
 
-              // Display local video immediately
               if (localVideoRef.current) {
                 localVideoTrack.current.play(localVideoRef.current);
                 console.log("Local video track started playing");
               }
             }
-
-            // Publish all tracks at once
-            await agoraClient.current.publish(tracksToPublish);
-            console.log(
-              "Successfully published local tracks:",
-              tracksToPublish.length
-            );
-          } catch (trackError) {
-            console.error(
-              "Error creating/publishing local tracks:",
-              trackError
-            );
-            handleDeviceError(trackError);
-            throw trackError;
+          } catch (error) {
+            console.error("Error creating local tracks:", error);
+            handleDeviceError(error);
+            throw error;
           }
         }
       } catch (error) {
@@ -550,8 +576,32 @@ const ChatBox = ({
         throw error;
       }
     },
-    [callType, handleDeviceError, showToast]
+    [callType, handleDeviceError, showToast, endCall]
   );
+
+  // Add this function to your component
+  const debugAgoraState = () => {
+    console.log("=== AGORA DEBUG INFO ===");
+    console.log("Call Status:", callStatus);
+    console.log("Call Type:", callType);
+    console.log("Is Initiator:", isCallInitiator);
+    console.log("Incoming Offer:", incomingCallOffer);
+    console.log("Agora Token:", agoraToken ? "Present" : "Missing");
+    console.log(
+      "Local Audio Track:",
+      localAudioTrack.current ? "Present" : "None"
+    );
+    console.log(
+      "Local Video Track:",
+      localVideoTrack.current ? "Present" : "None"
+    );
+    console.log("Socket State:", socket.current?.readyState);
+    console.log("=========================");
+  };
+  console.log("Debugging Agora State", debugAgoraState);
+
+  // Call this when needed for debugging
+  // You can add a button to trigger this or call it in useEffect
 
   // Enhanced event handlers with useCallback - FIXED for bidirectional calls
   const handleUserPublished = useCallback(
@@ -842,6 +892,7 @@ const ChatBox = ({
 
   // Handle Agora signaling through WebSocket
   // Handle Agora signaling through WebSocket
+  // Handle Agora signaling through WebSocket
   useEffect(() => {
     if (callData) {
       console.log(
@@ -858,8 +909,8 @@ const ChatBox = ({
         channel,
         callType: incomingCallType,
         targetId,
-        token, // Add token from callData
-        appId, // Add appId from callData
+        token, // Token from callData
+        appId, // AppId from callData
       } = callData.data;
 
       switch (action) {
@@ -881,6 +932,14 @@ const ChatBox = ({
               console.log("Incoming call timed out");
               declineCall();
             }, 30000);
+          }
+          break;
+
+        case "token-generated": // ADD THIS CASE
+          if (isCallInitiator && callStatus === "calling") {
+            console.log("Received token for caller");
+            // Store the token for later use if needed
+            setAgoraToken(token);
           }
           break;
 
