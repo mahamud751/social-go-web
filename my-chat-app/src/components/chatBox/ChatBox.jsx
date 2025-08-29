@@ -572,7 +572,6 @@ const ChatBox = ({
             targetId: receiverId,
             channel: channelName,
             callType: type,
-            // Note: The backend will add receiverToken and appId
           },
         })
       );
@@ -615,27 +614,18 @@ const ChatBox = ({
       setCallStatus("in-progress");
       setCallType(incomingCallOffer.callType);
 
-      // Use the token provided by the caller or fetch a new one
-      let tokenToUse = incomingCallOffer.token;
-      let appIdToUse = incomingCallOffer.appId;
-
-      // If no token was provided by the caller, fetch one
-      if (!tokenToUse) {
-        const tokenData = await fetchAgoraToken(
-          incomingCallOffer.channel,
-          "publisher",
-          currentUser
-        );
-        tokenToUse = tokenData.token;
-        appIdToUse = tokenData.appId;
-      }
-
-      setAgoraToken(tokenToUse);
+      // Fetch Agora token for the answerer (receiver fetches their own token)
+      const tokenData = await fetchAgoraToken(
+        incomingCallOffer.channel,
+        "publisher",
+        currentUser
+      );
+      setAgoraToken(tokenData.token);
 
       // Join the same Agora channel
       await joinAgoraChannel(
         incomingCallOffer.channel,
-        tokenToUse,
+        tokenData.token,
         currentUser
       );
 
@@ -826,8 +816,8 @@ const ChatBox = ({
         channel,
         callType: incomingCallType,
         targetId,
-        receiverToken, // Token for the receiver
-        appId, // App ID
+        token, // Add token from callData
+        appId, // Add appId from callData
       } = callData.data;
 
       switch (action) {
@@ -840,7 +830,7 @@ const ChatBox = ({
               callerId: callData.userId,
               channel,
               callType: incomingCallType,
-              token: receiverToken, // Store the token from the caller
+              token, // Store the token from the caller
               appId, // Store the appId from the caller
             });
 
