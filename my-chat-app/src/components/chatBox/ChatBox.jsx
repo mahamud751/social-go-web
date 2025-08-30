@@ -586,7 +586,7 @@ const ChatBox = ({
     console.log("Call Type:", callType);
     console.log("Is Initiator:", isCallInitiator);
     console.log("Incoming Offer:", incomingCallOffer);
-    console.log("Agora Token:", agoraToken ? "Present" : "Missing");
+    console.log("Agora Token:test", agoraToken ? "Present" : "Missing");
     console.log(
       "Local Audio Track:",
       localAudioTrack.current ? "Present" : "None"
