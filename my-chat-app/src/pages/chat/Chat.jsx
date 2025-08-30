@@ -89,6 +89,7 @@ const Chat = () => {
     socket.current = new WebSocket(`wss://${process.env.REACT_APP_API_URL}/ws`);
 
     socket.current.onopen = () => {
+      console.log("WebSocket connected");
       socket.current.send(
         JSON.stringify({
           type: "new-user-add",
@@ -150,7 +151,12 @@ const Chat = () => {
     };
 
     socket.current.onclose = () => {
-      console.log("WebSocket connection closed");
+      console.log("WebSocket closed, attempting to reconnect...");
+      setTimeout(() => {
+        socket.current = new WebSocket(
+          `wss://${process.env.REACT_APP_API_URL}/ws`
+        );
+      }, 5000); // Attempt reconnect after 5 seconds
     };
 
     return () => {
