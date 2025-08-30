@@ -101,7 +101,7 @@ const ChatBox = ({
   // Handle device errors - MOVED UP to fix circular dependencies
   const handleDeviceError = useCallback(
     (error) => {
-      console.error("Device error details:", error.name, error.message);
+      console.error("Device error:", error);
 
       if (error.name === "NotAllowedError") {
         showToast(
@@ -162,34 +162,51 @@ const ChatBox = ({
   );
 
   // Fetch Agora token
-  const fetchAgoraToken = useCallback(
-    async (channelName, role, uid, retries = 3) => {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          const apiUrl = `https://${
-            process.env.REACT_APP_API_URL
-          }/api/agora-token?channel=${encodeURIComponent(
-            channelName
-          )}&role=${encodeURIComponent(role)}&uid=${encodeURIComponent(uid)}`;
-          const response = await fetch(apiUrl, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-          if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-          const data = await response.json();
-          if (data.token && data.appId) return data;
-          throw new Error("Invalid token response");
-        } catch (error) {
-          console.error(`Attempt ${attempt} failed:`, error);
-          if (attempt === retries) throw error;
-          await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1s before retry
-        }
+  const fetchAgoraToken = useCallback(async (channelName, role, uid) => {
+    try {
+      console.log(
+        "Fetching token for uid:",
+        uid,
+        "channel:",
+        channelName,
+        "role:",
+        role
+      );
+
+      // ADD QUERY PARAMETERS TO THE URL
+      const apiUrl = `https://${
+        process.env.REACT_APP_API_URL
+      }/api/agora-token?channel=${encodeURIComponent(
+        channelName
+      )}&role=${encodeURIComponent(role)}&uid=${encodeURIComponent(uid)}`;
+
+      console.log("Fetching token from URL:", apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
-    },
-    []
-  );
+
+      const data = await response.json();
+      console.log("Token response:", data);
+
+      if (data.token && data.appId) {
+        return data;
+      } else {
+        throw new Error("Invalid token response: " + JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error("Error fetching Agora token:", error);
+      throw error;
+    }
+  }, []);
 
   const getToastIcon = (type) => {
     switch (type) {
@@ -469,6 +486,98 @@ const ChatBox = ({
 
   // Join Agora channel - FIXED to remove duplicate event listeners
   // Join Agora channel - Enhanced version
+  const joinAgoraChannel = useCallback(
+    async (channelName, token, uid) => {
+      try {
+        console.log("Joining Agora channel:", channelName, "as uid:", uid);
+
+        // Enhanced Agora client configuration
+        agoraClient.current = AgoraRTC.createClient({
+          mode: "rtc",
+          codec: "vp8",
+        });
+
+        // Set up event listeners
+        agoraClient.current.on("user-published", async (user, mediaType) => {
+          console.log("User published:", user.uid, mediaType);
+          try {
+            await agoraClient.current.subscribe(user, mediaType);
+
+            if (mediaType === "video") {
+              user.videoTrack.play(remoteMediaRef.current);
+              console.log("Remote video track started playing");
+            }
+            if (mediaType === "audio") {
+              user.audioTrack.play();
+              console.log("Remote audio track started playing");
+            }
+          } catch (error) {
+            console.error("Error subscribing to user:", error);
+            showToast(
+              `Failed to receive media: ${error.message}`,
+              "error",
+              5000
+            );
+          }
+        });
+
+        agoraClient.current.on("user-unpublished", (user) => {
+          console.log("User unpublished:", user.uid);
+        });
+
+        agoraClient.current.on("user-left", (user) => {
+          console.log("User left:", user.uid);
+          showToast("Other user left the call", "info", 3000);
+          endCall();
+        });
+
+        // Join the channel
+        await agoraClient.current.join(
+          process.env.REACT_APP_AGORA_APP_ID,
+          channelName,
+          token,
+          uid
+        );
+        console.log("Successfully joined Agora channel:", channelName);
+
+        // Create and publish local tracks with enhanced settings
+        if (callType === "audio" || callType === "video") {
+          try {
+            localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack(
+              {
+                encoderConfig: "music_standard",
+                AEC: true, // Acoustic echo cancellation
+                ANS: true, // Automatic noise suppression
+              }
+            );
+            await agoraClient.current.publish([localAudioTrack.current]);
+
+            if (callType === "video") {
+              localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
+                encoderConfig: "720p_1",
+                optimizationMode: "motion",
+              });
+              await agoraClient.current.publish([localVideoTrack.current]);
+
+              if (localVideoRef.current) {
+                localVideoTrack.current.play(localVideoRef.current);
+                console.log("Local video track started playing");
+              }
+            }
+          } catch (error) {
+            console.error("Error creating local tracks:", error);
+            handleDeviceError(error);
+            throw error;
+          }
+        }
+      } catch (error) {
+        console.error("Error joining Agora channel:", error);
+        showToast(`Failed to join call: ${error.message}`, "error", 5000);
+        throw error;
+      }
+    },
+    [callType, handleDeviceError, showToast, endCall]
+  );
 
   // Add this function to your component
   const debugAgoraState = () => {
@@ -527,96 +636,15 @@ const ChatBox = ({
     },
     [showToast]
   );
-  const handleUserLeft = useCallback((user, reason) => {
-    console.log("User left:", user.uid, "reason:", reason);
-    // Don't auto-end call on user-left, let UI handle it
-  }, []);
+
   const handleUserUnpublished = useCallback((user, mediaType) => {
     console.log("User unpublished:", user.uid, mediaType);
   }, []);
 
-  const joinAgoraChannel = useCallback(
-    async (channelName, token, uid) => {
-      try {
-        console.log("Joining Agora channel:", channelName, "as uid:", uid);
-
-        if (!agoraClient.current) {
-          agoraClient.current = AgoraRTC.createClient({
-            mode: "rtc",
-            codec: "vp8",
-          });
-        }
-
-        // Only register event listeners if not already registered
-        if (!agoraClient.current._eventListeners) {
-          agoraClient.current._eventListeners = true; // Flag to prevent duplicates
-          agoraClient.current.on("user-published", handleUserPublished);
-          agoraClient.current.on("user-unpublished", handleUserUnpublished);
-          agoraClient.current.on("user-left", handleUserLeft);
-        }
-
-        // Join the channel
-        await agoraClient.current.join(
-          process.env.REACT_APP_AGORA_APP_ID,
-          channelName,
-          token,
-          uid
-        );
-        console.log("Successfully joined Agora channel:", channelName);
-
-        // Create and publish local tracks
-        if (callType === "audio" || callType === "video") {
-          try {
-            if (!localAudioTrack.current) {
-              try {
-                localAudioTrack.current =
-                  await AgoraRTC.createMicrophoneAudioTrack({
-                    encoderConfig: "music_standard",
-                    AEC: true,
-                    ANS: true,
-                  });
-                console.log("Local audio track created successfully");
-                await agoraClient.current.publish([localAudioTrack.current]);
-                console.log("Local audio track published successfully");
-              } catch (error) {
-                console.error("Failed to create local audio track:", error);
-                handleDeviceError(error);
-                throw error;
-              }
-            }
-
-            if (callType === "video" && !localVideoTrack.current) {
-              localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
-                encoderConfig: "720p_1",
-                optimizationMode: "motion",
-              });
-              await agoraClient.current.publish([localVideoTrack.current]);
-              if (localVideoRef.current) {
-                localVideoTrack.current.play(localVideoRef.current);
-                console.log("Local video track started playing");
-              }
-            }
-          } catch (error) {
-            console.error("Error creating local tracks:", error);
-            handleDeviceError(error);
-            throw error;
-          }
-        }
-      } catch (error) {
-        console.error("Error joining Agora channel:", error);
-        showToast(`Failed to join call: ${error.message}`, "error", 5000);
-        throw error;
-      }
-    },
-    [
-      callType,
-      handleDeviceError,
-      showToast,
-      handleUserPublished,
-      handleUserUnpublished,
-      handleUserLeft,
-    ]
-  );
+  const handleUserLeft = useCallback((user, reason) => {
+    console.log("User left:", user.uid, "reason:", reason);
+    // Don't auto-end call on user-left, let UI handle it
+  }, []);
 
   // Setup Agora event listeners - SINGLE registration to avoid conflicts
   useEffect(() => {
@@ -632,8 +660,6 @@ const ChatBox = ({
           agoraClient.current.off("user-published", handleUserPublished);
           agoraClient.current.off("user-unpublished", handleUserUnpublished);
           agoraClient.current.off("user-left", handleUserLeft);
-          agoraClient.current.leave();
-          agoraClient.current._eventListeners = false;
         }
       };
     }
