@@ -606,11 +606,17 @@ const ChatBox = ({
     [handleDeviceError]
   );
 
-  // Join Agora channel - Enhanced version with proper track management
+  // Join Agora channel - Enhanced version with connection resilience
   const joinAgoraChannel = useCallback(
-    async (channelName, token, uid) => {
+    async (channelName, token, uid, retryCount = 0) => {
+      const maxRetries = 2;
+
       try {
-        console.log("Joining Agora channel:", channelName, "as uid:", uid);
+        console.log(
+          `Joining Agora channel: ${channelName} as uid: ${uid} (attempt ${
+            retryCount + 1
+          })`
+        );
 
         // Don't recreate client if it already exists and is connected
         if (!agoraClient.current) {
@@ -618,21 +624,36 @@ const ChatBox = ({
             mode: "rtc",
             codec: "vp8",
           });
+
+          // Set up client configuration for better connection stability
+          agoraClient.current.setClientRole("host");
         }
 
-        // Join the channel first
-        await agoraClient.current.join(
+        // Validate environment variables
+        if (!process.env.REACT_APP_AGORA_APP_ID) {
+          throw new Error("Agora App ID not configured");
+        }
+
+        // Join the channel with timeout
+        const joinPromise = agoraClient.current.join(
           process.env.REACT_APP_AGORA_APP_ID,
           channelName,
           token,
           uid
         );
+
+        // Add timeout to join operation
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Join channel timeout")), 15000);
+        });
+
+        await Promise.race([joinPromise, timeoutPromise]);
         console.log("Successfully joined Agora channel:", channelName);
 
         // Create local tracks after joining
         const tracks = await createLocalTracks(callType);
 
-        // Publish tracks
+        // Publish tracks with retry on failure
         const tracksToPublish = [];
         if (tracks.audioTrack) {
           tracksToPublish.push(tracks.audioTrack);
@@ -642,11 +663,17 @@ const ChatBox = ({
         }
 
         if (tracksToPublish.length > 0) {
-          await agoraClient.current.publish(tracksToPublish);
-          console.log(
-            "Successfully published local tracks:",
-            tracksToPublish.length
-          );
+          try {
+            await agoraClient.current.publish(tracksToPublish);
+            console.log(
+              "Successfully published local tracks:",
+              tracksToPublish.length
+            );
+          } catch (publishError) {
+            console.error("Failed to publish tracks:", publishError);
+            showToast("Failed to publish media tracks", "warning", 3000);
+            // Continue anyway, tracks might still work
+          }
         }
 
         // Log current track status
@@ -658,14 +685,97 @@ const ChatBox = ({
           "Local Video Track:",
           localVideoTrack.current ? "Created" : "None"
         );
+
+        // Show success message on first attempt
+        if (retryCount === 0) {
+          showToast("✅ Connected to call", "success", 2000);
+        }
       } catch (error) {
-        console.error("Error joining Agora channel:", error);
-        showToast(`Failed to join call: ${error.message}`, "error", 5000);
+        console.error(
+          `Error joining Agora channel (attempt ${retryCount + 1}):`,
+          error
+        );
+
+        // Retry logic for connection issues
+        if (
+          retryCount < maxRetries &&
+          (error.message.includes("network") ||
+            error.message.includes("timeout") ||
+            error.message.includes("NETWORK_ERROR") ||
+            error.code === "NETWORK_ERROR")
+        ) {
+          console.log(
+            `Retrying connection in ${(retryCount + 1) * 2} seconds...`
+          );
+          showToast(
+            `Connection failed, retrying... (${retryCount + 1}/${maxRetries})`,
+            "warning",
+            3000
+          );
+
+          // Wait before retry with exponential backoff
+          await new Promise((resolve) =>
+            setTimeout(resolve, (retryCount + 1) * 2000)
+          );
+
+          // Clean up current client before retry
+          if (agoraClient.current) {
+            try {
+              await agoraClient.current.leave();
+            } catch (leaveError) {
+              console.warn("Error leaving channel before retry:", leaveError);
+            }
+            agoraClient.current = null;
+          }
+
+          return joinAgoraChannel(channelName, token, uid, retryCount + 1);
+        }
+
+        // Final failure
+        const errorMessage = error.message.includes("INVALID_TOKEN")
+          ? "Invalid or expired token. Please try again."
+          : error.message.includes("network") ||
+            error.message.includes("timeout")
+          ? "Network connection failed. Please check your internet connection."
+          : `Failed to join call: ${error.message}`;
+
+        showToast(errorMessage, "error", 5000);
         throw error;
       }
     },
     [callType, createLocalTracks, showToast]
   );
+
+  // Add connection recovery function
+  const attemptReconnection = useCallback(async () => {
+    if (callStatus !== "in-progress" || !agoraToken || !chat) {
+      console.log("Not in active call, skipping reconnection");
+      return;
+    }
+
+    try {
+      console.log("Attempting to reconnect to call...");
+      showToast("🔄 Attempting to reconnect...", "info", 3000);
+
+      // Try to rejoin with existing token
+      const channelName =
+        incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`;
+      await joinAgoraChannel(channelName, agoraToken, currentUser);
+
+      showToast("✅ Reconnected successfully", "success", 2000);
+    } catch (error) {
+      console.error("Reconnection failed:", error);
+      showToast("❌ Reconnection failed. Call may be unstable.", "error", 4000);
+    }
+  }, [
+    callStatus,
+    agoraToken,
+    chat,
+    incomingCallOffer,
+    joinAgoraChannel,
+    currentUser,
+    showToast,
+  ]);
 
   // Add this function to your component
   const debugAgoraState = useCallback(() => {
@@ -761,12 +871,109 @@ const ChatBox = ({
     }
   }, [handleUserPublished, handleUserUnpublished, handleUserLeft]);
 
+  // WebSocket connection monitoring and recovery
   useEffect(() => {
-    const handleConnectionStateChange = (state) => {
-      console.log("Connection state changed:", state);
-      if (state === "DISCONNECTED") {
-        showToast("Connection lost", "error", 3000);
-        endCall();
+    const checkWebSocketConnection = () => {
+      if (socket.current) {
+        const wsState = socket.current.readyState;
+
+        switch (wsState) {
+          case WebSocket.CONNECTING:
+            console.log("WebSocket is connecting...");
+            break;
+          case WebSocket.OPEN:
+            console.log("WebSocket connection is open");
+            break;
+          case WebSocket.CLOSING:
+            console.warn("WebSocket is closing...");
+            if (callStatus !== "idle") {
+              showToast(
+                "📡 WebSocket connection closing during call",
+                "warning",
+                3000
+              );
+            }
+            break;
+          case WebSocket.CLOSED:
+            console.error("WebSocket connection is closed");
+            if (callStatus !== "idle") {
+              showToast(
+                "❌ WebSocket connection lost during call",
+                "error",
+                4000
+              );
+              // Don't auto-end call immediately, let user decide
+            }
+            break;
+          default:
+            console.log("Unknown WebSocket state:", wsState);
+        }
+      }
+    };
+
+    // Check WebSocket connection every 5 seconds during calls
+    let wsCheckInterval;
+    if (callStatus === "in-progress" || callStatus === "calling") {
+      wsCheckInterval = setInterval(checkWebSocketConnection, 5000);
+    }
+
+    return () => {
+      if (wsCheckInterval) {
+        clearInterval(wsCheckInterval);
+      }
+    };
+  }, [callStatus, socket, showToast]);
+
+  // Enhanced connection state change handler with recovery mechanisms
+  useEffect(() => {
+    const handleConnectionStateChange = (state, reason) => {
+      console.log("Agora connection state changed:", state, "reason:", reason);
+
+      switch (state) {
+        case "DISCONNECTED":
+          console.warn("Agora connection lost, reason:", reason);
+          showToast(
+            "📡 Connection lost. Attempting to reconnect...",
+            "warning",
+            4000
+          );
+          // Attempt automatic reconnection
+          setTimeout(() => {
+            attemptReconnection();
+          }, 2000);
+          break;
+
+        case "RECONNECTING":
+          console.log("Agora is attempting to reconnect...");
+          showToast("🔄 Reconnecting...", "info", 3000);
+          break;
+
+        case "CONNECTED":
+          console.log("Agora connection restored");
+          if (callStatus === "in-progress" || callStatus === "calling") {
+            showToast("✅ Connection restored", "success", 2000);
+          }
+          break;
+
+        case "FAILED":
+          console.error("Agora connection failed permanently:", reason);
+          showToast("❌ Connection failed. Please try again.", "error", 5000);
+          endCall();
+          break;
+
+        default:
+          console.log("Agora connection state:", state);
+      }
+    };
+
+    const handleNetworkQuality = (stats) => {
+      // Monitor network quality and warn user of poor connection
+      if (
+        stats.downlinkNetworkQuality >= 4 ||
+        stats.uplinkNetworkQuality >= 4
+      ) {
+        console.warn("Poor network quality detected:", stats);
+        showToast("⚠️ Poor network connection detected", "warning", 3000);
       }
     };
 
@@ -775,6 +982,7 @@ const ChatBox = ({
         "connection-state-change",
         handleConnectionStateChange
       );
+      agoraClient.current.on("network-quality", handleNetworkQuality);
     }
 
     return () => {
@@ -783,9 +991,10 @@ const ChatBox = ({
           "connection-state-change",
           handleConnectionStateChange
         );
+        agoraClient.current.off("network-quality", handleNetworkQuality);
       }
     };
-  }, [showToast, endCall]);
+  }, [showToast, endCall, callStatus, attemptReconnection]);
 
   // Start a call - Enhanced version with proper initialization
   const startCall = useCallback(
