@@ -1674,7 +1674,6 @@ const ChatBox = ({
     chat,
     showToast,
     endCall,
-    declineCall,
     setCallData,
   ]);
 
