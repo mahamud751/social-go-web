@@ -99,37 +99,43 @@ const ChatBox = ({
     [toastIdCounter, removeToast]
   );
 
-  // Handle device errors - MOVED UP to fix circular dependencies
+  // Enhanced device error handler with actionable error messages
   const handleDeviceError = useCallback(
     (error) => {
       console.error("Device error:", error);
 
       if (error.name === "NotAllowedError") {
         showToast(
-          "Camera/microphone access denied. Please check your browser permissions.",
+          "🚫 Camera/microphone access denied. Please click the camera icon in your browser's address bar and allow permissions, then try again.",
           "error",
-          5000
+          8000
         );
       } else if (
         error.name === "NotFoundError" ||
         error.name === "OverconstrainedError"
       ) {
         showToast(
-          "Required device not found. Please check if your camera/microphone is connected.",
+          "📷 Required device not found. Please check if your camera/microphone is connected and not being used by other applications.",
           "error",
-          5000
+          8000
         );
       } else if (error.name === "NotReadableError") {
         showToast(
-          "Camera/microphone is already in use by another application.",
+          "🔒 Camera/microphone is already in use. Please close other video/audio applications (like Zoom, Teams, Skype) and try again.",
           "error",
+          8000
+        );
+      } else if (error.name === "AbortError") {
+        showToast(
+          "⚠️ Device access was interrupted. Please try starting the call again.",
+          "warning",
           5000
         );
       } else {
         showToast(
-          "Failed to access camera/microphone: " + error.message,
+          `❌ Failed to access camera/microphone: ${error.message}. Please check your device settings and try again.`,
           "error",
-          5000
+          8000
         );
       }
     },
@@ -732,50 +738,174 @@ const ChatBox = ({
         }
 
         // Final failure
-        const errorMessage = error.message.includes("INVALID_TOKEN")
-          ? "Invalid or expired token. Please try again."
-          : error.message.includes("network") ||
-            error.message.includes("timeout")
-          ? "Network connection failed. Please check your internet connection."
-          : `Failed to join call: ${error.message}`;
+        let errorMessage;
+        if (error.message.includes("INVALID_TOKEN")) {
+          errorMessage =
+            "🔑 Authentication failed. The call session has expired. Please try starting a new call.";
+        } else if (
+          error.message.includes("NETWORK_ERROR") ||
+          error.message.includes("network") ||
+          error.message.includes("timeout")
+        ) {
+          errorMessage =
+            "🌐 Network connection failed. Please check your internet connection and try again. If the problem persists, try refreshing the page.";
+        } else if (error.message.includes("INVALID_CHANNEL")) {
+          errorMessage =
+            "📱 Invalid call session. Please try starting a new call.";
+        } else if (error.message.includes("AGORA_APP_ID")) {
+          errorMessage =
+            "⚙️ Application configuration error. Please refresh the page and try again.";
+        } else {
+          errorMessage = `❌ Failed to join call: ${error.message}. Please try refreshing the page or starting a new call.`;
+        }
 
-        showToast(errorMessage, "error", 5000);
+        showToast(errorMessage, "error", 8000);
         throw error;
       }
     },
     [callType, createLocalTracks, showToast]
   );
 
-  // Add connection recovery function
-  const attemptReconnection = useCallback(async () => {
-    if (callStatus !== "in-progress" || !agoraToken || !chat) {
-      console.log("Not in active call, skipping reconnection");
-      return;
-    }
+  // Enhanced connection recovery function with retry logic and better error handling
+  const attemptReconnection = useCallback(
+    async (retryCount = 0) => {
+      const maxRetries = 3;
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
 
-    try {
-      console.log("Attempting to reconnect to call...");
-      showToast("🔄 Attempting to reconnect...", "info", 3000);
+      if (callStatus !== "in-progress" || !agoraToken || !chat) {
+        console.log("Not in active call, skipping reconnection");
+        return false;
+      }
 
-      // Try to rejoin with existing token
-      const channelName =
-        incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`;
-      await joinAgoraChannel(channelName, agoraToken, currentUser);
+      // Check network connectivity first
+      if (!navigator.onLine) {
+        console.log("No internet connection, cannot reconnect");
+        showToast(
+          "🌐 No internet connection. Please check your network and try again.",
+          "error",
+          5000
+        );
+        return false;
+      }
 
-      showToast("✅ Reconnected successfully", "success", 2000);
-    } catch (error) {
-      console.error("Reconnection failed:", error);
-      showToast("❌ Reconnection failed. Call may be unstable.", "error", 4000);
-    }
-  }, [
-    callStatus,
-    agoraToken,
-    chat,
-    incomingCallOffer,
-    joinAgoraChannel,
-    currentUser,
-    showToast,
-  ]);
+      try {
+        console.log(
+          `Attempting reconnection ${retryCount + 1}/${maxRetries + 1}...`
+        );
+
+        if (retryCount === 0) {
+          showToast("🔄 Attempting to reconnect...", "info", 3000);
+        } else {
+          showToast(
+            `🔄 Reconnection attempt ${retryCount + 1}/${maxRetries + 1}...`,
+            "warning",
+            3000
+          );
+        }
+
+        // Verify WebSocket is available
+        if (!socket.current || socket.current.readyState !== WebSocket.OPEN) {
+          throw new Error("WebSocket connection is not available");
+        }
+
+        // Verify Agora client is available
+        if (!agoraClient.current) {
+          throw new Error("Agora client is not initialized");
+        }
+
+        // Try to rejoin with existing token
+        const channelName =
+          incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`;
+
+        // First try to leave current channel if connected
+        try {
+          const connectionState = agoraClient.current.connectionState;
+          if (
+            connectionState === "CONNECTED" ||
+            connectionState === "CONNECTING"
+          ) {
+            await agoraClient.current.leave();
+            console.log("Left current channel before reconnection");
+          }
+        } catch (leaveError) {
+          console.warn(
+            "Error leaving channel before reconnection:",
+            leaveError
+          );
+          // Continue with reconnection attempt
+        }
+
+        // Attempt to rejoin the channel
+        await joinAgoraChannel(channelName, agoraToken, currentUser);
+
+        showToast("✅ Reconnected successfully", "success", 2000);
+        console.log("Reconnection successful");
+        return true;
+      } catch (error) {
+        console.error(`Reconnection attempt ${retryCount + 1} failed:`, error);
+
+        if (retryCount < maxRetries) {
+          console.log(`Retrying in ${retryDelay}ms...`);
+          showToast(
+            `⚠️ Reconnection failed. Retrying in ${Math.ceil(
+              retryDelay / 1000
+            )} seconds...`,
+            "warning",
+            3000
+          );
+
+          // Wait before retry with exponential backoff
+          setTimeout(() => {
+            attemptReconnection(retryCount + 1);
+          }, retryDelay);
+
+          return false;
+        } else {
+          // Final failure after all retries
+          console.error("All reconnection attempts failed");
+
+          let errorMessage = "❌ Connection recovery failed. ";
+
+          // Provide specific error guidance
+          if (error.message.includes("WebSocket")) {
+            errorMessage +=
+              "WebSocket connection is not available. Please refresh the page.";
+          } else if (error.message.includes("INVALID_TOKEN")) {
+            errorMessage += "Authentication expired. Please restart the call.";
+          } else if (error.message.includes("NETWORK")) {
+            errorMessage +=
+              "Network connection is unstable. Please check your internet.";
+          } else {
+            errorMessage +=
+              "Please try restarting the call or refresh the page.";
+          }
+
+          showToast(errorMessage, "error", 6000);
+
+          // Suggest ending the call after multiple failures
+          setTimeout(() => {
+            showToast(
+              "📞 Call quality may be poor. Consider ending and restarting the call.",
+              "warning",
+              8000
+            );
+          }, 2000);
+
+          return false;
+        }
+      }
+    },
+    [
+      callStatus,
+      agoraToken,
+      chat,
+      incomingCallOffer,
+      joinAgoraChannel,
+      currentUser,
+      socket,
+      showToast,
+    ]
+  );
 
   // Add this function to your component
   const debugAgoraState = useCallback(() => {
@@ -871,7 +1001,7 @@ const ChatBox = ({
     }
   }, [handleUserPublished, handleUserUnpublished, handleUserLeft]);
 
-  // WebSocket connection monitoring and recovery
+  // Enhanced WebSocket connection monitoring and recovery
   useEffect(() => {
     const checkWebSocketConnection = () => {
       if (socket.current) {
@@ -880,15 +1010,19 @@ const ChatBox = ({
         switch (wsState) {
           case WebSocket.CONNECTING:
             console.log("WebSocket is connecting...");
+            if (callStatus === "calling" || callStatus === "in-progress") {
+              showToast("🔗 Establishing connection...", "info", 2000);
+            }
             break;
           case WebSocket.OPEN:
             console.log("WebSocket connection is open");
+            // Connection is healthy, no action needed
             break;
           case WebSocket.CLOSING:
             console.warn("WebSocket is closing...");
             if (callStatus !== "idle") {
               showToast(
-                "📡 WebSocket connection closing during call",
+                "⚠️ WebSocket connection closing during call",
                 "warning",
                 3000
               );
@@ -898,9 +1032,9 @@ const ChatBox = ({
             console.error("WebSocket connection is closed");
             if (callStatus !== "idle") {
               showToast(
-                "❌ WebSocket connection lost during call",
+                "📡 WebSocket disconnected. Call may be affected. Please check your connection.",
                 "error",
-                4000
+                5000
               );
               // Don't auto-end call immediately, let user decide
             }
@@ -908,6 +1042,38 @@ const ChatBox = ({
           default:
             console.log("Unknown WebSocket state:", wsState);
         }
+      } else {
+        console.warn("WebSocket is not initialized");
+        if (callStatus !== "idle") {
+          showToast(
+            "❌ WebSocket not available. Please refresh the page.",
+            "error",
+            6000
+          );
+        }
+      }
+    };
+
+    // Add network status monitoring
+    const handleOnline = () => {
+      console.log("Network connection restored");
+      if (callStatus !== "idle") {
+        showToast("🌐 Internet connection restored", "success", 3000);
+        // Attempt to reconnect if in a call
+        setTimeout(() => {
+          attemptReconnection();
+        }, 1000);
+      }
+    };
+
+    const handleOffline = () => {
+      console.warn("Network connection lost");
+      if (callStatus !== "idle") {
+        showToast(
+          "🌐 Internet connection lost. Call may be interrupted.",
+          "error",
+          5000
+        );
       }
     };
 
@@ -917,12 +1083,18 @@ const ChatBox = ({
       wsCheckInterval = setInterval(checkWebSocketConnection, 5000);
     }
 
+    // Add network event listeners
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     return () => {
       if (wsCheckInterval) {
         clearInterval(wsCheckInterval);
       }
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
-  }, [callStatus, socket, showToast]);
+  }, [callStatus, socket, showToast, attemptReconnection]);
 
   // Enhanced connection state change handler with recovery mechanisms
   useEffect(() => {
@@ -932,32 +1104,57 @@ const ChatBox = ({
       switch (state) {
         case "DISCONNECTED":
           console.warn("Agora connection lost, reason:", reason);
-          showToast(
-            "📡 Connection lost. Attempting to reconnect...",
-            "warning",
-            4000
-          );
-          // Attempt automatic reconnection
-          setTimeout(() => {
-            attemptReconnection();
-          }, 2000);
+          if (callStatus === "in-progress" || callStatus === "calling") {
+            showToast(
+              "📡 Connection lost. Checking network status...",
+              "warning",
+              4000
+            );
+            // Check network connectivity before attempting reconnection
+            if (navigator.onLine) {
+              setTimeout(() => {
+                attemptReconnection();
+              }, 2000);
+            } else {
+              showToast(
+                "🌐 No internet connection. Please check your network.",
+                "error",
+                6000
+              );
+            }
+          }
           break;
 
         case "RECONNECTING":
           console.log("Agora is attempting to reconnect...");
-          showToast("🔄 Reconnecting...", "info", 3000);
+          showToast("🔄 Reconnecting to call...", "info", 3000);
           break;
 
         case "CONNECTED":
           console.log("Agora connection restored");
           if (callStatus === "in-progress" || callStatus === "calling") {
-            showToast("✅ Connection restored", "success", 2000);
+            showToast("✅ Connection restored successfully", "success", 2000);
           }
           break;
 
         case "FAILED":
           console.error("Agora connection failed permanently:", reason);
-          showToast("❌ Connection failed. Please try again.", "error", 5000);
+          let failureMessage = "❌ Connection failed. ";
+
+          // Provide specific error messages based on reason
+          if (reason && reason.includes("NETWORK")) {
+            failureMessage +=
+              "Network error - please check your internet connection.";
+          } else if (reason && reason.includes("TOKEN")) {
+            failureMessage +=
+              "Authentication failed - please try starting the call again.";
+          } else if (reason && reason.includes("TIMEOUT")) {
+            failureMessage += "Connection timed out - please try again.";
+          } else {
+            failureMessage += "Please try again or restart the call.";
+          }
+
+          showToast(failureMessage, "error", 6000);
           endCall();
           break;
 
@@ -1074,7 +1271,31 @@ const ChatBox = ({
         }, 30000);
       } catch (error) {
         console.error("Error starting call:", error);
-        showToast(`Failed to start call: ${error.message}`, "error", 5000);
+
+        let errorMessage;
+        if (error.message.includes("Media permissions denied")) {
+          errorMessage =
+            "🚫 Permission denied. Please allow camera/microphone access and try again.";
+        } else if (error.message.includes("Receiver ID not found")) {
+          errorMessage =
+            "👥 Cannot find the person to call. Please try selecting the conversation again.";
+        } else if (error.message.includes("WebSocket is not open")) {
+          errorMessage =
+            "📡 Connection error. Please refresh the page and try again.";
+        } else if (
+          error.message.includes("network") ||
+          error.message.includes("NETWORK")
+        ) {
+          errorMessage =
+            "🌐 Network error. Please check your internet connection and try again.";
+        } else if (error.message.includes("token")) {
+          errorMessage =
+            "🔑 Authentication failed. Please try again or refresh the page.";
+        } else {
+          errorMessage = `❌ Failed to start call: ${error.message}. Please try again.`;
+        }
+
+        showToast(errorMessage, "error", 8000);
         endCall();
       }
     },
@@ -1166,7 +1387,28 @@ const ChatBox = ({
       }
     } catch (error) {
       console.error("Error answering call:", error);
-      showToast(`Failed to answer call: ${error.message}`, "error", 5000);
+
+      let errorMessage;
+      if (error.message.includes("Invalid or missing call data")) {
+        errorMessage =
+          "📞 Call information is missing. Please ask the caller to try again.";
+      } else if (error.message.includes("Media permissions denied")) {
+        errorMessage =
+          "🚫 Permission denied. Please allow camera/microphone access and try answering again.";
+      } else if (
+        error.message.includes("network") ||
+        error.message.includes("NETWORK")
+      ) {
+        errorMessage =
+          "🌐 Network error. Please check your internet connection and try again.";
+      } else if (error.message.includes("token")) {
+        errorMessage =
+          "🔑 Authentication failed. Please ask the caller to try calling again.";
+      } else {
+        errorMessage = `❌ Failed to answer call: ${error.message}. Please try again or ask the caller to call back.`;
+      }
+
+      showToast(errorMessage, "error", 8000);
       endCall();
     }
   }, [
