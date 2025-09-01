@@ -1110,14 +1110,18 @@ const ChatBox = ({
       switch (state) {
         case "DISCONNECTED":
           console.warn("Agora connection lost, reason:", reason);
-          if (callStatus === "in-progress" || callStatus === "calling") {
-            showToast(
-              "📡 Connection lost. Checking network status...",
-              "warning",
-              4000
-            );
+          // Only attempt reconnection if we're in an active call and not ending intentionally
+          if (
+            (callStatus === "in-progress" || callStatus === "calling") &&
+            reason !== "DISCONNECTING"
+          ) {
             // Check network connectivity before attempting reconnection
             if (navigator.onLine) {
+              showToast(
+                "📡 Connection lost. Checking network status...",
+                "warning",
+                4000
+              );
               setTimeout(() => {
                 attemptReconnection();
               }, 2000);
@@ -1128,6 +1132,8 @@ const ChatBox = ({
                 6000
               );
             }
+          } else {
+            console.log("Call ended normally, no reconnection needed");
           }
           break;
 
@@ -1269,12 +1275,12 @@ const ChatBox = ({
         );
         console.log("Sent call-request signal to:", receiverId);
 
-        // Set timeout for call initiation
+        // Set timeout for call initiation - increased to 60 seconds
         callTimeoutRef.current = setTimeout(() => {
           console.log("Call timed out - no response from peer");
-          showToast("No answer from user", "warning", 3000);
+          showToast("📞 No answer from user", "warning", 4000);
           endCall();
-        }, 30000);
+        }, 60000);
       } catch (error) {
         console.error("Error starting call:", error);
 
@@ -1589,12 +1595,12 @@ const ChatBox = ({
               appId, // Store the appId from the caller
             });
 
-            // Set timeout for incoming call
+            // Set timeout for incoming call - increased to 60 seconds
             callTimeoutRef.current = setTimeout(() => {
               console.log("⏰ Incoming call timed out");
               showToast("📞 Incoming call timed out", "warning", 3000);
               declineCall();
-            }, 30000);
+            }, 60000);
           } else {
             console.log(
               `⚠️ Received call-request but already in state: ${callStatus}`
@@ -1603,12 +1609,19 @@ const ChatBox = ({
           break;
 
         case "token-generated":
-          if (isCallInitiator && callStatus === "calling") {
-            console.log("🔑 Received token for caller");
-            setAgoraToken(token);
+          // Process token-generated signals for any active call
+          if (
+            (isCallInitiator && callStatus === "calling") ||
+            callStatus === "incoming"
+          ) {
+            console.log("🔑 Received token for call participant");
+            if (token) {
+              setAgoraToken(token);
+              showToast("🔑 Authentication token received", "success", 2000);
+            }
           } else {
             console.log(
-              `⚠️ Received token-generated but not calling (status: ${callStatus}, initiator: ${isCallInitiator})`
+              `⚠️ Received token-generated but not in active call (status: ${callStatus}, initiator: ${isCallInitiator})`
             );
           }
           break;
@@ -1648,11 +1661,23 @@ const ChatBox = ({
 
         case "call-ended":
           console.log("🔚 Call ended by peer:", callData.userId);
-          if (callStatus !== "idle") {
+          if (
+            callStatus !== "idle" &&
+            (callStatus === "in-progress" ||
+              callStatus === "calling" ||
+              callStatus === "incoming")
+          ) {
             showToast("📞 Call ended by other user", "info", 3000);
             endCall();
           } else {
-            console.log(`ℹ️ Received call-ended but already idle`);
+            console.log(
+              `ℹ️ Received call-ended but call was already ${callStatus}`
+            );
+            // Still clear any remaining call state to be safe
+            if (callTimeoutRef.current) {
+              clearTimeout(callTimeoutRef.current);
+              callTimeoutRef.current = null;
+            }
           }
           break;
 

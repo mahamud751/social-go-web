@@ -134,15 +134,17 @@ const Chat = () => {
             // Check if this signal is intended for the current user
             const isForCurrentUser =
               msg.data.targetId === user.ID || // Signal specifically for this user
-              msg.data.action === "token-generated" || // Token generation signals
+              msg.data.action === "token-generated" || // Token generation signals (may not have targetId)
+              msg.data.action === "call-request" || // Call requests should always be processed
               !msg.data.targetId; // Broadcast signals
 
             console.log("📊 Signal routing analysis:", {
               action: msg.data.action,
-              targetId: msg.data.targetId,
+              targetId: msg.data.targetId || "undefined",
               currentUserId: user.ID,
               isForCurrentUser,
               isTokenGenerated: msg.data.action === "token-generated",
+              isCallRequest: msg.data.action === "call-request",
               hasNoTarget: !msg.data.targetId,
             });
 
