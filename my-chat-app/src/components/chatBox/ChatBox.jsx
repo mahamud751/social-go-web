@@ -1311,9 +1311,15 @@ const ChatBox = ({
     ]
   );
 
-  // Answer a call - Enhanced version with proper track verification
+  // Enhanced answer call function with better feedback and error handling
   const answerCall = useCallback(async () => {
     try {
+      console.log("📞 Attempting to answer call", {
+        callStatus,
+        incomingCallOffer,
+        socketState: socket.current?.readyState,
+      });
+
       if (
         callStatus !== "incoming" ||
         !incomingCallOffer ||
@@ -1322,16 +1328,17 @@ const ChatBox = ({
         throw new Error("Invalid or missing call data");
       }
 
-      console.log("Answering call with type:", incomingCallOffer.callType);
+      console.log("📹 Answering call with type:", incomingCallOffer.callType);
+      showToast("📞 Accepting call...", "info", 2000);
 
       // Check media permissions before answering call
       const hasPermissions = await checkMediaPermissions(
         incomingCallOffer.callType === "video"
       );
       if (!hasPermissions) {
-        console.log("Media permissions denied, declining call");
-        setCallStatus("idle");
-        setIncomingCallOffer(null);
+        console.log("🚫 Media permissions denied, declining call");
+        showToast("🚫 Permission denied. Call declined.", "error", 4000);
+        declineCall();
         return;
       }
 
@@ -1345,7 +1352,7 @@ const ChatBox = ({
         currentUser
       );
       setAgoraToken(tokenData.token);
-      console.log("Agora token fetched for answerer");
+      console.log("🔑 Agora token fetched for answerer");
 
       // Join the same Agora channel
       await joinAgoraChannel(
@@ -1355,7 +1362,7 @@ const ChatBox = ({
       );
 
       // Verify tracks were created
-      console.log("Post-answer track status:");
+      console.log("🎤 Post-answer track status:");
       console.log(
         "Local Audio Track:",
         localAudioTrack.current ? "Present" : "None"
@@ -1366,8 +1373,8 @@ const ChatBox = ({
       );
 
       // Send call-accepted signal back to the initiator
-      socket.current.send(
-        JSON.stringify({
+      if (socket.current?.readyState === WebSocket.OPEN) {
+        const acceptMessage = {
           type: "agora-signal",
           userId: currentUser,
           data: {
@@ -1375,8 +1382,18 @@ const ChatBox = ({
             targetId: incomingCallOffer.callerId,
             channel: incomingCallOffer.channel,
           },
-        })
-      );
+        };
+
+        console.log("📤 Sending call-accepted signal:", acceptMessage);
+        socket.current.send(JSON.stringify(acceptMessage));
+
+        showToast("✅ Call connected!", "success", 2000);
+      } else {
+        console.error(
+          "❌ WebSocket not open, cannot send call-accepted signal"
+        );
+        throw new Error("WebSocket is not available");
+      }
 
       setIncomingCallOffer(null);
 
@@ -1385,8 +1402,10 @@ const ChatBox = ({
         clearTimeout(callTimeoutRef.current);
         callTimeoutRef.current = null;
       }
+
+      console.log("✅ Call answered successfully");
     } catch (error) {
-      console.error("Error answering call:", error);
+      console.error("❌ Error answering call:", error);
 
       let errorMessage;
       if (error.message.includes("Invalid or missing call data")) {
@@ -1404,6 +1423,9 @@ const ChatBox = ({
       } else if (error.message.includes("token")) {
         errorMessage =
           "🔑 Authentication failed. Please ask the caller to try calling again.";
+      } else if (error.message.includes("WebSocket")) {
+        errorMessage =
+          "📡 Connection error. Please refresh the page and try again.";
       } else {
         errorMessage = `❌ Failed to answer call: ${error.message}. Please try again or ask the caller to call back.`;
       }
@@ -1421,35 +1443,66 @@ const ChatBox = ({
     joinAgoraChannel,
     showToast,
     endCall,
+    declineCall,
   ]);
 
-  // Decline a call
-  const declineCall = () => {
+  // Enhanced decline call function with better feedback
+  const declineCall = useCallback(() => {
+    console.log("📞 Declining call", {
+      incomingCallOffer,
+      callStatus,
+      socketState: socket.current?.readyState,
+    });
+
     if (
       incomingCallOffer?.callerId &&
       socket.current?.readyState === WebSocket.OPEN
     ) {
-      socket.current.send(
-        JSON.stringify({
-          type: "agora-signal",
-          userId: currentUser,
-          data: {
-            action: "call-rejected",
-            targetId: incomingCallOffer.callerId,
-            channel: incomingCallOffer.channel,
-          },
-        })
-      );
+      // Send call-rejected signal
+      const rejectMessage = {
+        type: "agora-signal",
+        userId: currentUser,
+        data: {
+          action: "call-rejected",
+          targetId: incomingCallOffer.callerId,
+          channel: incomingCallOffer.channel,
+        },
+      };
+
+      console.log("📤 Sending call-rejected signal:", rejectMessage);
+      socket.current.send(JSON.stringify(rejectMessage));
+
+      showToast("📞 Call declined", "info", 2000);
+    } else {
+      console.warn("⚠️ Cannot send call-rejected signal:", {
+        hasCallerId: !!incomingCallOffer?.callerId,
+        socketState: socket.current?.readyState,
+        expectedState: WebSocket.OPEN,
+      });
+
+      if (socket.current?.readyState !== WebSocket.OPEN) {
+        showToast(
+          "📡 Connection error. Call declined locally.",
+          "warning",
+          3000
+        );
+      }
     }
+
+    // Reset call states
     setCallStatus("idle");
     setCallType(null);
     setIncomingCallOffer(null);
     setCallData(null);
+
+    // Clear any timeouts
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
     }
-  };
+
+    console.log("✅ Call decline complete");
+  }, [incomingCallOffer, currentUser, socket, showToast]);
 
   // Toggle mute - Enhanced version
   const toggleMute = () => {
@@ -1485,19 +1538,15 @@ const ChatBox = ({
     }
   };
 
-  // Handle Agora signaling through WebSocket
-  // Handle Agora signaling through WebSocket
-  // Handle Agora signaling through WebSocket
+  // Enhanced Agora signaling through WebSocket with better logging
   useEffect(() => {
     if (callData) {
-      console.log(
-        "Received callData:",
-        callData,
-        "callStatus:",
+      console.log("📞 Received callData:", callData, "📊 Current State:", {
         callStatus,
-        "isCallInitiator:",
-        isCallInitiator
-      );
+        isCallInitiator,
+        currentUser,
+        chat: chat?.ID,
+      });
 
       const {
         action,
@@ -1508,10 +1557,15 @@ const ChatBox = ({
         appId, // AppId from callData
       } = callData.data;
 
+      console.log(`🎯 Processing action: ${action} for targetId: ${targetId}`);
+
       switch (action) {
         case "call-request":
           if (callStatus === "idle") {
-            console.log("Incoming call request received");
+            console.log(
+              "📲 Incoming call request received from:",
+              callData.userId
+            );
             setCallStatus("incoming");
             setCallType(incomingCallType);
             setIncomingCallOffer({
@@ -1524,54 +1578,84 @@ const ChatBox = ({
 
             // Set timeout for incoming call
             callTimeoutRef.current = setTimeout(() => {
-              console.log("Incoming call timed out");
+              console.log("⏰ Incoming call timed out");
+              showToast("📞 Incoming call timed out", "warning", 3000);
               declineCall();
             }, 30000);
+          } else {
+            console.log(
+              `⚠️ Received call-request but already in state: ${callStatus}`
+            );
           }
           break;
 
-        case "token-generated": // ADD THIS CASE
+        case "token-generated":
           if (isCallInitiator && callStatus === "calling") {
-            console.log("Received token for caller");
-            // Store the token for later use if needed
+            console.log("🔑 Received token for caller");
             setAgoraToken(token);
+          } else {
+            console.log(
+              `⚠️ Received token-generated but not calling (status: ${callStatus}, initiator: ${isCallInitiator})`
+            );
           }
           break;
 
         case "call-accepted":
-          if (isCallInitiator) {
-            console.log("Call accepted by peer");
+          if (isCallInitiator && callStatus === "calling") {
+            console.log("✅ Call accepted by peer:", callData.userId);
             setCallStatus("in-progress");
+            showToast("✅ Call accepted!", "success", 2000);
 
             // Clear the calling timeout
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
               callTimeoutRef.current = null;
             }
+          } else {
+            console.log(
+              `⚠️ Received call-accepted but not in calling state (status: ${callStatus}, initiator: ${isCallInitiator})`
+            );
           }
           break;
 
         case "call-rejected":
-          if (isCallInitiator) {
-            console.log("Call rejected by peer");
-            showToast("Call was rejected", "info", 3000);
+          if (
+            isCallInitiator &&
+            (callStatus === "calling" || callStatus === "in-progress")
+          ) {
+            console.log("❌ Call rejected by peer:", callData.userId);
+            showToast("📞 Call was declined", "info", 3000);
             endCall();
+          } else {
+            console.log(
+              `⚠️ Received call-rejected but not calling (status: ${callStatus}, initiator: ${isCallInitiator})`
+            );
           }
           break;
 
         case "call-ended":
-          console.log("Call ended by peer");
+          console.log("🔚 Call ended by peer:", callData.userId);
           if (callStatus !== "idle") {
-            showToast("Call ended", "info", 3000);
+            showToast("📞 Call ended by other user", "info", 3000);
             endCall();
+          } else {
+            console.log(`ℹ️ Received call-ended but already idle`);
           }
           break;
 
         default:
-          console.log("Unhandled call action:", action);
+          console.log("❓ Unhandled call action:", action);
       }
     }
-  }, [callData]);
+  }, [
+    callData,
+    callStatus,
+    isCallInitiator,
+    currentUser,
+    chat,
+    showToast,
+    endCall,
+  ]);
 
   return (
     <Fade in={isVisible} timeout={800}>
