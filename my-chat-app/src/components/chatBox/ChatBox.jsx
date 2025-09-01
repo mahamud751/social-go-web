@@ -1609,25 +1609,36 @@ const ChatBox = ({
           break;
 
         case "token-generated":
-          // Only process token-generated signals if we have a valid token
+          // Only process token-generated signals if we have a valid token AND an active call
           if (token && typeof token === "string" && token.length > 0) {
-            // Process token-generated signals for any active call
+            // Only process if we're actually in a call state (not idle)
             if (
-              (isCallInitiator && callStatus === "calling") ||
-              callStatus === "incoming" ||
-              callStatus === "in-progress"
+              callStatus !== "idle" &&
+              ((isCallInitiator && callStatus === "calling") ||
+                callStatus === "incoming" ||
+                callStatus === "in-progress")
             ) {
-              console.log("🔑 Received valid token for call participant", {
-                tokenLength: token.length,
-                callStatus,
-                isCallInitiator,
-              });
+              console.log(
+                "🔑 Received valid token for active call participant",
+                {
+                  tokenLength: token.length,
+                  callStatus,
+                  isCallInitiator,
+                }
+              );
               setAgoraToken(token);
               showToast("🔑 Authentication token received", "success", 2000);
             } else {
               console.log(
-                `⚠️ Received token-generated but not in active call (status: ${callStatus}, initiator: ${isCallInitiator})`
+                `⚠️ Ignoring token-generated signal - call status is ${callStatus} (not active call)`,
+                {
+                  callStatus,
+                  isCallInitiator,
+                  tokenLength: token.length,
+                }
               );
+              // Don't process tokens when call is idle or not in active state
+              return; // Early return to skip further processing
             }
           } else {
             console.log(`⚠️ Received token-generated but token is invalid:`, {
@@ -1637,6 +1648,7 @@ const ChatBox = ({
               callStatus,
               isCallInitiator,
             });
+            return; // Early return for invalid tokens
           }
           break;
 
@@ -1675,33 +1687,41 @@ const ChatBox = ({
 
         case "call-ended":
           console.log("🔚 Call ended by peer:", callData.userId);
+
+          // Only process call-ended for truly active calls
           if (
             callStatus !== "idle" &&
             (callStatus === "in-progress" ||
               callStatus === "calling" ||
               callStatus === "incoming")
           ) {
-            console.log("ℹ️ Processing call-ended signal for active call");
+            console.log("ℹ️ Processing call-ended signal for active call", {
+              currentStatus: callStatus,
+              willEndCall: true,
+            });
             showToast("📞 Call ended by other user", "info", 3000);
             endCall();
           } else {
             console.log(
-              `ℹ️ Received call-ended but call was already ${callStatus} - cleaning up any remaining state`
+              `ℹ️ Ignoring call-ended signal - call was already ${callStatus}`,
+              {
+                currentStatus: callStatus,
+                isCallInitiator,
+                action: "ignoring_redundant_signal",
+              }
             );
-            // Still clear any remaining call state to be safe
+
+            // For truly redundant signals when already idle, just clear any lingering timeouts
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
               callTimeoutRef.current = null;
               console.log(
-                "🧹 Cleared lingering timeout from call-ended signal"
+                "🧹 Cleared lingering timeout from redundant call-ended signal"
               );
             }
-            // Ensure we're in a clean idle state
-            if (callStatus !== "idle") {
-              setCallStatus("idle");
-              setCallType(null);
-              setIncomingCallOffer(null);
-            }
+
+            // Early return to avoid unnecessary state clearing
+            return;
           }
           break;
 

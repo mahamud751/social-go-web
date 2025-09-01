@@ -168,13 +168,16 @@ const Chat = () => {
                 }
               } else {
                 console.log(
-                  "⚠️ Token-generated signal has invalid token, ignoring:",
+                  "⚠️ Token-generated signal has invalid/missing token, ignoring:",
                   {
                     hasToken: !!msg.data.token,
                     tokenType: typeof msg.data.token,
                     tokenLength: msg.data.token ? msg.data.token.length : 0,
+                    action: "dropping_invalid_token_signal",
                   }
                 );
+                // Don't process invalid token signals at all
+                return;
               }
             } else {
               // Handle all other signal types
