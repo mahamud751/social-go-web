@@ -1609,20 +1609,34 @@ const ChatBox = ({
           break;
 
         case "token-generated":
-          // Process token-generated signals for any active call
-          if (
-            (isCallInitiator && callStatus === "calling") ||
-            callStatus === "incoming"
-          ) {
-            console.log("🔑 Received token for call participant");
-            if (token) {
+          // Only process token-generated signals if we have a valid token
+          if (token && typeof token === "string" && token.length > 0) {
+            // Process token-generated signals for any active call
+            if (
+              (isCallInitiator && callStatus === "calling") ||
+              callStatus === "incoming" ||
+              callStatus === "in-progress"
+            ) {
+              console.log("🔑 Received valid token for call participant", {
+                tokenLength: token.length,
+                callStatus,
+                isCallInitiator,
+              });
               setAgoraToken(token);
               showToast("🔑 Authentication token received", "success", 2000);
+            } else {
+              console.log(
+                `⚠️ Received token-generated but not in active call (status: ${callStatus}, initiator: ${isCallInitiator})`
+              );
             }
           } else {
-            console.log(
-              `⚠️ Received token-generated but not in active call (status: ${callStatus}, initiator: ${isCallInitiator})`
-            );
+            console.log(`⚠️ Received token-generated but token is invalid:`, {
+              token: token,
+              tokenType: typeof token,
+              tokenLength: token ? token.length : 0,
+              callStatus,
+              isCallInitiator,
+            });
           }
           break;
 
@@ -1667,16 +1681,26 @@ const ChatBox = ({
               callStatus === "calling" ||
               callStatus === "incoming")
           ) {
+            console.log("ℹ️ Processing call-ended signal for active call");
             showToast("📞 Call ended by other user", "info", 3000);
             endCall();
           } else {
             console.log(
-              `ℹ️ Received call-ended but call was already ${callStatus}`
+              `ℹ️ Received call-ended but call was already ${callStatus} - cleaning up any remaining state`
             );
             // Still clear any remaining call state to be safe
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
               callTimeoutRef.current = null;
+              console.log(
+                "🧹 Cleared lingering timeout from call-ended signal"
+              );
+            }
+            // Ensure we're in a clean idle state
+            if (callStatus !== "idle") {
+              setCallStatus("idle");
+              setCallType(null);
+              setIncomingCallOffer(null);
             }
           }
           break;

@@ -131,39 +131,84 @@ const Chat = () => {
 
           // Validate that we have the basic structure
           if (msg.data && msg.data.action) {
-            // Check if this signal is intended for the current user
-            const isForCurrentUser =
-              msg.data.targetId === user.ID || // Signal specifically for this user
-              msg.data.action === "token-generated" || // Token generation signals (may not have targetId)
-              msg.data.action === "call-request" || // Call requests should always be processed
-              !msg.data.targetId; // Broadcast signals
+            // Special handling for token-generated signals
+            if (msg.data.action === "token-generated") {
+              // For token-generated signals, check if we have a valid token
+              const hasValidToken =
+                msg.data.token &&
+                typeof msg.data.token === "string" &&
+                msg.data.token.length > 0;
 
-            console.log("📊 Signal routing analysis:", {
-              action: msg.data.action,
-              targetId: msg.data.targetId || "undefined",
-              currentUserId: user.ID,
-              isForCurrentUser,
-              isTokenGenerated: msg.data.action === "token-generated",
-              isCallRequest: msg.data.action === "call-request",
-              hasNoTarget: !msg.data.targetId,
-            });
+              if (hasValidToken) {
+                // Process token if it's for this user or if targetId is undefined (broadcast)
+                const isTokenForUser =
+                  !msg.data.targetId || msg.data.targetId === user.ID;
 
-            if (isForCurrentUser) {
-              console.log(
-                "✅ Processing agora-signal for current user:",
-                msg.data.action
-              );
-              setCallData({
-                type: "agora-signal",
-                userId: msg.userId,
-                data: msg.data,
-              });
+                console.log("🔑 Token-generated signal analysis:", {
+                  hasValidToken,
+                  targetId: msg.data.targetId || "undefined",
+                  currentUserId: user.ID,
+                  isTokenForUser,
+                  tokenLength: msg.data.token ? msg.data.token.length : 0,
+                });
+
+                if (isTokenForUser) {
+                  console.log(
+                    "✅ Processing token-generated signal for current user"
+                  );
+                  setCallData({
+                    type: "agora-signal",
+                    userId: msg.userId,
+                    data: msg.data,
+                  });
+                } else {
+                  console.log(
+                    "⚠️ Token-generated signal not for current user, ignoring"
+                  );
+                }
+              } else {
+                console.log(
+                  "⚠️ Token-generated signal has invalid token, ignoring:",
+                  {
+                    hasToken: !!msg.data.token,
+                    tokenType: typeof msg.data.token,
+                    tokenLength: msg.data.token ? msg.data.token.length : 0,
+                  }
+                );
+              }
             } else {
-              console.log("⚠️ Agora signal not for current user, ignoring:", {
+              // Handle all other signal types
+              const isForCurrentUser =
+                msg.data.targetId === user.ID || // Signal specifically for this user
+                msg.data.action === "call-request" || // Call requests should always be processed
+                !msg.data.targetId; // Broadcast signals
+
+              console.log("📊 Signal routing analysis:", {
                 action: msg.data.action,
-                targetId: msg.data.targetId,
+                targetId: msg.data.targetId || "undefined",
                 currentUserId: user.ID,
+                isForCurrentUser,
+                isCallRequest: msg.data.action === "call-request",
+                hasNoTarget: !msg.data.targetId,
               });
+
+              if (isForCurrentUser) {
+                console.log(
+                  "✅ Processing agora-signal for current user:",
+                  msg.data.action
+                );
+                setCallData({
+                  type: "agora-signal",
+                  userId: msg.userId,
+                  data: msg.data,
+                });
+              } else {
+                console.log("⚠️ Agora signal not for current user, ignoring:", {
+                  action: msg.data.action,
+                  targetId: msg.data.targetId,
+                  currentUserId: user.ID,
+                });
+              }
             }
           } else {
             console.error("❌ Invalid agora-signal structure:", msg);

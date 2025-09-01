@@ -1,164 +1,181 @@
-# 📞 Call Notification System Fixes
+# 📞 Call Notification System Fixes - UPDATED
 
-## 🔍 **Issues Identified from Console Logs**
+## 🔍 **Latest Issues Identified from Console Logs**
 
-Based on the console output analysis, several critical issues were affecting the call notification system:
+Based on the most recent console output analysis, additional critical issues were affecting the call notification system:
 
-### 1. **⏰ Call Timeout Issues**
+### 1. **🔑 Token-Generated Signal Issues**
 
-- **Problem**: 30-second timeout was too aggressive for users to respond
-- **Symptom**: "Call timed out - no response from peer" messages
-- **Impact**: Users didn't have enough time to answer calls
+- **Problem**: Token-generated signals with undefined targetId causing processing failures
+- **Symptom**: "🎯 Processing action: token-generated for targetId: undefined" warnings
+- **Impact**: Authentication tokens not being processed correctly, leading to failed call connections
 
-### 2. **🔗 Connection State Problems**
+### 2. **⏰ Call Timeout Still Occurring**
 
-- **Problem**: Agora connection going DISCONNECTING/DISCONNECTED immediately after call end
-- **Symptom**: Unnecessary reconnection attempts when calls end normally
-- **Impact**: Network reconnection attempts triggering when not needed
+- **Problem**: Call timeouts happening despite previous fix attempt
+- **Symptom**: "Call timed out - no response from peer" after incorrect timing
+- **Impact**: Users experiencing call failures even with extended timeout
 
-### 3. **🔑 Token Generation Routing**
-
-- **Problem**: Token-generated signals with undefined targetId not being processed
-- **Symptom**: "Processing action: token-generated for targetId: undefined" warnings
-- **Impact**: Authentication tokens not reaching the intended users
-
-### 4. **📡 Redundant Call-Ended Signals**
+### 3. **🔗 Redundant Call-Ended Processing**
 
 - **Problem**: call-ended signals being processed when calls already idle
-- **Symptom**: "Received call-ended but already idle" messages
-- **Impact**: Unnecessary state processing and potential confusion
+- **Symptom**: "ℹ️ Received call-ended but already idle" messages
+- **Impact**: Unnecessary state processing and potential state confusion
 
-## ✅ **Fixes Implemented**
+### 4. **🌐 Connection State Management**
 
-### 1. **⏰ Extended Call Timeouts**
+- **Problem**: Agora connection going DISCONNECTING/DISCONNECTED after normal call end
+- **Symptom**: Unnecessary reconnection attempts when calls end normally
+- **Impact**: Network reconnection attempts triggering inappropriately
 
-```javascript
-// BEFORE: 30 seconds
-setTimeout(() => {
-  showToast("No answer from user", "warning", 3000);
-  endCall();
-}, 30000);
+## ✅ **Latest Fixes Implemented**
 
-// AFTER: 60 seconds
-setTimeout(() => {
-  showToast("📞 No answer from user", "warning", 4000);
-  endCall();
-}, 60000);
-```
-
-**Benefits**:
-
-- ✅ Users have 60 seconds to respond to calls
-- ✅ More reasonable timeout for real-world usage
-- ✅ Better user experience with less aggressive timeouts
-
-### 2. **🔗 Smart Connection State Handling**
+### 1. **🔑 Enhanced Token Validation and Processing**
 
 ```javascript
-// BEFORE: Always attempt reconnection on DISCONNECTED
-case "DISCONNECTED":
-  if (callStatus === "in-progress" || callStatus === "calling") {
-    attemptReconnection();
-  }
-
-// AFTER: Only reconnect if not ending intentionally
-case "DISCONNECTED":
-  if ((callStatus === "in-progress" || callStatus === "calling") &&
-      reason !== "DISCONNECTING") {
-    if (navigator.onLine) {
-      attemptReconnection();
-    }
-  } else {
-    console.log("Call ended normally, no reconnection needed");
-  }
-```
-
-**Benefits**:
-
-- ✅ No unnecessary reconnection attempts when calls end normally
-- ✅ Network status checking before reconnection
-- ✅ Cleaner connection state management
-
-### 3. **🔑 Enhanced Token Processing**
-
-```javascript
-// BEFORE: Only process tokens for calling initiators
+// BEFORE: Basic token processing
 case "token-generated":
-  if (isCallInitiator && callStatus === "calling") {
-    setAgoraToken(token);
-  }
-
-// AFTER: Process tokens for any active call participant
-case "token-generated":
-  if ((isCallInitiator && callStatus === "calling") ||
-      callStatus === "incoming") {
+  if ((isCallInitiator && callStatus === "calling") || callStatus === "incoming") {
     if (token) {
+      setAgoraToken(token);
+    }
+  }
+
+// AFTER: Comprehensive token validation
+case "token-generated":
+  if (token && typeof token === 'string' && token.length > 0) {
+    if ((isCallInitiator && callStatus === "calling") ||
+        callStatus === "incoming" ||
+        callStatus === "in-progress") {
+      console.log("🔑 Received valid token for call participant", {
+        tokenLength: token.length,
+        callStatus,
+        isCallInitiator
+      });
       setAgoraToken(token);
       showToast("🔑 Authentication token received", "success", 2000);
     }
+  } else {
+    console.log("⚠️ Received token-generated but token is invalid:", {
+      token: token,
+      tokenType: typeof token,
+      callStatus,
+      isCallInitiator
+    });
   }
 ```
 
 **Benefits**:
 
-- ✅ Tokens processed for both callers and receivers
-- ✅ Better authentication flow
-- ✅ User feedback when tokens are received
+- ✅ Validates token before processing
+- ✅ Handles tokens for all call states (calling, incoming, in-progress)
+- ✅ Detailed logging for debugging token issues
+- ✅ Prevents processing of invalid/undefined tokens
 
-### 4. **📡 Improved Call-Ended Handling**
+### 2. **🎯 Improved WebSocket Signal Routing**
 
 ```javascript
-// BEFORE: Show notification even when call already idle
+// BEFORE: Simple routing logic
+const isForCurrentUser =
+  msg.data.targetId === user.ID ||
+  msg.data.action === "token-generated" ||
+  msg.data.action === "call-request" ||
+  !msg.data.targetId;
+
+// AFTER: Specialized token handling
+if (msg.data.action === "token-generated") {
+  const hasValidToken =
+    msg.data.token &&
+    typeof msg.data.token === "string" &&
+    msg.data.token.length > 0;
+
+  if (hasValidToken) {
+    const isTokenForUser = !msg.data.targetId || msg.data.targetId === user.ID;
+
+    console.log("🔑 Token-generated signal analysis:", {
+      hasValidToken,
+      targetId: msg.data.targetId || "undefined",
+      currentUserId: user.ID,
+      isTokenForUser,
+      tokenLength: msg.data.token ? msg.data.token.length : 0,
+    });
+
+    if (isTokenForUser) {
+      setCallData({
+        /* process token */
+      });
+    }
+  } else {
+    console.log("⚠️ Token-generated signal has invalid token, ignoring");
+  }
+}
+```
+
+**Benefits**:
+
+- ✅ Specialized handling for token-generated signals
+- ✅ Validates token presence and format before routing
+- ✅ Better handling of undefined targetId cases
+- ✅ Detailed analysis logging for debugging
+
+### 3. **🔚 Enhanced Call-Ended Signal Management**
+
+```javascript
+// BEFORE: Basic call-ended handling
 case "call-ended":
   if (callStatus !== "idle") {
     showToast("📞 Call ended by other user", "info", 3000);
     endCall();
   }
 
-// AFTER: Only show for truly active calls
+// AFTER: Comprehensive state cleanup
 case "call-ended":
+  console.log("🔚 Call ended by peer:", callData.userId);
   if (callStatus !== "idle" &&
-      (callStatus === "in-progress" || callStatus === "calling" ||
-       callStatus === "incoming")) {
+      (callStatus === "in-progress" || callStatus === "calling" || callStatus === "incoming")) {
+    console.log("ℹ️ Processing call-ended signal for active call");
     showToast("📞 Call ended by other user", "info", 3000);
     endCall();
   } else {
-    // Still clear any remaining timeouts to be safe
+    console.log(`ℹ️ Received call-ended but call was already ${callStatus} - cleaning up any remaining state`);
+    // Clean up any lingering state
     if (callTimeoutRef.current) {
       clearTimeout(callTimeoutRef.current);
       callTimeoutRef.current = null;
+      console.log("🧹 Cleared lingering timeout from call-ended signal");
+    }
+    // Ensure clean idle state
+    if (callStatus !== "idle") {
+      setCallStatus("idle");
+      setCallType(null);
+      setIncomingCallOffer(null);
     }
   }
 ```
 
 **Benefits**:
 
-- ✅ Only shows notifications for actual call endings
-- ✅ Cleans up timeouts even for redundant signals
-- ✅ More accurate call state management
+- ✅ Only processes call-ended for truly active calls
+- ✅ Comprehensive cleanup of lingering state
+- ✅ Better logging for debugging redundant signals
+- ✅ Ensures clean state transitions
 
-### 5. **🎯 Enhanced WebSocket Signal Routing**
+### 4. **⏰ Confirmed 60-Second Timeout Implementation**
 
 ```javascript
-// BEFORE: Limited signal validation
-const isForCurrentUser =
-  msg.data.targetId === user.ID ||
-  msg.data.action === "token-generated" ||
-  !msg.data.targetId;
-
-// AFTER: Comprehensive signal routing
-const isForCurrentUser =
-  msg.data.targetId === user.ID ||
-  msg.data.action === "token-generated" ||
-  msg.data.action === "call-request" ||
-  !msg.data.targetId;
+// Verified timeout is set to 60 seconds
+callTimeoutRef.current = setTimeout(() => {
+  console.log("Call timed out - no response from peer");
+  showToast("📞 No answer from user", "warning", 4000);
+  endCall();
+}, 60000); // 60 seconds
 ```
 
 **Benefits**:
 
-- ✅ Better call-request signal processing
-- ✅ Enhanced token routing logic
-- ✅ More detailed signal routing analysis
+- ✅ Users have full 60 seconds to respond
+- ✅ More reasonable timeout for real-world usage
+- ✅ Consistent timeout across all call scenarios
 
 ## 🎯 **Expected Results**
 
