@@ -907,23 +907,26 @@ const ChatBox = ({
     ]
   );
 
-  // Add this function to your component
-  const debugAgoraState = useCallback(() => {
-    console.log("=== AGORA DEBUG INFO ===");
-    console.log("Call Status:", callStatus);
-    console.log("Call Type:", callType);
-    console.log("Is Initiator:", isCallInitiator);
-    console.log("Incoming Offer:", incomingCallOffer);
-    console.log("Agora Token:test", agoraToken ? "Present" : "Missing");
+  // Debug function to help with call troubleshooting
+  const debugCallState = useCallback(() => {
+    console.log("=== 📞 CALL DEBUG INFO ===");
+    console.log("📊 Call Status:", callStatus);
+    console.log("📞 Call Type:", callType);
+    console.log("🎯 Is Initiator:", isCallInitiator);
+    console.log("📬 Incoming Offer:", incomingCallOffer);
+    console.log("🔑 Agora Token:", agoraToken ? "Present" : "Missing");
+    console.log("👤 Current User:", currentUser);
+    console.log("💬 Chat ID:", chat?.ID);
+    console.log("🔌 Socket State:", socket.current?.readyState);
+    console.log("📡 CallData:", callData);
     console.log(
-      "Local Audio Track:",
+      "🎤 Local Audio Track:",
       localAudioTrack.current ? "Present" : "None"
     );
     console.log(
-      "Local Video Track:",
+      "📹 Local Video Track:",
       localVideoTrack.current ? "Present" : "None"
     );
-    console.log("Socket State:", socket.current?.readyState);
     console.log("=========================");
   }, [
     callStatus,
@@ -931,15 +934,18 @@ const ChatBox = ({
     isCallInitiator,
     incomingCallOffer,
     agoraToken,
+    currentUser,
+    chat,
     socket,
+    callData,
   ]);
 
+  // Debug calls on state changes (for development)
   useEffect(() => {
-    debugAgoraState();
-  }, [debugAgoraState]);
-
-  // Call this when needed for debugging
-  // You can add a button to trigger this or call it in useEffect
+    if (process.env.NODE_ENV === "development") {
+      debugCallState();
+    }
+  }, [debugCallState, callStatus, callData]);
 
   // Enhanced event handlers with useCallback - FIXED for bidirectional calls
   const handleUserPublished = useCallback(
@@ -1311,6 +1317,68 @@ const ChatBox = ({
     ]
   );
 
+  // Enhanced decline call function with better feedback - MOVED BEFORE answerCall
+  const declineCall = useCallback(() => {
+    console.log("📞 Declining call", {
+      incomingCallOffer,
+      callStatus,
+      socketState: socket.current?.readyState,
+    });
+
+    if (
+      incomingCallOffer?.callerId &&
+      socket.current?.readyState === WebSocket.OPEN
+    ) {
+      // Send call-rejected signal
+      const rejectMessage = {
+        type: "agora-signal",
+        userId: currentUser,
+        data: {
+          action: "call-rejected",
+          targetId: incomingCallOffer.callerId,
+          channel: incomingCallOffer.channel,
+        },
+      };
+
+      console.log("📤 Sending call-rejected signal:", rejectMessage);
+      console.log("👤 Sender (currentUser):", currentUser);
+      console.log("🎯 Target (callerId):", incomingCallOffer.callerId);
+      console.log("🔌 Socket ready state:", socket.current.readyState);
+
+      socket.current.send(JSON.stringify(rejectMessage));
+
+      showToast("📞 Call declined", "info", 2000);
+    } else {
+      console.warn("⚠️ Cannot send call-rejected signal:", {
+        hasCallerId: !!incomingCallOffer?.callerId,
+        socketState: socket.current?.readyState,
+        expectedState: WebSocket.OPEN,
+      });
+
+      if (socket.current?.readyState !== WebSocket.OPEN) {
+        showToast(
+          "📡 Connection error. Call declined locally.",
+          "warning",
+          3000
+        );
+      }
+    }
+
+    // Reset call states
+    setCallStatus("idle");
+    setCallType(null);
+    setIncomingCallOffer(null);
+    setCallData(null);
+
+    // Clear any timeouts
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
+
+    console.log("✅ Call decline complete");
+  }, [incomingCallOffer, currentUser, socket, showToast]);
+
   // Enhanced answer call function with better feedback and error handling
   const answerCall = useCallback(async () => {
     try {
@@ -1385,6 +1453,10 @@ const ChatBox = ({
         };
 
         console.log("📤 Sending call-accepted signal:", acceptMessage);
+        console.log("👤 Sender (currentUser):", currentUser);
+        console.log("🎯 Target (callerId):", incomingCallOffer.callerId);
+        console.log("🔌 Socket ready state:", socket.current.readyState);
+
         socket.current.send(JSON.stringify(acceptMessage));
 
         showToast("✅ Call connected!", "success", 2000);
@@ -1443,66 +1515,7 @@ const ChatBox = ({
     joinAgoraChannel,
     showToast,
     endCall,
-    declineCall,
   ]);
-
-  // Enhanced decline call function with better feedback
-  const declineCall = useCallback(() => {
-    console.log("📞 Declining call", {
-      incomingCallOffer,
-      callStatus,
-      socketState: socket.current?.readyState,
-    });
-
-    if (
-      incomingCallOffer?.callerId &&
-      socket.current?.readyState === WebSocket.OPEN
-    ) {
-      // Send call-rejected signal
-      const rejectMessage = {
-        type: "agora-signal",
-        userId: currentUser,
-        data: {
-          action: "call-rejected",
-          targetId: incomingCallOffer.callerId,
-          channel: incomingCallOffer.channel,
-        },
-      };
-
-      console.log("📤 Sending call-rejected signal:", rejectMessage);
-      socket.current.send(JSON.stringify(rejectMessage));
-
-      showToast("📞 Call declined", "info", 2000);
-    } else {
-      console.warn("⚠️ Cannot send call-rejected signal:", {
-        hasCallerId: !!incomingCallOffer?.callerId,
-        socketState: socket.current?.readyState,
-        expectedState: WebSocket.OPEN,
-      });
-
-      if (socket.current?.readyState !== WebSocket.OPEN) {
-        showToast(
-          "📡 Connection error. Call declined locally.",
-          "warning",
-          3000
-        );
-      }
-    }
-
-    // Reset call states
-    setCallStatus("idle");
-    setCallType(null);
-    setIncomingCallOffer(null);
-    setCallData(null);
-
-    // Clear any timeouts
-    if (callTimeoutRef.current) {
-      clearTimeout(callTimeoutRef.current);
-      callTimeoutRef.current = null;
-    }
-
-    console.log("✅ Call decline complete");
-  }, [incomingCallOffer, currentUser, socket, showToast]);
 
   // Toggle mute - Enhanced version
   const toggleMute = () => {
@@ -1646,6 +1659,12 @@ const ChatBox = ({
         default:
           console.log("❓ Unhandled call action:", action);
       }
+
+      // IMPORTANT: Clear callData after processing to allow new signals
+      setTimeout(() => {
+        console.log("🧹 Clearing processed callData to allow new signals");
+        setCallData(null);
+      }, 100);
     }
   }, [
     callData,
@@ -1655,6 +1674,8 @@ const ChatBox = ({
     chat,
     showToast,
     endCall,
+    declineCall,
+    setCallData,
   ]);
 
   return (

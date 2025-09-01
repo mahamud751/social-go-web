@@ -125,7 +125,9 @@ const Chat = () => {
           }
           break;
         case "agora-signal":
-          console.log("Received agora-signal:", msg);
+          console.log("📡 Received agora-signal:", msg);
+          console.log("👤 Current user ID:", user.ID);
+          console.log("🎯 Target ID:", msg.data?.targetId);
 
           // Validate that we have the basic structure
           if (msg.data && msg.data.action) {
@@ -135,9 +137,18 @@ const Chat = () => {
               msg.data.action === "token-generated" || // Token generation signals
               !msg.data.targetId; // Broadcast signals
 
+            console.log("📊 Signal routing analysis:", {
+              action: msg.data.action,
+              targetId: msg.data.targetId,
+              currentUserId: user.ID,
+              isForCurrentUser,
+              isTokenGenerated: msg.data.action === "token-generated",
+              hasNoTarget: !msg.data.targetId,
+            });
+
             if (isForCurrentUser) {
               console.log(
-                "Processing agora-signal for current user:",
+                "✅ Processing agora-signal for current user:",
                 msg.data.action
               );
               setCallData({
@@ -146,14 +157,14 @@ const Chat = () => {
                 data: msg.data,
               });
             } else {
-              console.log("Agora signal not for current user, ignoring:", {
+              console.log("⚠️ Agora signal not for current user, ignoring:", {
                 action: msg.data.action,
                 targetId: msg.data.targetId,
                 currentUserId: user.ID,
               });
             }
           } else {
-            console.error("Invalid agora-signal structure:", msg);
+            console.error("❌ Invalid agora-signal structure:", msg);
           }
           break;
         default:
