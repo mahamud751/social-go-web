@@ -438,8 +438,13 @@ const ChatBox = ({
     }
   };
 
+  // Component mounting state tracking
+  const isMountedRef = useRef(true);
+
   // Initialize Agora client - Enhanced version
   useEffect(() => {
+    isMountedRef.current = true;
+
     // Create Agora client if not exists
     if (!agoraClient.current) {
       agoraClient.current = AgoraRTC.createClient({
@@ -449,14 +454,34 @@ const ChatBox = ({
       console.log("Agora client initialized");
     }
 
-    // Cleanup on unmount
+    // Cleanup on unmount - only if component is actually unmounting, not just re-rendering
     return () => {
+      isMountedRef.current = false;
+
       if (agoraClient.current) {
         console.log("Cleaning up Agora client on unmount");
-        endCall(); // This will handle proper cleanup
+
+        // Only cleanup if we're actually unmounting AND not during active call setup
+        const isActiveCall =
+          callStatus === "incoming" ||
+          callStatus === "calling" ||
+          callStatus === "in-progress";
+
+        if (!isActiveCall || document.hidden) {
+          console.log(
+            "Performing cleanup - component unmounting or page hidden"
+          );
+          endCall(); // This will handle proper cleanup
+        } else {
+          console.log("Skipping cleanup - active call in progress", {
+            callStatus,
+            isActiveCall,
+            documentHidden: document.hidden,
+          });
+        }
       }
     };
-  }, [endCall]);
+  }, []); // Remove endCall from dependencies to prevent re-running
 
   // Fetch user data
   useEffect(() => {
@@ -1111,9 +1136,13 @@ const ChatBox = ({
         case "DISCONNECTED":
           console.warn("Agora connection lost, reason:", reason);
           // Only attempt reconnection if we're in an active call and not ending intentionally
+          // Also check if this is during initial connection setup for incoming calls
           if (
-            (callStatus === "in-progress" || callStatus === "calling") &&
-            reason !== "DISCONNECTING"
+            (callStatus === "in-progress" ||
+              callStatus === "calling" ||
+              (callStatus === "incoming" && !isCallInitiator)) &&
+            reason !== "DISCONNECTING" &&
+            reason !== "LEAVE" // Don't reconnect when deliberately leaving
           ) {
             // Check network connectivity before attempting reconnection
             if (navigator.onLine) {
@@ -1133,7 +1162,14 @@ const ChatBox = ({
               );
             }
           } else {
-            console.log("Call ended normally, no reconnection needed");
+            console.log(
+              "Call ended normally or during setup, no reconnection needed",
+              {
+                callStatus,
+                reason,
+                isCallInitiator,
+              }
+            );
           }
           break;
 
