@@ -5,6 +5,7 @@ import "./chatBox.css";
 import { format } from "timeago.js";
 import InputEmoji from "react-input-emoji";
 import AgoraRTC from "agora-rtc-sdk-ng";
+import { RtcTokenBuilder, RtcRole } from "agora-access-token"; // Added for client-side token generation
 import {
   Box,
   Typography,
@@ -37,6 +38,7 @@ import {
   Info as InfoIcon,
   Close as CloseIcon,
 } from "@mui/icons-material";
+import { convertToAgoraUid } from "../../utils/AgoraUtils"; // Utility for converting user IDs
 
 const ChatBox = ({
   chat,
@@ -219,49 +221,52 @@ const ChatBox = ({
     [showToast]
   );
 
-  // Fetch Agora token
+  // Fetch Agora token - Modified to generate token directly in frontend using agora-access-token
   const fetchAgoraToken = useCallback(async (channelName, role, uid) => {
     try {
+      // Convert string user ID to numeric value as required by Agora
+      const numericUid = convertToAgoraUid(uid);
+
       console.log(
-        "Fetching token for uid:",
-        uid,
+        "Generating token for uid:",
+        numericUid,
         "channel:",
         channelName,
         "role:",
         role
       );
 
-      // ADD QUERY PARAMETERS TO THE URL
-      const apiUrl = `https://${
-        process.env.REACT_APP_API_URL
-      }/api/agora-token?channel=${encodeURIComponent(
-        channelName
-      )}&role=${encodeURIComponent(role)}&uid=${encodeURIComponent(uid)}`;
+      const appID = process.env.REACT_APP_AGORA_APP_ID;
+      const appCertificate = process.env.REACT_APP_AGORA_APP_CERTIFICATE; // NOTE: This exposes the certificate - use only for development/demo. In production, generate on server.
 
-      console.log("Fetching token from URL:", apiUrl);
-
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      if (!appID || !appCertificate) {
+        throw new Error("Agora App ID or Certificate not configured");
       }
 
-      const data = await response.json();
-      console.log("Token response:", data);
+      const expirationTimeInSeconds = 3600; // 1 hour
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
 
-      if (data.token && data.appId) {
-        return data;
-      } else {
-        throw new Error("Invalid token response: " + JSON.stringify(data));
-      }
+      const rtcRole =
+        role === "publisher" ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
+
+      const token = RtcTokenBuilder.buildTokenWithUid(
+        appID,
+        appCertificate,
+        channelName,
+        numericUid, // Use the converted numeric UID
+        rtcRole,
+        privilegeExpiredTs
+      );
+
+      console.log("Generated token:", token);
+
+      return {
+        token,
+        appId: appID,
+      };
     } catch (error) {
-      console.error("Error fetching Agora token:", error);
+      console.error("Error generating Agora token:", error);
       throw error;
     }
   }, []);
@@ -643,8 +648,11 @@ const ChatBox = ({
       const maxRetries = 2;
 
       try {
+        // Convert string user ID to numeric value as required by Agora
+        const numericUid = convertToAgoraUid(uid);
+
         console.log(
-          `Joining Agora channel: ${channelName} as uid: ${uid} (attempt ${
+          `Joining Agora channel: ${channelName} as uid: ${numericUid} (attempt ${
             retryCount + 1
           })`
         );
@@ -665,12 +673,12 @@ const ChatBox = ({
           throw new Error("Agora App ID not configured");
         }
 
-        // Join the channel with timeout
+        // Join the channel with timeout using the numeric UID
         const joinPromise = agoraClient.current.join(
           process.env.REACT_APP_AGORA_APP_ID,
           channelName,
           token,
-          uid
+          numericUid // Use the converted numeric UID
         );
 
         // Add timeout to join operation
