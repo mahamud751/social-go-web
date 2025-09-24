@@ -1271,3 +1271,113 @@
     opacity: 0.6;
   }
 }
+
+/* Enhanced animations for call states */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px rgba(245, 195, 44, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 195, 44, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(245, 195, 44, 0.5);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Ringing visual effects */
+.status-chip.ringing {
+  animation: pulse 1s infinite, glow 2s infinite !important;
+}
+
+.call-type-chip.ringing {
+  animation: pulse 2s infinite, shake 1s infinite, glow 2s infinite !important;
+}
+
+.pulse-ring {
+  width: 24px;
+  height: 24px;
+  background: var(--chatbox-accent);
+  border-radius: 50%;
+  animation: ripple 2s infinite;
+}
+
+.incoming-call-modal.ringing {
+  animation: pulse 2s infinite !important;
+}
+
+.caller-avatar.ringing {
+  animation: pulse 2s infinite, glow 3s infinite !important;
+}
+
+/* Call duration display */
+.call-duration {
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  color: var(--chatbox-accent);
+}
+
+/* Enhanced call notification styles */
+.incoming-call-modal::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(245, 195, 44, 0.2),
+    transparent
+  );
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
