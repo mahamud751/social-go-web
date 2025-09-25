@@ -186,12 +186,13 @@
   backdrop-filter: blur(20px) !important;
   border-radius: 24px !important;
   padding: 2rem !important;
-  border: 1px solid var(--chatbox-border) !important;
-  z-index: 9999 !important;
-  min-width: 350px !important;
-  max-width: 450px !important;
-  box-shadow: var(--chatbox-shadow) !important;
+  border: 2px solid var(--chatbox-accent) !important;
+  z-index: 10000 !important;
+  min-width: 380px !important;
+  max-width: 480px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), var(--chatbox-glow) !important;
   isolation: isolate !important;
+  animation: modalSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
 }
 
 .call-notification-content {
@@ -199,6 +200,65 @@
   flex-direction: column;
   align-items: center;
   gap: 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.caller-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.caller-avatar {
+  animation: avatarRing 2s ease-in-out infinite !important;
+  box-shadow: 0 0 30px rgba(245, 195, 44, 0.5) !important;
+}
+
+.pulse-ring {
+  width: 20px;
+  height: 20px;
+  background: var(--chatbox-success);
+  border-radius: 50%;
+  animation: pulseRing 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+
+.call-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.caller-name {
+  margin: 0 !important;
+  animation: textGlow 2s ease-in-out infinite alternate;
+}
+
+.call-type-chip {
+  animation: chipPulse 1.5s ease-in-out infinite !important;
+}
+
+.call-type-chip.ringing {
+  animation: chipPulse 1s ease-in-out infinite, shake 0.5s ease-in-out infinite !important;
+}
+
+.call-action-buttons {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.answer-button {
+  animation: buttonGlow 2s ease-in-out infinite alternate !important;
+}
+
+.decline-button {
+  animation: buttonPulse 1.5s ease-in-out infinite !important;
 }
 
 .caller-avatar-section {
@@ -1379,5 +1439,69 @@
   }
   100% {
     left: 100%;
+  }
+}
+
+/* Additional missing animations for call modal */
+@keyframes modalSlideIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes avatarRing {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(245, 195, 44, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 50px rgba(245, 195, 44, 0.8);
+  }
+}
+
+@keyframes textGlow {
+  0% {
+    text-shadow: 0 0 10px rgba(245, 195, 44, 0.3);
+  }
+  100% {
+    text-shadow: 0 0 20px rgba(245, 195, 44, 0.6);
+  }
+}
+
+@keyframes chipPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+@keyframes buttonGlow {
+  0% {
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(46, 204, 113, 0.8);
+  }
+}
+
+@keyframes buttonPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
   }
 }

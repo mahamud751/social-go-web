@@ -86,12 +86,14 @@ const Chat = () => {
 
   // Connect to WebSocket
   useEffect(() => {
-    socket.current = new WebSocket(
-      `wss://${process.env.REACT_APP_API_URL}/ws/ws`
-    );
+    // Use the correct WebSocket URL format
+    const wsUrl = `wss://${process.env.REACT_APP_API_URL}/ws/ws`;
+    console.log("🔗 Connecting to WebSocket:", wsUrl);
+
+    socket.current = new WebSocket(wsUrl);
 
     socket.current.onopen = () => {
-      console.log("WebSocket connected");
+      console.log("✅ WebSocket connected successfully");
       socket.current.send(
         JSON.stringify({
           type: "new-user-add",
@@ -134,42 +136,76 @@ const Chat = () => {
 
           // Validate that we have the basic structure
           if (msg.data && msg.data.action) {
-            // Check if this signal is intended for the current user
-            const isForCurrentUser =
-              msg.data.targetId === user.ID || // Signal specifically for this user
-              (!msg.data.targetId && msg.data.action === "call-request"); // Broadcast call requests
+            const { action, targetId, callType, channel, timestamp } = msg.data;
+            const senderId = msg.userId;
+
+            // Enhanced signal routing for different actions
+            let isForCurrentUser = false;
+
+            switch (action) {
+              case "call-request":
+                // Call requests are directed to specific users
+                isForCurrentUser = targetId === user.ID;
+                break;
+              case "call-accepted":
+              case "call-rejected":
+              case "call-busy":
+              case "call-ended":
+                // These responses are directed to the caller
+                isForCurrentUser = targetId === user.ID;
+                break;
+              default:
+                // For unknown actions, check targetId or treat as broadcast
+                isForCurrentUser = !targetId || targetId === user.ID;
+            }
 
             console.log("📊 Enhanced Signal routing analysis:", {
-              action: msg.data.action,
-              targetId: msg.data.targetId || "undefined",
+              action: action,
+              targetId: targetId || "undefined",
               currentUserId: user.ID,
-              senderId: msg.userId,
+              senderId: senderId,
               isForCurrentUser,
-              timestamp: msg.data.timestamp || "undefined",
+              timestamp: timestamp || "undefined",
+              callType: callType || "undefined",
+              channel: channel || "undefined",
             });
 
             if (isForCurrentUser) {
               console.log(
                 "✅ Processing agora-signal for current user:",
-                msg.data.action
+                action
               );
 
-              // Enhanced callData with proper structure
-              setCallData({
+              // Enhanced callData with proper structure and validation
+              const callDataPayload = {
                 type: "agora-signal",
-                userId: msg.userId,
-                senderId: msg.userId, // Add explicit sender ID
+                userId: senderId,
+                senderId: senderId, // Add explicit sender ID
                 data: {
-                  ...msg.data,
-                  timestamp: msg.data.timestamp || Date.now(),
+                  action,
+                  targetId,
+                  callType,
+                  channel,
+                  timestamp: timestamp || Date.now(),
                 },
-              });
+              };
+
+              // Additional validation for required fields
+              if (action === "call-request" && (!callType || !channel)) {
+                console.error(
+                  "❌ Invalid call-request: missing callType or channel"
+                );
+                return;
+              }
+
+              console.log("📤 Setting callData:", callDataPayload);
+              setCallData(callDataPayload);
             } else {
               console.log("⚠️ Agora signal not for current user, ignoring:", {
-                action: msg.data.action,
-                targetId: msg.data.targetId,
+                action: action,
+                targetId: targetId,
                 currentUserId: user.ID,
-                senderId: msg.userId,
+                senderId: senderId,
               });
             }
           } else {
@@ -185,13 +221,25 @@ const Chat = () => {
       console.error("WebSocket error:", error);
     };
 
-    socket.current.onclose = () => {
-      console.log("WebSocket closed, attempting to reconnect...");
+    socket.current.onclose = (event) => {
+      console.log("❌ WebSocket closed:", event.code, event.reason);
+      console.log("🔄 Attempting to reconnect in 5 seconds...");
       setTimeout(() => {
-        socket.current = new WebSocket(
-          `wss://${process.env.REACT_APP_API_URL}/ws`
-        );
-      }, 5000); // Attempt reconnect after 5 seconds
+        const wsUrl = `wss://${process.env.REACT_APP_API_URL}/ws`;
+        console.log("🔄 Reconnecting to:", wsUrl);
+        socket.current = new WebSocket(wsUrl);
+
+        // Re-attach event handlers for reconnection
+        socket.current.onopen = () => {
+          console.log("✅ WebSocket reconnected successfully");
+          socket.current.send(
+            JSON.stringify({
+              type: "new-user-add",
+              userId: user.ID,
+            })
+          );
+        };
+      }, 5000);
     };
 
     return () => {

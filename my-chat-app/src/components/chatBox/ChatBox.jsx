@@ -225,14 +225,14 @@ const ChatBox = ({
     [showToast]
   );
 
-  // Fetch Agora token - Modified to generate token directly in frontend using agora-access-token
+  // Fetch Agora token - Enhanced with better error handling and validation
   const fetchAgoraToken = useCallback(async (channelName, role, uid) => {
     try {
       // Convert string user ID to numeric value as required by Agora
       const numericUid = convertToAgoraUid(uid);
 
       console.log(
-        "Generating token for uid:",
+        "🔑 Generating token for uid:",
         numericUid,
         "channel:",
         channelName,
@@ -241,10 +241,21 @@ const ChatBox = ({
       );
 
       const appID = process.env.REACT_APP_AGORA_APP_ID;
-      const appCertificate = process.env.REACT_APP_AGORA_APP_CERTIFICATE; // NOTE: This exposes the certificate - use only for development/demo. In production, generate on server.
+      const appCertificate = process.env.REACT_APP_AGORA_APP_CERTIFICATE;
 
-      if (!appID || !appCertificate) {
-        throw new Error("Agora App ID or Certificate not configured");
+      if (!appID) {
+        throw new Error("Agora App ID not configured in environment variables");
+      }
+
+      if (!appCertificate) {
+        console.warn(
+          "⚠️ Agora App Certificate not found - using App ID only (development mode)"
+        );
+        // In production, this should always come from the server
+        return {
+          token: null, // No token needed for testing without certificate
+          appId: appID,
+        };
       }
 
       const expirationTimeInSeconds = 3600; // 1 hour
@@ -258,20 +269,32 @@ const ChatBox = ({
         appID,
         appCertificate,
         channelName,
-        numericUid, // Use the converted numeric UID
+        numericUid,
         rtcRole,
         privilegeExpiredTs
       );
 
-      console.log("Generated token:", token);
+      console.log("✅ Generated token successfully");
 
       return {
         token,
         appId: appID,
       };
     } catch (error) {
-      console.error("Error generating Agora token:", error);
-      throw error;
+      console.error("❌ Error generating Agora token:", error);
+
+      // Provide specific error messages
+      if (error.message.includes("App ID")) {
+        throw new Error(
+          "Agora configuration error: Missing App ID. Please check your environment variables."
+        );
+      } else if (error.message.includes("Certificate")) {
+        throw new Error(
+          "Agora configuration error: Missing App Certificate. Please check your environment variables."
+        );
+      } else {
+        throw new Error(`Token generation failed: ${error.message}`);
+      }
     }
   }, []);
 
@@ -535,34 +558,52 @@ const ChatBox = ({
       .padStart(2, "0")}`;
   };
 
-  // Component mounting state tracking
+  // Component mounting state tracking and Agora client initialization
   const isMountedRef = useRef(true);
 
-  // Initialize Agora client - Enhanced version with better error handling
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Initialize Agora client if not exists
-    if (!agoraClient.current) {
-      try {
-        agoraClient.current = AgoraRTC.createClient({
-          mode: "rtc",
-          codec: "vp8",
-        });
+    // Initialize Agora client with enhanced error handling
+    const initializeAgoraClient = () => {
+      if (!agoraClient.current) {
+        try {
+          console.log("🔄 Initializing Agora RTC client...");
 
-        // Set client role for better performance
-        agoraClient.current.setClientRole("host");
+          // Check if Agora SDK is properly loaded
+          if (typeof AgoraRTC === "undefined") {
+            throw new Error(
+              "Agora RTC SDK not loaded. Please check your imports."
+            );
+          }
 
-        console.log("✅ Agora client initialized successfully with host role");
-      } catch (error) {
-        console.error("❌ Failed to initialize Agora client:", error);
-        showToast(
-          "❌ Failed to initialize video calling. Please refresh the page.",
-          "error",
-          5000
-        );
+          agoraClient.current = AgoraRTC.createClient({
+            mode: "rtc",
+            codec: "vp8",
+          });
+
+          // Set client role for better performance
+          agoraClient.current.setClientRole("host");
+
+          console.log(
+            "✅ Agora client initialized successfully with host role"
+          );
+
+          // Log SDK version for debugging
+          console.log("📊 Agora SDK version:", AgoraRTC.VERSION);
+        } catch (error) {
+          console.error("❌ Failed to initialize Agora client:", error);
+          showToast(
+            "❌ Failed to initialize video calling. Please refresh the page and try again.",
+            "error",
+            5000
+          );
+        }
       }
-    }
+    };
+
+    // Initialize client
+    initializeAgoraClient();
 
     // Enhanced cleanup on unmount
     return () => {
@@ -593,7 +634,7 @@ const ChatBox = ({
         });
       }
     };
-  }, []); // Empty dependency array to run only once
+  }, [showToast, endCall]); // Minimal dependencies to avoid re-initialization
 
   // Fetch user data
   useEffect(() => {
@@ -1865,6 +1906,7 @@ const ChatBox = ({
             console.log("✅ Setting up incoming call state");
             setCallStatus("incoming");
             setCallType(incomingCallType);
+            setIsCallInitiator(false); // Important: Set as receiver
             setIncomingCallOffer({
               callerId: senderId,
               channel,
@@ -1882,10 +1924,16 @@ const ChatBox = ({
             );
 
             // Set timeout for incoming call (60 seconds)
+            if (callTimeoutRef.current) {
+              clearTimeout(callTimeoutRef.current);
+            }
             callTimeoutRef.current = setTimeout(() => {
               console.log("⏰ Incoming call timed out");
               showToast("📞 Incoming call timed out", "warning", 3000);
-              declineCall();
+              // Auto decline after timeout
+              if (callStatus === "incoming") {
+                declineCall();
+              }
             }, 60000);
           } else {
             console.log(
@@ -1966,7 +2014,7 @@ const ChatBox = ({
       }
 
       // Clear callData after processing to allow new signals
-      const clearDelay = action === "call-request" ? 500 : 100;
+      const clearDelay = action === "call-request" ? 1000 : 100; // Longer delay for call-request
       setTimeout(() => {
         console.log("🧹 Clearing processed callData to allow new signals");
         setCallData(null);
@@ -1991,25 +2039,25 @@ const ChatBox = ({
     if (!agoraClient.current) return;
 
     const handleUserPublished = async (user, mediaType) => {
-      console.log("User published:", user.uid, mediaType);
+      console.log("👤 User published:", user.uid, "media type:", mediaType);
       try {
         await agoraClient.current.subscribe(user, mediaType);
         console.log(
-          `Successfully subscribed to ${mediaType} from user:`,
+          `✅ Successfully subscribed to ${mediaType} from user:`,
           user.uid
         );
 
         if (mediaType === "video" && remoteMediaRef.current) {
           user.videoTrack.play(remoteMediaRef.current);
-          console.log("Remote video track started playing");
+          console.log("📹 Remote video track started playing");
         }
 
         if (mediaType === "audio") {
           user.audioTrack.play();
-          console.log("Remote audio track started playing");
+          console.log("🔊 Remote audio track started playing");
         }
       } catch (error) {
-        console.error("Error subscribing to user:", error);
+        console.error("❌ Error subscribing to user:", error);
         showToast(
           `Failed to receive ${mediaType} from remote user: ${error.message}`,
           "error",
@@ -2019,42 +2067,50 @@ const ChatBox = ({
     };
 
     const handleUserLeft = (user, reason) => {
-      console.log("User left:", user.uid, "reason:", reason);
-      showToast("📞 Other user left the call", "info", 3000);
-      endCall();
+      console.log("👋 User left:", user.uid, "reason:", reason);
+      if (callStatus === "in-progress") {
+        showToast("📞 Other user left the call", "info", 3000);
+        setTimeout(() => {
+          endCall();
+        }, 1000);
+      }
     };
 
     const handleConnectionStateChange = (state, reason) => {
-      console.log("Agora connection state changed:", state, "reason:", reason);
+      console.log(
+        "🔗 Agora connection state changed:",
+        state,
+        "reason:",
+        reason
+      );
 
-      if (state === "DISCONNECTED" && callStatus === "in-progress") {
-        showToast(
-          "📡 Connection lost. Attempting to reconnect...",
-          "warning",
-          4000
-        );
-        // Attempt reconnection after a short delay
-        setTimeout(() => {
-          if (agoraToken && chat) {
-            joinAgoraChannel(
-              incomingCallOffer?.channel,
-              agoraToken,
-              currentUser
-            )
-              .then(() => {
-                showToast("✅ Reconnected successfully", "success", 2000);
-              })
-              .catch((error) => {
-                console.error("Reconnection failed:", error);
-                showToast(
-                  "❌ Reconnection failed. Ending call.",
-                  "error",
-                  4000
-                );
-                endCall();
-              });
+      switch (state) {
+        case "DISCONNECTED":
+          if (callStatus === "in-progress" && reason !== "LEAVE") {
+            showToast(
+              "📡 Connection lost. Attempting to reconnect...",
+              "warning",
+              4000
+            );
+            setTimeout(() => {
+              attemptReconnection();
+            }, 2000);
           }
-        }, 2000);
+          break;
+        case "RECONNECTING":
+          showToast("🔄 Reconnecting to call...", "info", 3000);
+          break;
+        case "CONNECTED":
+          if (callStatus === "in-progress") {
+            showToast("✅ Connection restored successfully", "success", 2000);
+          }
+          break;
+        case "FAILED":
+          showToast("❌ Connection failed. Ending call.", "error", 4000);
+          endCall();
+          break;
+        default:
+          console.log("🔄 Agora connection state:", state);
       }
     };
 
@@ -2086,6 +2142,7 @@ const ChatBox = ({
     incomingCallOffer,
     joinAgoraChannel,
     showToast,
+    attemptReconnection,
   ]);
   return (
     <Fade in={isVisible} timeout={800}>
@@ -2271,126 +2328,131 @@ const ChatBox = ({
             </Zoom>
 
             {/* Enhanced Incoming Call Notification */}
-            {callStatus === "incoming" &&
-              !isCallInitiator &&
-              incomingCallOffer && (
-                <Slide
-                  direction="down"
-                  in={callStatus === "incoming"}
-                  mountOnEnter
-                  unmountOnExit
-                >
-                  <Paper className="incoming-call-modal" elevation={24}>
-                    <Box className="call-notification-content">
-                      <Zoom in={true} style={{ transitionDelay: "200ms" }}>
-                        <Box className="caller-avatar-section">
-                          <Badge
-                            overlap="circular"
-                            anchorOrigin={{
-                              vertical: "bottom",
-                              horizontal: "right",
-                            }}
-                            badgeContent={<div className="pulse-ring"></div>}
-                          >
-                            <Avatar
-                              src={
-                                userData?.ProfilePicture ||
-                                "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-                              }
-                              alt="Caller"
-                              className="caller-avatar"
-                              sx={{
-                                width: 100,
-                                height: 100,
-                                border: "4px solid var(--chatbox-accent)",
-                                boxShadow: "var(--chatbox-glow)",
-                              }}
-                            />
-                          </Badge>
-                          <Box className="call-info">
-                            <Typography
-                              variant="h5"
-                              className="caller-name"
-                              sx={{
-                                color: isDarkTheme
-                                  ? "#ffffff !important"
-                                  : "var(--chatbox-text) !important",
-                                fontWeight: 700,
-                                textAlign: "center",
-                                mb: 1,
-                              }}
-                            >
-                              {userData?.Username}
-                            </Typography>
-                            <Chip
-                              label={`Incoming ${callType} call`}
-                              className={`call-type-chip ${
-                                isRinging ? "ringing" : ""
-                              }`}
-                              sx={{
-                                backgroundColor: "var(--chatbox-accent)",
-                                color: "var(--chatbox-card-bg)",
-                                fontWeight: 600,
-                                animation: isRinging
-                                  ? "pulse 2s infinite, shake 1s infinite"
-                                  : "pulse 2s infinite",
-                              }}
-                            />
-                          </Box>
-                        </Box>
-                      </Zoom>
-
-                      <Fade in={true} style={{ transitionDelay: "400ms" }}>
-                        <Box className="call-action-buttons">
-                          <Button
-                            variant="contained"
-                            className="answer-button"
-                            onClick={answerCall}
-                            disabled={
-                              callStatus !== "incoming" || !incomingCallOffer
+            {callStatus === "incoming" && incomingCallOffer && (
+              <Slide
+                direction="down"
+                in={callStatus === "incoming" && !!incomingCallOffer}
+                mountOnEnter
+                unmountOnExit
+                timeout={500}
+              >
+                <Paper className="incoming-call-modal" elevation={24}>
+                  <Box className="call-notification-content">
+                    <Zoom in={true} style={{ transitionDelay: "200ms" }}>
+                      <Box className="caller-avatar-section">
+                        <Badge
+                          overlap="circular"
+                          anchorOrigin={{
+                            vertical: "bottom",
+                            horizontal: "right",
+                          }}
+                          badgeContent={<div className="pulse-ring"></div>}
+                        >
+                          <Avatar
+                            src={
+                              userData?.ProfilePicture ||
+                              "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
                             }
-                            startIcon={<PhoneIcon />}
+                            alt="Caller"
+                            className="caller-avatar"
                             sx={{
-                              backgroundColor: "var(--chatbox-success)",
-                              color: "#ffffff",
-                              borderRadius: "50px",
-                              padding: "12px 24px",
-                              fontWeight: 600,
-                              "&:hover": {
-                                backgroundColor: "var(--chatbox-success)",
-                                transform: "scale(1.05)",
-                                boxShadow: "var(--chatbox-glow)",
-                              },
+                              width: 100,
+                              height: 100,
+                              border: "4px solid var(--chatbox-accent)",
+                              boxShadow: "var(--chatbox-glow)",
+                            }}
+                          />
+                        </Badge>
+                        <Box className="call-info">
+                          <Typography
+                            variant="h5"
+                            className="caller-name"
+                            sx={{
+                              color: isDarkTheme
+                                ? "#ffffff !important"
+                                : "var(--chatbox-text) !important",
+                              fontWeight: 700,
+                              textAlign: "center",
+                              mb: 1,
                             }}
                           >
-                            Accept
-                          </Button>
-                          <Button
-                            variant="contained"
-                            className="decline-button"
-                            onClick={declineCall}
-                            startIcon={<CallEndIcon />}
+                            {userData?.Username}
+                          </Typography>
+                          <Chip
+                            label={`Incoming ${
+                              incomingCallOffer.callType || callType
+                            } call`}
+                            className={`call-type-chip ${
+                              isRinging ? "ringing" : ""
+                            }`}
                             sx={{
-                              backgroundColor: "var(--chatbox-error)",
-                              color: "#ffffff",
-                              borderRadius: "50px",
-                              padding: "12px 24px",
+                              backgroundColor: "var(--chatbox-accent)",
+                              color: "var(--chatbox-card-bg)",
                               fontWeight: 600,
-                              "&:hover": {
-                                backgroundColor: "var(--chatbox-error)",
-                                transform: "scale(1.05)",
-                                boxShadow: "var(--chatbox-glow)",
-                              },
+                              animation: isRinging
+                                ? "pulse 2s infinite, shake 1s infinite"
+                                : "pulse 2s infinite",
                             }}
-                          >
-                            Decline
-                          </Button>
+                          />
                         </Box>
-                      </Fade>
-                    </Box>
-                  </Paper>
-                </Slide>
-              )}
+                      </Box>
+                    </Zoom>
+
+                    <Fade in={true} style={{ transitionDelay: "400ms" }}>
+                      <Box className="call-action-buttons">
+                        <Button
+                          variant="contained"
+                          className="answer-button"
+                          onClick={answerCall}
+                          disabled={callStatus !== "incoming"}
+                          startIcon={<PhoneIcon />}
+                          sx={{
+                            backgroundColor: "var(--chatbox-success)",
+                            color: "#ffffff",
+                            borderRadius: "50px",
+                            padding: "12px 24px",
+                            fontWeight: 600,
+                            minWidth: "120px",
+                            "&:hover": {
+                              backgroundColor: "var(--chatbox-success)",
+                              transform: "scale(1.05)",
+                              boxShadow: "var(--chatbox-glow)",
+                            },
+                            "&:disabled": {
+                              backgroundColor: "var(--chatbox-border)",
+                              color: "rgba(255, 255, 255, 0.5)",
+                            },
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          variant="contained"
+                          className="decline-button"
+                          onClick={declineCall}
+                          startIcon={<CallEndIcon />}
+                          sx={{
+                            backgroundColor: "var(--chatbox-error)",
+                            color: "#ffffff",
+                            borderRadius: "50px",
+                            padding: "12px 24px",
+                            fontWeight: 600,
+                            minWidth: "120px",
+                            "&:hover": {
+                              backgroundColor: "var(--chatbox-error)",
+                              transform: "scale(1.05)",
+                              boxShadow: "var(--chatbox-glow)",
+                            },
+                          }}
+                        >
+                          Decline
+                        </Button>
+                      </Box>
+                    </Fade>
+                  </Box>
+                </Paper>
+              </Slide>
+            )}
 
             {/* Enhanced Video Call Container */}
             {callStatus === "in-progress" && callType === "video" && (
