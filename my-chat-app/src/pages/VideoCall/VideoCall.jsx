@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import { convertToAgoraUid } from "../../utils/AgoraUtils";
+import WebSocketService from "../../actions/WebSocketService";
 import {
   Box,
   Typography,
@@ -27,7 +28,7 @@ import "./VideoCall.css";
 const VideoCall = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.authReducer.authData);
+  const user = useSelector((state) => state.authReducer.authData);
 
   // Call data from location state
   const { callData } = location.state || {};
@@ -38,6 +39,8 @@ const VideoCall = () => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
+  const [connectionQuality, setConnectionQuality] = useState("excellent");
+  const [remoteUserInfo, setRemoteUserInfo] = useState(null);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -103,45 +106,130 @@ const VideoCall = () => {
     try {
       console.log("📹 Initializing video call with data:", callData);
 
-      // Create Agora client
+      // Create Agora client with enhanced configuration
       agoraClientRef.current = AgoraRTC.createClient({
         mode: "rtc",
         codec: "vp8",
+        // Disable analytics to prevent blocked requests
+        reportApiConfig: {
+          reportApiUrl: null,
+          enableReportApi: false,
+        },
       });
 
-      // Handle user published events
+      // Enhanced event handlers
       agoraClientRef.current.on(
         "user-published",
         async (remoteUser, mediaType) => {
-          await agoraClientRef.current.subscribe(remoteUser, mediaType);
+          console.log("👥 Remote user published:", remoteUser.uid, mediaType);
 
-          if (mediaType === "video") {
-            if (remoteVideoRef.current) {
+          try {
+            await agoraClientRef.current.subscribe(remoteUser, mediaType);
+            console.log(
+              "✅ Subscribed to remote user:",
+              remoteUser.uid,
+              mediaType
+            );
+
+            if (mediaType === "video" && remoteVideoRef.current) {
               remoteUser.videoTrack.play(remoteVideoRef.current);
-            }
-          }
+              console.log("📺 Remote video started playing");
 
-          if (mediaType === "audio") {
-            remoteUser.audioTrack.play();
+              // Set remote user info
+              setRemoteUserInfo({
+                uid: remoteUser.uid,
+                hasVideo: true,
+                hasAudio: !!remoteUser.audioTrack,
+              });
+            }
+
+            if (mediaType === "audio") {
+              remoteUser.audioTrack.play();
+              console.log("🔊 Remote audio started playing");
+
+              // Update remote user info
+              setRemoteUserInfo((prev) => ({
+                ...prev,
+                uid: remoteUser.uid,
+                hasAudio: true,
+              }));
+            }
+          } catch (subscribeError) {
+            console.error(
+              "❌ Failed to subscribe to remote user:",
+              subscribeError
+            );
           }
         }
       );
 
       // Handle user left events
       agoraClientRef.current.on("user-left", (remoteUser) => {
-        console.log("User left:", remoteUser.uid);
+        console.log("👤 Remote user left:", remoteUser.uid);
+        setRemoteUserInfo(null);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
-        endCall();
+      });
+
+      // Handle connection state changes
+      agoraClientRef.current.on(
+        "connection-state-change",
+        (curState, revState) => {
+          console.log(
+            "🔗 Connection state changed:",
+            curState,
+            "from",
+            revState
+          );
+
+          switch (curState) {
+            case "CONNECTED":
+              setCallStatus("in-progress");
+              setConnectionQuality("excellent");
+              break;
+            case "CONNECTING":
+              setCallStatus("connecting");
+              break;
+            case "RECONNECTING":
+              setConnectionQuality("poor");
+              break;
+            case "DISCONNECTED":
+              console.log("❌ Call disconnected");
+              endCall();
+              break;
+            default:
+              break;
+          }
+        }
+      );
+
+      // Handle network quality changes
+      agoraClientRef.current.on("network-quality", (stats) => {
+        const quality = stats.uplinkNetworkQuality;
+        if (quality >= 4) {
+          setConnectionQuality("excellent");
+        } else if (quality >= 3) {
+          setConnectionQuality("good");
+        } else if (quality >= 2) {
+          setConnectionQuality("fair");
+        } else {
+          setConnectionQuality("poor");
+        }
       });
 
       // Convert user ID to Agora UID
       const agoraUid = convertToAgoraUid(user.ID);
+      console.log("🎯 Joining channel with UID:", agoraUid);
 
-      // Join channel
+      // Join channel with proper app ID from environment
+      const appId = process.env.REACT_APP_AGORA_APP_ID;
+      if (!appId) {
+        throw new Error("Agora App ID not configured");
+      }
+
       await agoraClientRef.current.join(
-        process.env.REACT_APP_AGORA_APP_ID,
+        appId,
         callData.channel,
         callData.token || null,
         agoraUid
@@ -149,38 +237,84 @@ const VideoCall = () => {
 
       console.log("✅ Joined Agora channel successfully");
 
-      // Create and publish local tracks
-      localAudioTrackRef.current = await AgoraRTC.createMicrophoneAudioTrack({
-        AEC: true,
-        ANS: true,
-        AGC: true,
-      });
+      // Create and publish local tracks with enhanced configuration
+      const audioConfig = {
+        AEC: true, // Acoustic echo cancellation
+        ANS: true, // Automatic noise suppression
+        AGC: true, // Automatic gain control
+        encoderConfig: "music_standard",
+      };
 
-      localVideoTrackRef.current = await AgoraRTC.createCameraVideoTrack({
-        encoderConfig: "720p_1",
-      });
+      const videoConfig = {
+        encoderConfig: callData.callType === "audio" ? null : "720p_1",
+        optimizationMode: "motion",
+        facingMode: "user",
+      };
 
-      // Play local video
-      if (localVideoRef.current) {
-        localVideoTrackRef.current.play(localVideoRef.current);
+      // Always create audio track
+      localAudioTrackRef.current = await AgoraRTC.createMicrophoneAudioTrack(
+        audioConfig
+      );
+      console.log("🎤 Created local audio track");
+
+      // Create video track only for video calls
+      if (callData.callType !== "audio" && !isVideoOff) {
+        try {
+          localVideoTrackRef.current = await AgoraRTC.createCameraVideoTrack(
+            videoConfig
+          );
+          console.log("📹 Created local video track");
+
+          // Play local video
+          if (localVideoRef.current) {
+            localVideoTrackRef.current.play(localVideoRef.current);
+            console.log("📺 Local video started playing");
+          }
+        } catch (videoError) {
+          console.warn(
+            "⚠️ Failed to create video track, continuing with audio only:",
+            videoError
+          );
+          // Continue with audio-only call
+        }
       }
 
       // Publish tracks
-      await agoraClientRef.current.publish([
-        localAudioTrackRef.current,
-        localVideoTrackRef.current,
-      ]);
+      const tracksToPublish = [localAudioTrackRef.current];
+      if (localVideoTrackRef.current) {
+        tracksToPublish.push(localVideoTrackRef.current);
+      }
 
-      console.log("✅ Published local tracks successfully");
+      await agoraClientRef.current.publish(tracksToPublish);
+      console.log(
+        "✅ Published local tracks successfully:",
+        tracksToPublish.length
+      );
+
       setCallStatus("in-progress");
     } catch (error) {
       console.error("❌ Error initializing call:", error);
-      // Show error and end call
+
+      // Show user-friendly error message
+      let errorMessage = "Failed to start the call";
+      if (error.message.includes("INVALID_VENDOR_KEY")) {
+        errorMessage = "Invalid Agora configuration. Please contact support.";
+      } else if (error.message.includes("NotAllowedError")) {
+        errorMessage =
+          "Camera/microphone access denied. Please allow permissions and try again.";
+      } else if (error.message.includes("NotFoundError")) {
+        errorMessage =
+          "Camera/microphone not found. Please check your devices.";
+      }
+
+      console.log("⚠️ Call initialization failed:", errorMessage);
+
+      // End call after showing error
       setTimeout(() => {
         endCall();
       }, 3000);
     }
-  }, [callData, user]);
+  }, [callData, user, isVideoOff]);
 
   // Initialize call on component mount
   useEffect(() => {
@@ -218,7 +352,7 @@ const VideoCall = () => {
     }
   };
 
-  // End call
+  // End call with proper cleanup and signaling
   const endCall = useCallback(async () => {
     console.log("🔚 Ending video call");
 
@@ -229,26 +363,44 @@ const VideoCall = () => {
         callDurationIntervalRef.current = null;
       }
 
+      // Send call ended signal to other user
+      if (callData?.channel) {
+        WebSocketService.sendMessage({
+          type: "agora-signal",
+          data: {
+            action: "call-ended",
+            targetId: callData.callerId || "unknown",
+            channel: callData.channel,
+            timestamp: Date.now(),
+          },
+        });
+      }
+
       // Clean up local tracks
       if (localAudioTrackRef.current) {
-        localAudioTrackRef.current.close();
+        await localAudioTrackRef.current.close();
         localAudioTrackRef.current = null;
+        console.log("🎤 Closed local audio track");
       }
 
       if (localVideoTrackRef.current) {
-        localVideoTrackRef.current.close();
+        await localVideoTrackRef.current.close();
         localVideoTrackRef.current = null;
+        console.log("📹 Closed local video track");
       }
 
       if (screenShareTrackRef.current) {
-        screenShareTrackRef.current.close();
+        await screenShareTrackRef.current.close();
         screenShareTrackRef.current = null;
+        console.log("💻 Closed screen share track");
       }
 
       // Leave Agora channel
       if (agoraClientRef.current) {
         await agoraClientRef.current.leave();
+        agoraClientRef.current.removeAllListeners();
         agoraClientRef.current = null;
+        console.log("📵 Left Agora channel");
       }
 
       // Clear video elements
@@ -259,12 +411,12 @@ const VideoCall = () => {
         remoteVideoRef.current.srcObject = null;
       }
     } catch (error) {
-      console.error("Error during call cleanup:", error);
+      console.error("❌ Error during call cleanup:", error);
     } finally {
-      // Navigate back to chat
-      navigate("/chat");
+      // Navigate back to previous page or chat
+      navigate(-1);
     }
-  }, [navigate]);
+  }, [navigate, callData]);
 
   // Handle before unload
   useEffect(() => {

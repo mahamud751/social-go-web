@@ -25,7 +25,17 @@ class AgoraFrontendController {
         return;
       }
 
-      this.client = AgoraRTC.createClient({ mode, codec });
+      // Create client with analytics disabled to prevent stats collector errors
+      this.client = AgoraRTC.createClient({
+        mode,
+        codec,
+        // Disable data report to prevent ERR_BLOCKED_BY_CLIENT errors
+        // These analytics requests are often blocked by ad blockers/privacy extensions
+        reportApiConfig: {
+          reportApiUrl: null,
+          enableReportApi: false,
+        },
+      });
       this.isInitialized = true;
 
       console.log("Agora client initialized successfully");

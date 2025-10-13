@@ -122,20 +122,27 @@ const Chat = () => {
 
       websocket.onopen = () => {
         console.log("✅ WebSocket connected successfully");
-        websocket.send(
-          JSON.stringify({ type: "new-user-add", userId: user.ID })
-        );
 
-        // Set user as active
-        websocket.send(
-          JSON.stringify({
-            type: "user-status-update",
-            data: {
-              userId: user.ID,
-              status: "online",
-            },
-          })
-        );
+        // Use setTimeout to ensure WebSocket is fully ready before sending
+        setTimeout(() => {
+          if (websocket.readyState === WebSocket.OPEN) {
+            websocket.send(
+              JSON.stringify({ type: "new-user-add", userId: user.ID })
+            );
+
+            // Set user as active
+            websocket.send(
+              JSON.stringify({
+                type: "user-status-update",
+                data: {
+                  userId: user.ID,
+                  status: "online",
+                },
+              })
+            );
+            console.log("📤 Sent user registration and status for:", user.ID);
+          }
+        }, 100); // Small delay to ensure connection is fully established
       };
 
       websocket.onmessage = (event) => {

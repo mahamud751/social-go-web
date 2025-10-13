@@ -7,6 +7,7 @@ import { format } from "timeago.js";
 import InputEmoji from "react-input-emoji";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import { RtcTokenBuilder, RtcRole } from "agora-access-token"; // Added for client-side token generation
+import WebSocketService from "../../actions/WebSocketService"; // WebSocket service for signaling
 import {
   Box,
   Typography,
@@ -106,6 +107,29 @@ const ChatBox = ({
       }, duration);
     },
     [toastIdCounter, removeToast]
+  );
+
+  // Utility function to safely send WebSocket messages using WebSocketService
+  const sendWebSocketMessage = useCallback(
+    (message) => {
+      try {
+        WebSocketService.sendMessage(message);
+        console.log(
+          "📤 WebSocket message sent via service:",
+          message.type || message.data?.action
+        );
+        return true;
+      } catch (error) {
+        console.error("❌ Failed to send WebSocket message:", error);
+        showToast(
+          "Failed to send message. Please check your connection.",
+          "error",
+          3000
+        );
+        return false;
+      }
+    },
+    [showToast]
   );
 
   // Enhanced call status state management with validation
@@ -267,14 +291,14 @@ const ChatBox = ({
     [showToast]
   );
 
-  // Fetch Agora token - Enhanced with better error handling and validation
+  // Fetch Agora token - FRONTEND HANDLES EVERYTHING
   const fetchAgoraToken = useCallback(async (channelName, role, uid) => {
     try {
       // Convert string user ID to numeric value as required by Agora
       const numericUid = convertToAgoraUid(uid);
 
       console.log(
-        "🔑 Generating token for uid:",
+        "🔑 Generating token LOCALLY for uid:",
         numericUid,
         "channel:",
         channelName,
@@ -293,7 +317,6 @@ const ChatBox = ({
         console.warn(
           "⚠️ Agora App Certificate not found - using App ID only (development mode)"
         );
-        // In production, this should always come from the server
         return {
           token: null, // No token needed for testing without certificate
           appId: appID,
@@ -316,14 +339,14 @@ const ChatBox = ({
         privilegeExpiredTs
       );
 
-      console.log("✅ Generated token successfully");
+      console.log("✅ Generated token successfully on FRONTEND");
 
       return {
         token,
         appId: appID,
       };
     } catch (error) {
-      console.error("❌ Error generating Agora token:", error);
+      console.error("❌ Error generating Agora token on FRONTEND:", error);
 
       // Provide specific error messages
       if (error.message.includes("App ID")) {
@@ -335,7 +358,7 @@ const ChatBox = ({
           "Agora configuration error: Missing App Certificate. Please check your environment variables."
         );
       } else {
-        throw new Error(`Token generation failed: ${error.message}`);
+        throw new Error(`Frontend token generation failed: ${error.message}`);
       }
     }
   }, []);
@@ -422,10 +445,9 @@ const ChatBox = ({
       // Notify the other user if we're in a call
       if (callStatus !== "idle") {
         const peerId = chat?.Members?.find((id) => id !== currentUser);
-        if (peerId && socket.current?.readyState === WebSocket.OPEN) {
+        if (peerId && WebSocketService.socket) {
           const endMessage = {
             type: "agora-signal",
-            userId: currentUser,
             data: {
               action: "call-ended",
               targetId: peerId,
@@ -438,12 +460,7 @@ const ChatBox = ({
           };
 
           console.log("📤 Sending call-ended signal:", endMessage);
-          socket.current.send(
-            JSON.stringify({
-              type: "agora-signal",
-              data: endMessage.data,
-            })
-          );
+          sendWebSocketMessage(endMessage);
         }
       }
 
@@ -642,38 +659,21 @@ const ChatBox = ({
         // Only create new client if one doesn't exist
         if (!agoraClient.current) {
           console.log("🧹 Creating new Agora client...");
+
+          // Create client with analytics disabled to prevent stats collector errors
           agoraClient.current = AgoraRTC.createClient({
             mode: "rtc",
             codec: "vp8",
+            // Disable data report to prevent ERR_BLOCKED_BY_CLIENT errors
+            reportApiConfig: {
+              reportApiUrl: null,
+              enableReportApi: false,
+            },
           });
 
-          // Disable stats collection to prevent blocked requests
-          try {
-            if (
-              typeof agoraClient.current.disableStatsCollection === "function"
-            ) {
-              agoraClient.current.disableStatsCollection();
-              console.log("📊 Agora stats collection disabled");
-            } else {
-              console.log(
-                "ℹ️ Agora stats collection disable method not available"
-              );
-            }
-          } catch (error) {
-            console.warn("⚠️ Could not disable stats collection:", error);
-          }
-
-          // Also disable logging to prevent blocked requests
-          try {
-            if (typeof agoraClient.current.disableLogUpload === "function") {
-              agoraClient.current.disableLogUpload();
-              console.log("📊 Agora log upload disabled");
-            }
-          } catch (error) {
-            console.warn("⚠️ Could not disable log upload:", error);
-          }
-
-          console.log("✅ Agora client initialized successfully");
+          console.log(
+            "✅ Agora client initialized successfully with analytics disabled"
+          );
 
           // Log SDK version for debugging
           console.log("📊 Agora SDK version:", AgoraRTC.VERSION);
@@ -839,7 +839,26 @@ const ChatBox = ({
   // Handle received messages
   useEffect(() => {
     if (receivedMessage && receivedMessage.chatId === chat?.ID) {
-      setMessages((prev) => [...prev, receivedMessage]);
+      // Prevent duplicate messages by checking if message already exists
+      setMessages((prev) => {
+        const messageExists = prev.some(
+          (msg) =>
+            msg.ID === receivedMessage.ID ||
+            (msg.text === receivedMessage.text &&
+              msg.SenderID === receivedMessage.SenderID &&
+              Math.abs(
+                new Date(msg.CreatedAt).getTime() -
+                  new Date(receivedMessage.CreatedAt).getTime()
+              ) < 1000)
+        );
+
+        if (messageExists) {
+          console.log("Duplicate message detected, skipping...");
+          return prev;
+        }
+
+        return [...prev, receivedMessage];
+      });
     }
   }, [receivedMessage, chat?.ID]);
 
@@ -985,40 +1004,22 @@ const ChatBox = ({
         // Initialize Agora client with enhanced configuration
         if (!agoraClient.current) {
           console.log("🔄 Initializing Agora client with enhanced config...");
+
+          // Create client with analytics disabled to prevent stats collector errors
           agoraClient.current = AgoraRTC.createClient({
             mode: "rtc",
             codec: "vp8",
             role: "host",
+            // Disable data report to prevent ERR_BLOCKED_BY_CLIENT errors
+            reportApiConfig: {
+              reportApiUrl: null,
+              enableReportApi: false,
+            },
           });
 
           // Enhanced client configuration for better stability
           agoraClient.current.enableAudioVolumeIndicator();
-
-          // Disable stats collection to prevent blocked requests
-          try {
-            if (
-              typeof agoraClient.current.disableStatsCollection === "function"
-            ) {
-              agoraClient.current.disableStatsCollection();
-              console.log("📊 Agora stats collection disabled");
-            }
-          } catch (error) {
-            console.warn("⚠️ Could not disable stats collection:", error);
-            // This error is usually caused by browser extensions blocking requests
-            // It's safe to continue as stats collection is not critical for functionality
-          }
-
-          // Also disable logging to prevent blocked requests
-          try {
-            if (typeof agoraClient.current.disableLogUpload === "function") {
-              agoraClient.current.disableLogUpload();
-              console.log("📊 Agora log upload disabled");
-            }
-          } catch (error) {
-            console.warn("⚠️ Could not disable log upload:", error);
-            // This error is usually caused by browser extensions blocking requests
-            // It's safe to continue as log upload is not critical for functionality
-          }
+          console.log("✅ Agora client initialized with analytics disabled");
         }
 
         // Check if already connected to this channel
@@ -1284,17 +1285,24 @@ const ChatBox = ({
           );
         }
 
-        // Verify WebSocket is available and open
-        if (!socket.current || socket.current.readyState !== WebSocket.OPEN) {
+        // Verify WebSocket is available using WebSocketService
+        if (!WebSocketService.socket || !WebSocketService.isConnected) {
           throw new Error("WebSocket connection is not available");
         }
 
         // Enhanced Agora client verification and recovery
         if (!agoraClient.current) {
           console.log("Agora client not initialized, creating new client...");
+
+          // Create client with analytics disabled to prevent stats collector errors
           agoraClient.current = AgoraRTC.createClient({
             mode: "rtc",
             codec: "vp8",
+            // Disable data report to prevent ERR_BLOCKED_BY_CLIENT errors
+            reportApiConfig: {
+              reportApiUrl: null,
+              enableReportApi: false,
+            },
           });
 
           // Re-attach event listeners with inline functions to avoid dependency issues
@@ -1530,10 +1538,7 @@ const ChatBox = ({
     console.log("🔑 Agora Token:", agoraToken ? "Present" : "Missing");
     console.log("👤 Current User:", currentUser);
     console.log("💬 Chat ID:", chat?.ID);
-    console.log(
-      "🔌 WebSocket Connected:",
-      socket.current?.readyState === WebSocket.OPEN
-    );
+    console.log("🔌 WebSocket Connected:", WebSocketService.isConnected);
     console.log("📡 CallData:", callData);
     console.log(
       "🎤 Local Audio Track:",
@@ -1552,7 +1557,6 @@ const ChatBox = ({
     agoraToken,
     currentUser,
     chat,
-    socket,
     callData,
   ]);
 
@@ -1796,8 +1800,8 @@ const ChatBox = ({
   // Enhanced WebSocket connection monitoring and recovery
   useEffect(() => {
     const checkSocketIOConnection = () => {
-      if (socket.current) {
-        const isConnected = socket.current.readyState === WebSocket.OPEN;
+      if (WebSocketService.socket) {
+        const isConnected = WebSocketService.isConnected;
 
         if (isConnected) {
           console.log("WebSocket connection is open");
@@ -1865,7 +1869,7 @@ const ChatBox = ({
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [callStatus, socket, showToast, attemptReconnection]);
+  }, [callStatus, showToast, attemptReconnection]);
 
   // Constants for call retry logic
   // const MAX_RETRY_ATTEMPTS = 3;
@@ -1888,13 +1892,8 @@ const ChatBox = ({
           return;
         }
 
-        // Verify WebSocket is available and open
-        const isConnected = socket.current.readyState === WebSocket.OPEN;
-        if (!isConnected) {
-          throw new Error("WebSocket connection is not available");
-        }
-
-        if (!socket.current || socket.current.readyState !== WebSocket.OPEN) {
+        // Verify WebSocket is available using WebSocketService
+        if (!WebSocketService.socket || !WebSocketService.isConnected) {
           showToast(
             "📡 Connection not available. Please refresh and try again.",
             "error",
@@ -1996,16 +1995,13 @@ const ChatBox = ({
 
           console.log("📤 Sending call-request signal to:", receiverId);
           console.log("🔗 WebSocket status:", {
-            readyState: socket.current.readyState,
-            OPEN: WebSocket.OPEN,
-            isConnected: socket.current.readyState === WebSocket.OPEN,
+            isConnected: WebSocketService.isConnected,
+            hasSocket: !!WebSocketService.socket,
           });
-          socket.current.send(
-            JSON.stringify({
-              type: "agora-signal",
-              data: callRequestMessage.data,
-            })
-          );
+          WebSocketService.sendMessage({
+            type: "agora-signal",
+            data: callRequestMessage.data,
+          });
           console.log("✅ Call request sent successfully");
 
           showToast(
@@ -2026,6 +2022,24 @@ const ChatBox = ({
             // Clear the timeout reference
             callTimeoutRef.current = null;
           }, 60000);
+
+          // For video calls, navigate to VideoCall page immediately
+          if (type === "video") {
+            console.log("📹 Navigating to video call page for caller");
+            navigate("/video-call", {
+              state: {
+                callData: {
+                  channel: newChannelName,
+                  token: tokenData.token,
+                  appId: process.env.REACT_APP_AGORA_APP_ID,
+                  callType: type,
+                  isIncoming: false,
+                  isInitiator: true,
+                  receiverId: receiverId,
+                },
+              },
+            });
+          }
         } catch (agoraError) {
           console.error("❌ Agora setup failed:", agoraError);
 
@@ -2089,7 +2103,7 @@ const ChatBox = ({
     console.log("📞 Declining call", {
       incomingCallOffer,
       callStatus,
-      socketConnected: socket.current?.readyState === WebSocket.OPEN,
+      socketConnected: WebSocketService.isConnected,
       currentUser,
     });
 
@@ -2101,7 +2115,7 @@ const ChatBox = ({
     }
 
     // Send rejection signal if WebSocket is available
-    if (socket.current?.readyState === WebSocket.OPEN) {
+    if (WebSocketService.socket && WebSocketService.isConnected) {
       const rejectMessage = {
         type: "agora-signal",
         userId: currentUser,
@@ -2116,18 +2130,13 @@ const ChatBox = ({
       console.log("📤 Sending call-rejected signal:", rejectMessage);
       console.log("👤 Sender (currentUser):", currentUser);
       console.log("🎯 Target (callerId):", incomingCallOffer.callerId);
-      console.log(
-        "🔌 WebSocket connected:",
-        socket.current.readyState === WebSocket.OPEN
-      );
+      console.log("🔌 WebSocket connected:", WebSocketService.isConnected);
 
       try {
-        socket.current.send(
-          JSON.stringify({
-            type: "agora-signal",
-            data: rejectMessage.data,
-          })
-        );
+        WebSocketService.sendMessage({
+          type: "agora-signal",
+          data: rejectMessage.data,
+        });
         console.log("✅ Call rejection signal sent successfully");
         showToast("📞 Call declined", "info", 2000);
       } catch (error) {
@@ -2136,8 +2145,8 @@ const ChatBox = ({
       }
     } else {
       console.warn("⚠️ Cannot send call-rejected signal:", {
-        hasSocket: !!socket.current,
-        socketConnected: socket.current?.readyState === WebSocket.OPEN,
+        hasSocket: !!WebSocketService.socket,
+        socketConnected: WebSocketService.isConnected,
       });
 
       showToast("📡 Connection error. Call declined locally.", "warning", 3000);
@@ -2158,7 +2167,7 @@ const ChatBox = ({
     }
 
     console.log("✅ Call decline completed successfully");
-  }, [incomingCallOffer, currentUser, socket, showToast, callStatus]);
+  }, [incomingCallOffer, currentUser, showToast, callStatus]);
 
   // Enhanced answerCall function
   const answerCall = useCallback(async () => {
@@ -2184,10 +2193,10 @@ const ChatBox = ({
         return;
       }
 
-      if (!socket.current?.readyState === WebSocket.OPEN) {
+      if (!WebSocketService.socket || !WebSocketService.isConnected) {
         console.error(
           "❌ WebSocket not available:",
-          socket.current?.readyState === WebSocket.OPEN
+          WebSocketService.isConnected
         );
         showToast("❌ Connection error - cannot answer call", "error", 3000);
         endCall();
@@ -2245,12 +2254,10 @@ const ChatBox = ({
         };
 
         console.log("📤 Sending call-accepted signal:", acceptMessage);
-        socket.current.send(
-          JSON.stringify({
-            type: "agora-signal",
-            data: acceptMessage.data,
-          })
-        );
+        WebSocketService.sendMessage({
+          type: "agora-signal",
+          data: acceptMessage.data,
+        });
         console.log("✅ Call acceptance signal sent successfully");
 
         // Update to in-progress state
@@ -2279,7 +2286,10 @@ const ChatBox = ({
               callData: {
                 channel: incomingCallOffer.channel,
                 token: tokenData.token,
-                callerName: userData?.Username || "User",
+                appId: process.env.REACT_APP_AGORA_APP_ID,
+                callType: incomingCallOffer.callType,
+                isIncoming: true,
+                callerId: incomingCallOffer.callerId,
               },
             },
           });
@@ -2289,19 +2299,17 @@ const ChatBox = ({
 
         // Send rejection since we couldn't set up media
         try {
-          socket.current.send(
-            JSON.stringify({
-              type: "agora-signal",
-              data: {
-                userId: currentUser,
-                action: "call-rejected",
-                targetId: incomingCallOffer.callerId,
-                channel: incomingCallOffer.channel,
-                reason: "media_setup_failed",
-                timestamp: Date.now(),
-              },
-            })
-          );
+          WebSocketService.sendMessage({
+            type: "agora-signal",
+            data: {
+              userId: currentUser,
+              action: "call-rejected",
+              targetId: incomingCallOffer.callerId,
+              channel: incomingCallOffer.channel,
+              reason: "media_setup_failed",
+              timestamp: Date.now(),
+            },
+          });
         } catch (signalError) {
           console.error("❌ Failed to send rejection signal:", signalError);
         }
@@ -2348,7 +2356,6 @@ const ChatBox = ({
     callStatus,
     incomingCallOffer,
     currentUser,
-    socket,
     checkMediaPermissions,
     fetchAgoraToken,
     joinAgoraChannel,
@@ -2530,19 +2537,17 @@ const ChatBox = ({
               `⚠️ Received call-request but already in state: ${callStatus}, sending busy signal`
             );
             // Send busy signal if already in a call
-            if (socket.current?.readyState === WebSocket.OPEN) {
-              socket.current.send(
-                JSON.stringify({
-                  type: "agora-signal",
-                  data: {
-                    userId: currentUser,
-                    action: "call-busy",
-                    targetId: senderId,
-                    channel: channel,
-                    timestamp: Date.now(),
-                  },
-                })
-              );
+            if (WebSocketService.socket && WebSocketService.isConnected) {
+              WebSocketService.sendMessage({
+                type: "agora-signal",
+                data: {
+                  userId: currentUser,
+                  action: "call-busy",
+                  targetId: senderId,
+                  channel: channel,
+                  timestamp: Date.now(),
+                },
+              });
               showToast(
                 "📞 Call declined - already in a call",
                 "warning",
@@ -3126,7 +3131,12 @@ const ChatBox = ({
                   {messages.map((message, index) => (
                     <Zoom
                       in={true}
-                      key={message.ID}
+                      key={
+                        message.ID ||
+                        `message-${index}-${
+                          message.SenderID
+                        }-${message.text?.substring(0, 20)}`
+                      }
                       style={{ transitionDelay: `${index * 50}ms` }}
                     >
                       <Paper

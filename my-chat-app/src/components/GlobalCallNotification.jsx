@@ -17,141 +17,92 @@ import {
   CallEnd as CallEndIcon,
   VolumeUp as VolumeUpIcon,
 } from "@mui/icons-material";
+import WebSocketService from "../actions/WebSocketService";
 import "./globalCallNotification.css";
 
 const GlobalCallNotification = () => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [isRinging, setIsRinging] = useState(false);
-  const [websocket, setWebsocket] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState("disconnected"); // Track connection status
   const ringingAudioRef = useRef(null);
   const navigate = useNavigate();
   const user = useSelector((state) => state.authReducer.authData);
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection using the service
   useEffect(() => {
     if (!user?.ID) {
       console.log("❌ User ID not available, skipping WebSocket connection");
       return;
     }
 
-    // Use the working WebSocket URL from your backend
-    const wsUrl = `wss://${process.env.REACT_APP_API_URL}/ws/ws`;
-    console.log("🔗 Connecting to WebSocket for global notifications:", wsUrl);
+    console.log("🔗 Connecting to WebSocket for global notifications");
 
-    try {
-      const newWebsocket = new WebSocket(wsUrl);
-      setConnectionStatus("connecting");
+    const handleMessage = (message) => {
+      console.log("📥 Global call notification received message:", message);
 
-      newWebsocket.onopen = () => {
-        console.log("✅ Global call notification WebSocket connected");
-        setConnectionStatus("connected");
-        newWebsocket.send(
-          JSON.stringify({
-            type: "new-user-add",
-            userId: user.ID,
-          })
-        );
-      };
+      // Only handle call-request signals when user is NOT in a chat page
+      if (
+        message.type === "agora-signal" &&
+        message.data?.action === "call-request" &&
+        message.data?.targetId === user.ID
+      ) {
+        // Check if user is currently on chat page
+        const isOnChatPage = window.location.pathname === "/chat";
 
-      newWebsocket.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          console.log("📥 Global call notification received message:", msg);
-
-          // Only handle call-request signals when user is NOT in a chat page
-          // This prevents conflict with ChatBox handling
-          if (
-            msg.type === "agora-signal" &&
-            msg.data.action === "call-request" &&
-            msg.data.targetId === user.ID
-          ) {
-            // Check if user is currently on chat page
-            const isOnChatPage = window.location.pathname === "/chat";
-
-            if (isOnChatPage) {
-              console.log(
-                "⚠️ User is on chat page, letting ChatBox handle incoming call"
-              );
-              return; // Let ChatBox handle it
-            }
-
-            console.log(
-              "📲 Processing incoming call request from:",
-              msg.data.senderId
-            );
-
-            // Set incoming call data
-            setIncomingCall({
-              callerId: msg.data.senderId,
-              channel: msg.data.channel,
-              callType: msg.data.callType,
-              timestamp: msg.data.timestamp,
-            });
-
-            // Start ringing
-            setIsRinging(true);
-
-            // Play ringing sound
-            if (ringingAudioRef.current) {
-              ringingAudioRef.current.loop = true;
-              ringingAudioRef.current
-                .play()
-                .catch((e) => console.warn("Could not play ringing sound:", e));
-            }
-          }
-        } catch (parseError) {
-          console.error(
-            "❌ Error parsing WebSocket message:",
-            parseError,
-            event.data
+        if (isOnChatPage) {
+          console.log(
+            "⚠️ User is on chat page, letting ChatBox handle incoming call"
           );
+          return; // Let ChatBox handle it
         }
-      };
 
-      newWebsocket.onclose = (event) => {
         console.log(
-          "❌ Global call notification WebSocket closed:",
-          event.reason
+          "📲 Processing incoming call request from:",
+          message.data.senderId
         );
-        setConnectionStatus("disconnected");
 
-        // Attempt to reconnect after a delay
-        if (event.code !== 1000) {
-          // Don't reconnect if closed normally
-          setTimeout(() => {
-            console.log("🔄 Attempting to reconnect WebSocket...");
-            setConnectionStatus("reconnecting");
-            // Trigger reconnection by updating state
-          }, 3000);
-        }
-      };
+        // Set incoming call data
+        setIncomingCall({
+          callerId: message.data.senderId || message.userId,
+          channel: message.data.channel,
+          callType: message.data.callType || "video",
+          timestamp: message.data.timestamp,
+          token: message.data.receiverToken,
+          appId: message.data.appId,
+        });
 
-      newWebsocket.onerror = (error) => {
-        console.error("❌ Global call notification WebSocket error:", error);
-        setConnectionStatus("error");
-      };
+        // Start ringing
+        setIsRinging(true);
 
-      setWebsocket(newWebsocket);
-
-      // Cleanup function
-      return () => {
-        if (newWebsocket) {
-          console.log("🧹 Closing GlobalCallNotification WebSocket");
-          newWebsocket.close(1000, "Component unmounting");
-        }
+        // Play ringing sound
         if (ringingAudioRef.current) {
-          ringingAudioRef.current.pause();
-          ringingAudioRef.current.currentTime = 0;
+          ringingAudioRef.current.loop = true;
+          ringingAudioRef.current
+            .play()
+            .catch((e) => console.warn("Could not play ringing sound:", e));
         }
-      };
-    } catch (connectionError) {
-      console.error(
-        "❌ Failed to create WebSocket connection:",
-        connectionError
-      );
-      setConnectionStatus("error");
-    }
+      }
+    };
+
+    const handleError = (error) => {
+      console.error("❌ Global WebSocket error:", error);
+    };
+
+    const handleClose = (event) => {
+      console.log("❌ Global WebSocket closed:", event);
+    };
+
+    // Connect using WebSocketService
+    WebSocketService.connect(user.ID, handleMessage, handleError, handleClose);
+
+    // Cleanup function
+    return () => {
+      console.log("🧹 Cleaning up GlobalCallNotification WebSocket");
+      // Don't disconnect the main WebSocketService as other components might be using it
+      if (ringingAudioRef.current) {
+        ringingAudioRef.current.pause();
+        ringingAudioRef.current.currentTime = 0;
+      }
+    };
   }, [user?.ID]);
 
   // Stop ringing when incoming call is cleared
@@ -176,11 +127,28 @@ const GlobalCallNotification = () => {
       ringingAudioRef.current.currentTime = 0;
     }
 
-    // Navigate to chat page with call data
-    navigate("/chat", {
+    // Send call accepted signal
+    WebSocketService.sendMessage({
+      type: "agora-signal",
+      data: {
+        action: "call-accepted",
+        targetId: incomingCall.callerId,
+        channel: incomingCall.channel,
+        timestamp: Date.now(),
+      },
+    });
+
+    // Navigate to video call page with call data
+    navigate("/video-call", {
       state: {
-        incomingCall: incomingCall,
-        autoAnswer: true,
+        callData: {
+          channel: incomingCall.channel,
+          token: incomingCall.token,
+          appId: incomingCall.appId,
+          callType: incomingCall.callType,
+          isIncoming: true,
+          callerId: incomingCall.callerId,
+        },
       },
     });
 
@@ -190,7 +158,7 @@ const GlobalCallNotification = () => {
 
   // Handle declining the call
   const handleDeclineCall = useCallback(() => {
-    if (!incomingCall || !websocket) return;
+    if (!incomingCall) return;
 
     // Stop ringing
     setIsRinging(false);
@@ -199,40 +167,25 @@ const GlobalCallNotification = () => {
       ringingAudioRef.current.currentTime = 0;
     }
 
-    // Send rejection signal if WebSocket is open
-    if (websocket.readyState === WebSocket.OPEN) {
-      websocket.send(
-        JSON.stringify({
-          type: "agora-signal",
-          data: {
-            userId: user.ID,
-            action: "call-rejected",
-            targetId: incomingCall.callerId,
-            channel: incomingCall.channel,
-            timestamp: Date.now(),
-          },
-        })
-      );
-    } else {
-      console.warn("⚠️ WebSocket not open, could not send call rejection");
-    }
+    // Send rejection signal
+    WebSocketService.sendMessage({
+      type: "agora-signal",
+      data: {
+        action: "call-rejected",
+        targetId: incomingCall.callerId,
+        channel: incomingCall.channel,
+        timestamp: Date.now(),
+      },
+    });
 
     // Clear incoming call
     setIncomingCall(null);
-  }, [incomingCall, websocket, user?.ID]);
+  }, [incomingCall]);
 
   // Get current theme from document
   const currentTheme =
     document.documentElement.getAttribute("data-theme") || "dark";
   const isDarkTheme = currentTheme === "dark";
-
-  // Show connection status in UI for debugging
-  if (connectionStatus === "error" || connectionStatus === "disconnected") {
-    console.log(
-      "📡 Connection not available. Current status:",
-      connectionStatus
-    );
-  }
 
   return (
     <>
@@ -348,7 +301,7 @@ const GlobalCallNotification = () => {
                     color: isDarkTheme ? "#b0b0b0" : "#6B7280",
                   }}
                 >
-                  From User
+                  From {incomingCall?.callerId || "Unknown User"}
                 </Typography>
 
                 <Box
