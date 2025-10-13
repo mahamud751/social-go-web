@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { addMessage, getMessages } from "../../api/MessageRequest";
 import { getUser } from "../../api/UserRequest";
 import "./chatBox.css";
@@ -49,6 +50,7 @@ const ChatBox = ({
   callData,
   setCallData,
 }) => {
+  const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -64,6 +66,7 @@ const ChatBox = ({
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isRinging, setIsRinging] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [channelName, setChannelName] = useState(null);
 
   // Toast notification states
   const [toasts, setToasts] = useState([]);
@@ -103,6 +106,45 @@ const ChatBox = ({
       }, duration);
     },
     [toastIdCounter, removeToast]
+  );
+
+  // Enhanced call status state management with validation
+  const updateCallStatus = useCallback(
+    (newStatus, context = "") => {
+      const validTransitions = {
+        idle: ["calling", "incoming"],
+        calling: ["in-progress", "idle"],
+        incoming: ["in-progress", "idle"],
+        connecting: ["in-progress", "idle"],
+        "in-progress": ["idle"],
+      };
+
+      const currentStatus = callStatus;
+      const isValidTransition =
+        validTransitions[currentStatus]?.includes(newStatus) ||
+        newStatus === "idle";
+
+      if (!isValidTransition) {
+        console.warn(
+          `⚠️ Invalid call status transition: ${currentStatus} -> ${newStatus}`,
+          context ? `(${context})` : ""
+        );
+        // Allow transition to idle for emergency cleanup
+        if (newStatus === "idle") {
+          console.log("🚨 Emergency transition to idle status");
+          setCallStatus("idle");
+        }
+        return false;
+      }
+
+      console.log(
+        `🔄 Call status transition: ${currentStatus} -> ${newStatus}`,
+        context ? `(${context})` : ""
+      );
+      setCallStatus(newStatus);
+      return true;
+    },
+    [callStatus]
   );
 
   // Enhanced device error handler with actionable error messages
@@ -388,26 +430,35 @@ const ChatBox = ({
               action: "call-ended",
               targetId: peerId,
               channel:
-                incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`,
+                incomingCallOffer?.channel ||
+                channelName ||
+                `chat_${chat.ID}_${Date.now()}`,
               timestamp: Date.now(),
             },
           };
 
           console.log("📤 Sending call-ended signal:", endMessage);
-          socket.current.send(JSON.stringify(endMessage));
+          socket.current.send(
+            JSON.stringify({
+              type: "agora-signal",
+              data: endMessage.data,
+            })
+          );
         }
       }
 
       // Reset all call states
-      setCallStatus("idle");
+      updateCallStatus("idle", "endCall");
       setCallType(null);
       setIsCallInitiator(false);
       setIncomingCallOffer(null);
-      setCallData(null);
+      // Don't clear callData here as it might interfere with signal processing
+      // setCallData(null);
       setAgoraToken(null);
       setIsMuted(false);
       setIsVideoOff(false);
       setCallDuration(0);
+      setChannelName(null);
 
       // Clear any timeouts
       if (callTimeoutRef.current) {
@@ -419,7 +470,7 @@ const ChatBox = ({
     } catch (error) {
       console.error("❌ Error during call cleanup:", error);
     }
-  }, [callStatus, chat, currentUser, incomingCallOffer, socket, setCallData]);
+  }, [callStatus, chat, currentUser, incomingCallOffer, socket, channelName]);
 
   // Theme detection
   useEffect(() => {
@@ -560,73 +611,120 @@ const ChatBox = ({
 
   // Component mounting state tracking and Agora client initialization
   const isMountedRef = useRef(true);
+  const endCallRef = useRef(endCall);
+
+  // Update endCallRef when endCall changes
+  useEffect(() => {
+    endCallRef.current = endCall;
+  }, [endCall]);
 
   useEffect(() => {
     isMountedRef.current = true;
+    console.log(
+      "🔄 ChatBox mounted - Chat ID:",
+      chat?.ID,
+      "Call Status:",
+      callStatus
+    );
 
     // Initialize Agora client with enhanced error handling
     const initializeAgoraClient = () => {
-      if (!agoraClient.current) {
-        try {
-          console.log("🔄 Initializing Agora RTC client...");
+      try {
+        console.log("🔄 Initializing Agora RTC client...");
 
-          // Check if Agora SDK is properly loaded
-          if (typeof AgoraRTC === "undefined") {
-            throw new Error(
-              "Agora RTC SDK not loaded. Please check your imports."
-            );
-          }
+        // Check if Agora SDK is properly loaded
+        if (typeof AgoraRTC === "undefined") {
+          throw new Error(
+            "Agora RTC SDK not loaded. Please check your imports."
+          );
+        }
 
+        // Only create new client if one doesn't exist
+        if (!agoraClient.current) {
+          console.log("🧹 Creating new Agora client...");
           agoraClient.current = AgoraRTC.createClient({
             mode: "rtc",
             codec: "vp8",
           });
 
-          // Set client role for better performance
-          agoraClient.current.setClientRole("host");
+          // Disable stats collection to prevent blocked requests
+          try {
+            if (
+              typeof agoraClient.current.disableStatsCollection === "function"
+            ) {
+              agoraClient.current.disableStatsCollection();
+              console.log("📊 Agora stats collection disabled");
+            } else {
+              console.log(
+                "ℹ️ Agora stats collection disable method not available"
+              );
+            }
+          } catch (error) {
+            console.warn("⚠️ Could not disable stats collection:", error);
+          }
 
-          console.log(
-            "✅ Agora client initialized successfully with host role"
-          );
+          // Also disable logging to prevent blocked requests
+          try {
+            if (typeof agoraClient.current.disableLogUpload === "function") {
+              agoraClient.current.disableLogUpload();
+              console.log("📊 Agora log upload disabled");
+            }
+          } catch (error) {
+            console.warn("⚠️ Could not disable log upload:", error);
+          }
+
+          console.log("✅ Agora client initialized successfully");
 
           // Log SDK version for debugging
           console.log("📊 Agora SDK version:", AgoraRTC.VERSION);
-        } catch (error) {
-          console.error("❌ Failed to initialize Agora client:", error);
-          showToast(
-            "❌ Failed to initialize video calling. Please refresh the page and try again.",
-            "error",
-            5000
+        } else {
+          console.log(
+            "♾️ Agora client already exists, skipping initialization"
           );
         }
+      } catch (error) {
+        console.error("❌ Failed to initialize Agora client:", error);
+        showToast(
+          "❌ Failed to initialize video calling. Please refresh the page and try again.",
+          "error",
+          5000
+        );
       }
     };
 
-    // Initialize client
+    // Initialize client only once
     initializeAgoraClient();
 
-    // Enhanced cleanup on unmount
+    // Return cleanup function that only runs on actual unmount
     return () => {
       isMountedRef.current = false;
+      console.log("🧹 Component unmounting - setting mounted ref to false");
+    };
+  }, [showToast, chat?.ID]); // Add chat?.ID to prevent unnecessary re-runs
 
-      // Only cleanup if we're actually unmounting AND not during active call setup
+  // Separate cleanup effect that properly handles active calls
+  useEffect(() => {
+    return () => {
+      // Only cleanup if we're actually unmounting (not just re-rendering)
+      // AND either no active call or document is hidden
       const isActiveCall =
         callStatus === "incoming" ||
         callStatus === "calling" ||
         callStatus === "connecting" ||
         callStatus === "in-progress";
 
-      if (!isActiveCall || document.hidden) {
+      // Only perform cleanup on true unmount or when document is hidden during idle state
+      if (!isMountedRef.current && (!isActiveCall || document.hidden)) {
         console.log(
           "🧹 Performing Agora cleanup - component unmounting or page hidden",
           { callStatus, isActiveCall, documentHidden: document.hidden }
         );
 
         // Use endCall for proper cleanup
-        if (typeof endCall === "function") {
-          endCall();
+        if (typeof endCallRef.current === "function") {
+          endCallRef.current();
         }
-      } else {
+      } else if (isActiveCall) {
         console.log("⚠️ Skipping cleanup - active call in progress", {
           callStatus,
           isActiveCall,
@@ -634,7 +732,7 @@ const ChatBox = ({
         });
       }
     };
-  }, [showToast, endCall]); // Minimal dependencies to avoid re-initialization
+  }); // No dependencies - this effect should run on every render but only cleanup on unmount
 
   // Fetch user data
   useEffect(() => {
@@ -745,35 +843,86 @@ const ChatBox = ({
     }
   }, [receivedMessage, chat?.ID]);
 
-  // Create local media tracks
+  // Create local media tracks with enhanced error handling and retry logic
   const createLocalTracks = useCallback(
-    async (type) => {
-      try {
-        console.log("Creating local tracks for type:", type);
+    async (type, retryCount = 0) => {
+      const maxRetries = 3;
 
-        // Always create audio track for both audio and video calls
+      try {
+        console.log(
+          `Creating local tracks for type: ${type} (attempt ${retryCount + 1})`
+        );
+
+        // Enhanced audio track creation with better configuration
         if (!localAudioTrack.current) {
+          console.log("Creating audio track...");
           localAudioTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
             encoderConfig: "music_standard",
             AEC: true, // Acoustic echo cancellation
             ANS: true, // Automatic noise suppression
             AGC: true, // Automatic gain control
+            sampleRate: 48000, // Higher quality audio
+            channelCount: 1,
           });
           console.log("Local audio track created successfully");
         }
 
-        // Create video track only for video calls
+        // Enhanced video track creation with better configuration and error handling
         if (type === "video" && !localVideoTrack.current) {
-          localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
-            encoderConfig: "720p_1",
-            optimizationMode: "motion",
-          });
-          console.log("Local video track created successfully");
+          console.log("Creating video track...");
+          try {
+            localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
+              encoderConfig: "1080p_1", // Higher resolution
+              optimizationMode: "motion",
+              facingMode: "user", // Prefer front camera
+            });
+            console.log("Local video track created successfully");
 
-          // Play local video immediately
-          if (localVideoRef.current) {
-            localVideoTrack.current.play(localVideoRef.current);
-            console.log("Local video track started playing");
+            // Play local video immediately with error handling
+            if (localVideoRef.current) {
+              try {
+                localVideoTrack.current.play(localVideoRef.current);
+                console.log("Local video track started playing");
+              } catch (playError) {
+                console.warn("Failed to play local video track:", playError);
+                // Try again after a short delay
+                setTimeout(() => {
+                  if (localVideoRef.current && localVideoTrack.current) {
+                    try {
+                      localVideoTrack.current.play(localVideoRef.current);
+                      console.log("Local video track played on retry");
+                    } catch (retryError) {
+                      console.error(
+                        "Failed to play local video track on retry:",
+                        retryError
+                      );
+                    }
+                  }
+                }, 1000);
+              }
+            }
+          } catch (videoError) {
+            console.error("Failed to create video track:", videoError);
+
+            // Enhanced retry logic for video track creation
+            if (
+              retryCount < maxRetries &&
+              (videoError.name === "NotAllowedError" ||
+                videoError.name === "NotFoundError" ||
+                videoError.message.includes("Permission"))
+            ) {
+              console.log(
+                `Retrying video track creation in ${
+                  Math.pow(2, retryCount) * 1000
+                }ms...`
+              );
+              await new Promise((resolve) =>
+                setTimeout(resolve, Math.pow(2, retryCount) * 1000)
+              );
+              return createLocalTracks(type, retryCount + 1);
+            } else {
+              throw videoError;
+            }
           }
         }
 
@@ -782,9 +931,30 @@ const ChatBox = ({
           videoTrack: localVideoTrack.current,
         };
       } catch (error) {
-        console.error("Error creating local tracks:", error);
-        handleDeviceError(error);
-        throw error;
+        console.error(
+          `Error creating local tracks (attempt ${retryCount + 1}):`,
+          error
+        );
+
+        // Enhanced retry logic for track creation
+        if (
+          retryCount < maxRetries &&
+          (error.name === "NotAllowedError" ||
+            error.name === "NotFoundError" ||
+            error.message.includes("Permission") ||
+            error.message.includes("timeout"))
+        ) {
+          console.log(
+            `Retrying track creation in ${Math.pow(2, retryCount) * 1000}ms...`
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, retryCount) * 1000)
+          );
+          return createLocalTracks(type, retryCount + 1);
+        } else {
+          handleDeviceError(error);
+          throw error;
+        }
       }
     },
     [handleDeviceError]
@@ -793,7 +963,7 @@ const ChatBox = ({
   // Join Agora channel - Enhanced version with better connection resilience
   const joinAgoraChannel = useCallback(
     async (channelName, token, uid, retryCount = 0) => {
-      const maxRetries = 2;
+      const maxRetries = 3; // Increased retry attempts
 
       try {
         // Convert string user ID to numeric value as required by Agora
@@ -812,13 +982,43 @@ const ChatBox = ({
           );
         }
 
+        // Initialize Agora client with enhanced configuration
         if (!agoraClient.current) {
-          console.log("🔄 Reinitializing Agora client...");
+          console.log("🔄 Initializing Agora client with enhanced config...");
           agoraClient.current = AgoraRTC.createClient({
             mode: "rtc",
             codec: "vp8",
+            role: "host",
           });
-          agoraClient.current.setClientRole("host");
+
+          // Enhanced client configuration for better stability
+          agoraClient.current.enableAudioVolumeIndicator();
+
+          // Disable stats collection to prevent blocked requests
+          try {
+            if (
+              typeof agoraClient.current.disableStatsCollection === "function"
+            ) {
+              agoraClient.current.disableStatsCollection();
+              console.log("📊 Agora stats collection disabled");
+            }
+          } catch (error) {
+            console.warn("⚠️ Could not disable stats collection:", error);
+            // This error is usually caused by browser extensions blocking requests
+            // It's safe to continue as stats collection is not critical for functionality
+          }
+
+          // Also disable logging to prevent blocked requests
+          try {
+            if (typeof agoraClient.current.disableLogUpload === "function") {
+              agoraClient.current.disableLogUpload();
+              console.log("📊 Agora log upload disabled");
+            }
+          } catch (error) {
+            console.warn("⚠️ Could not disable log upload:", error);
+            // This error is usually caused by browser extensions blocking requests
+            // It's safe to continue as log upload is not critical for functionality
+          }
         }
 
         // Check if already connected to this channel
@@ -842,6 +1042,8 @@ const ChatBox = ({
           "🔗 Attempting to join channel with numeric UID:",
           numericUid
         );
+
+        // Enhanced join with better error handling
         const joinPromise = agoraClient.current.join(
           process.env.REACT_APP_AGORA_APP_ID,
           channelName,
@@ -849,22 +1051,22 @@ const ChatBox = ({
           numericUid
         );
 
-        // Add timeout to join operation (20 seconds)
+        // Add timeout to join operation (30 seconds for better reliability)
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(
-            () => reject(new Error("Join channel timeout after 20 seconds")),
-            20000
+            () => reject(new Error("Join channel timeout after 30 seconds")),
+            30000
           );
         });
 
         await Promise.race([joinPromise, timeoutPromise]);
         console.log("✅ Successfully joined Agora channel:", channelName);
 
-        // Create and publish local tracks after joining
+        // Create and publish local tracks after joining with enhanced error handling
         console.log("🎥 Creating local media tracks...");
         const tracks = await createLocalTracks(callType);
 
-        // Publish tracks with retry on failure
+        // Enhanced track publishing with better error recovery
         const tracksToPublish = [];
         if (tracks.audioTrack) {
           tracksToPublish.push(tracks.audioTrack);
@@ -880,8 +1082,57 @@ const ChatBox = ({
             console.log("✅ Successfully published local tracks");
           } catch (publishError) {
             console.error("❌ Failed to publish tracks:", publishError);
-            showToast("⚠️ Failed to publish media tracks", "warning", 3000);
-            // Continue anyway, tracks might still work
+
+            // Enhanced retry logic for publishing failures
+            if (retryCount < maxRetries - 1) {
+              console.log("🔄 Retrying track publishing...");
+              showToast("🔄 Retrying media connection...", "warning", 2000);
+
+              // Wait a bit before retry
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // Try to recreate tracks
+              try {
+                // Clean up existing tracks
+                if (localAudioTrack.current) {
+                  localAudioTrack.current.close();
+                  localAudioTrack.current = null;
+                }
+                if (localVideoTrack.current) {
+                  localVideoTrack.current.close();
+                  localVideoTrack.current = null;
+                }
+
+                // Recreate tracks
+                const newTracks = await createLocalTracks(callType);
+                const newTracksToPublish = [];
+                if (newTracks.audioTrack) {
+                  newTracksToPublish.push(newTracks.audioTrack);
+                }
+                if (newTracks.videoTrack) {
+                  newTracksToPublish.push(newTracks.videoTrack);
+                }
+
+                if (newTracksToPublish.length > 0) {
+                  await agoraClient.current.publish(newTracksToPublish);
+                  console.log(
+                    "✅ Successfully published local tracks on retry"
+                  );
+                }
+              } catch (retryError) {
+                console.error(
+                  "❌ Failed to retry track publishing:",
+                  retryError
+                );
+                showToast(
+                  "⚠️ Media connection issues. Please check permissions.",
+                  "warning",
+                  3000
+                );
+              }
+            } else {
+              showToast("⚠️ Failed to publish media tracks", "warning", 3000);
+            }
           }
         }
 
@@ -902,16 +1153,18 @@ const ChatBox = ({
           error
         );
 
-        // Retry logic for connection issues
+        // Enhanced retry logic for connection issues
         if (
           retryCount < maxRetries &&
           (error.message.includes("network") ||
             error.message.includes("timeout") ||
             error.message.includes("NETWORK_ERROR") ||
             error.code === "NETWORK_ERROR" ||
-            error.message.includes("Join channel timeout"))
+            error.message.includes("Join channel timeout") ||
+            error.message.includes("ICE_CONNECTION_FAILURE") ||
+            error.message.includes("JOIN_CHANNEL_TIMEOUT"))
         ) {
-          const retryDelay = (retryCount + 1) * 2000; // 2s, 4s delay
+          const retryDelay = Math.min((retryCount + 1) * 3000, 10000); // Max 10s delay
           console.log(
             `🔄 Retrying connection in ${retryDelay / 1000} seconds...`
           );
@@ -926,9 +1179,20 @@ const ChatBox = ({
           // Wait before retry with exponential backoff
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
 
-          // Clean up current client before retry
+          // Enhanced cleanup before retry
           if (agoraClient.current) {
             try {
+              // Clean up local tracks
+              if (localAudioTrack.current) {
+                localAudioTrack.current.close();
+                localAudioTrack.current = null;
+              }
+              if (localVideoTrack.current) {
+                localVideoTrack.current.close();
+                localVideoTrack.current = null;
+              }
+
+              // Leave channel
               await agoraClient.current.leave();
             } catch (leaveError) {
               console.warn(
@@ -936,8 +1200,9 @@ const ChatBox = ({
                 leaveError
               );
             }
-            // Don't destroy client, just clear state
+            // Remove all listeners to prevent memory leaks
             agoraClient.current.removeAllListeners();
+            agoraClient.current = null;
           }
 
           return joinAgoraChannel(channelName, token, uid, retryCount + 1);
@@ -954,7 +1219,8 @@ const ChatBox = ({
         } else if (
           error.message.includes("NETWORK_ERROR") ||
           error.message.includes("network") ||
-          error.message.includes("timeout")
+          error.message.includes("timeout") ||
+          error.message.includes("ICE_CONNECTION_FAILURE")
         ) {
           errorMessage =
             "🌐 Network connection failed. Please check your internet connection and try again. If the problem persists, try refreshing the page.";
@@ -964,6 +1230,12 @@ const ChatBox = ({
         } else if (error.message.includes("AGORA_APP_ID")) {
           errorMessage =
             "⚙️ Application configuration error. Please refresh the page and try again.";
+        } else if (
+          error.message.includes("NotAllowedError") ||
+          error.message.includes("Permission denied")
+        ) {
+          errorMessage =
+            "🚫 Camera/microphone access denied. Please check your browser permissions and try again.";
         } else {
           errorMessage = `❌ Failed to join call: ${error.message}. Please try refreshing the page or starting a new call.`;
         }
@@ -978,8 +1250,8 @@ const ChatBox = ({
   // Enhanced connection recovery function with retry logic and better error handling
   const attemptReconnection = useCallback(
     async (retryCount = 0) => {
-      const maxRetries = 3;
-      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+      const maxRetries = 5; // Increased retry attempts
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 15000); // Exponential backoff, max 15s
 
       if (callStatus !== "in-progress" || !agoraToken || !chat) {
         console.log("Not in active call, skipping reconnection");
@@ -1012,44 +1284,173 @@ const ChatBox = ({
           );
         }
 
-        // Verify WebSocket is available
+        // Verify WebSocket is available and open
         if (!socket.current || socket.current.readyState !== WebSocket.OPEN) {
           throw new Error("WebSocket connection is not available");
         }
 
-        // Verify Agora client is available
+        // Enhanced Agora client verification and recovery
         if (!agoraClient.current) {
-          throw new Error("Agora client is not initialized");
+          console.log("Agora client not initialized, creating new client...");
+          agoraClient.current = AgoraRTC.createClient({
+            mode: "rtc",
+            codec: "vp8",
+          });
+
+          // Re-attach event listeners with inline functions to avoid dependency issues
+          agoraClient.current.on("user-published", async (user, mediaType) => {
+            console.log("User published (reconnection):", user.uid, mediaType);
+            try {
+              await agoraClient.current.subscribe(user, mediaType);
+              console.log(
+                `Successfully subscribed to ${mediaType} from user (reconnection):`,
+                user.uid
+              );
+
+              if (mediaType === "video") {
+                // Ensure the remote video element exists before playing
+                if (remoteMediaRef.current) {
+                  user.videoTrack.play(remoteMediaRef.current);
+                  console.log(
+                    "Remote video track started playing (reconnection)"
+                  );
+                } else {
+                  console.warn(
+                    "Remote video element not available (reconnection)"
+                  );
+                }
+              }
+
+              if (mediaType === "audio") {
+                // Multiple fallback strategies for audio playback
+                try {
+                  if (callType === "audio" && remoteMediaRef.current) {
+                    user.audioTrack.play(remoteMediaRef.current);
+                  } else {
+                    user.audioTrack.play();
+                  }
+                  console.log(
+                    "Remote audio track started playing (reconnection)"
+                  );
+                } catch (audioError) {
+                  console.warn(
+                    "Audio playback fallback (reconnection):",
+                    audioError
+                  );
+                  user.audioTrack.play();
+                }
+              }
+            } catch (error) {
+              console.error("Error subscribing to user (reconnection):", error);
+              showToast(
+                `Failed to receive ${mediaType} from remote user: ${error.message}`,
+                "error",
+                5000
+              );
+            }
+          });
+
+          agoraClient.current.on("user-unpublished", (user, mediaType) => {
+            console.log(
+              "User unpublished (reconnection):",
+              user.uid,
+              mediaType
+            );
+
+            // Clear remote media when user unpublishes
+            if (mediaType === "video" && remoteMediaRef.current) {
+              remoteMediaRef.current.srcObject = null;
+            }
+          });
+
+          agoraClient.current.on("user-left", (user, reason) => {
+            console.log(
+              "User left (reconnection):",
+              user.uid,
+              "reason:",
+              reason
+            );
+
+            // Clear remote media when user leaves
+            if (remoteMediaRef.current) {
+              remoteMediaRef.current.srcObject = null;
+            }
+
+            // Show notification and end call
+            showToast("Remote user left the call", "info", 3000);
+            endCall();
+          });
         }
 
         // Try to rejoin with existing token
         const channelName =
           incomingCallOffer?.channel || `chat_${chat.ID}_${Date.now()}`;
 
-        // First try to leave current channel if connected
+        // Enhanced cleanup before reconnection
         try {
           const connectionState = agoraClient.current.connectionState;
+          console.log(
+            "Current connection state before reconnection:",
+            connectionState
+          );
+
           if (
             connectionState === "CONNECTED" ||
-            connectionState === "CONNECTING"
+            connectionState === "CONNECTING" ||
+            connectionState === "RECONNECTING"
           ) {
+            console.log("Leaving current channel before reconnection...");
             await agoraClient.current.leave();
             console.log("Left current channel before reconnection");
           }
+
+          // Clean up any existing tracks
+          if (localAudioTrack.current) {
+            try {
+              localAudioTrack.current.setEnabled(false);
+            } catch (e) {
+              console.warn("Could not disable audio track:", e);
+            }
+          }
+          if (localVideoTrack.current) {
+            try {
+              localVideoTrack.current.setEnabled(false);
+            } catch (e) {
+              console.warn("Could not disable video track:", e);
+            }
+          }
         } catch (leaveError) {
-          console.warn(
-            "Error leaving channel before reconnection:",
-            leaveError
-          );
+          console.warn("Error during cleanup before reconnection:", leaveError);
           // Continue with reconnection attempt
         }
 
-        // Attempt to rejoin the channel
-        await joinAgoraChannel(channelName, agoraToken, currentUser);
+        // Attempt to rejoin the channel with enhanced error handling
+        try {
+          await joinAgoraChannel(channelName, agoraToken, currentUser, 0);
+          console.log("Reconnection successful");
 
-        showToast("✅ Reconnected successfully", "success", 2000);
-        console.log("Reconnection successful");
-        return true;
+          // Ensure local tracks are re-enabled
+          if (localAudioTrack.current) {
+            localAudioTrack.current.setEnabled(true);
+          }
+          if (localVideoTrack.current) {
+            localVideoTrack.current.setEnabled(true);
+            // Re-attach video to element if needed
+            if (localVideoRef.current) {
+              try {
+                localVideoTrack.current.play(localVideoRef.current);
+              } catch (playError) {
+                console.warn("Could not re-attach video track:", playError);
+              }
+            }
+          }
+
+          showToast("✅ Reconnected successfully", "success", 2000);
+          return true;
+        } catch (joinError) {
+          console.error("Failed to rejoin channel:", joinError);
+          throw joinError; // Re-throw to trigger retry logic
+        }
       } catch (error) {
         console.error(`Reconnection attempt ${retryCount + 1} failed:`, error);
 
@@ -1084,6 +1485,9 @@ const ChatBox = ({
           } else if (error.message.includes("NETWORK")) {
             errorMessage +=
               "Network connection is unstable. Please check your internet.";
+          } else if (error.message.includes("ICE")) {
+            errorMessage +=
+              "Media connection failed. Try switching networks or restarting the call.";
           } else {
             errorMessage +=
               "Please try restarting the call or refresh the page.";
@@ -1126,7 +1530,10 @@ const ChatBox = ({
     console.log("🔑 Agora Token:", agoraToken ? "Present" : "Missing");
     console.log("👤 Current User:", currentUser);
     console.log("💬 Chat ID:", chat?.ID);
-    console.log("🔌 Socket State:", socket.current?.readyState);
+    console.log(
+      "🔌 WebSocket Connected:",
+      socket.current?.readyState === WebSocket.OPEN
+    );
     console.log("📡 CallData:", callData);
     console.log(
       "🎤 Local Audio Track:",
@@ -1167,14 +1574,29 @@ const ChatBox = ({
           user.uid
         );
 
-        if (mediaType === "video" && remoteMediaRef.current) {
-          user.videoTrack.play(remoteMediaRef.current);
-          console.log("Remote video track started playing");
+        if (mediaType === "video") {
+          // Ensure the remote video element exists before playing
+          if (remoteMediaRef.current) {
+            user.videoTrack.play(remoteMediaRef.current);
+            console.log("Remote video track started playing");
+          } else {
+            console.warn("Remote video element not available");
+          }
         }
 
         if (mediaType === "audio") {
-          user.audioTrack.play();
-          console.log("Remote audio track started playing");
+          // Multiple fallback strategies for audio playback
+          try {
+            if (callType === "audio" && remoteMediaRef.current) {
+              user.audioTrack.play(remoteMediaRef.current);
+            } else {
+              user.audioTrack.play();
+            }
+            console.log("Remote audio track started playing");
+          } catch (audioError) {
+            console.warn("Audio playback fallback:", audioError);
+            user.audioTrack.play();
+          }
         }
       } catch (error) {
         console.error("Error subscribing to user:", error);
@@ -1185,17 +1607,36 @@ const ChatBox = ({
         );
       }
     },
-    [showToast]
+    [callType, showToast, remoteMediaRef]
   );
 
-  const handleUserUnpublished = useCallback((user, mediaType) => {
-    console.log("User unpublished:", user.uid, mediaType);
-  }, []);
+  const handleUserUnpublished = useCallback(
+    (user, mediaType) => {
+      console.log("User unpublished:", user.uid, mediaType);
 
-  const handleUserLeft = useCallback((user, reason) => {
-    console.log("User left:", user.uid, "reason:", reason);
-    // Don't auto-end call on user-left, let UI handle it
-  }, []);
+      // Clear remote media when user unpublishes
+      if (mediaType === "video" && remoteMediaRef.current) {
+        remoteMediaRef.current.srcObject = null;
+      }
+    },
+    [remoteMediaRef]
+  );
+
+  const handleUserLeft = useCallback(
+    (user, reason) => {
+      console.log("User left:", user.uid, "reason:", reason);
+
+      // Clear remote media when user leaves
+      if (remoteMediaRef.current) {
+        remoteMediaRef.current.srcObject = null;
+      }
+
+      // Show notification and end call
+      showToast("Remote user left the call", "info", 3000);
+      endCall();
+    },
+    [showToast, endCall, remoteMediaRef]
+  );
 
   // Setup Agora event listeners - SINGLE registration to avoid conflicts
   useEffect(() => {
@@ -1205,57 +1646,172 @@ const ChatBox = ({
       agoraClient.current.on("user-unpublished", handleUserUnpublished);
       agoraClient.current.on("user-left", handleUserLeft);
 
+      // Connection state change handlers
+      const handleConnectionStateChange = (state, reason) => {
+        console.log(
+          "Agora connection state changed:",
+          state,
+          "reason:",
+          reason
+        );
+
+        switch (state) {
+          case "DISCONNECTED":
+            console.warn("Agora connection lost, reason:", reason);
+            // Only attempt reconnection if we're in an active call and not ending intentionally
+            // Also check if this is during initial connection setup for incoming calls
+            if (
+              (callStatus === "in-progress" ||
+                callStatus === "calling" ||
+                (callStatus === "incoming" && !isCallInitiator)) &&
+              reason !== "DISCONNECTING" &&
+              reason !== "LEAVE" // Don't reconnect when deliberately leaving
+            ) {
+              // Check network connectivity before attempting reconnection
+              if (navigator.onLine) {
+                showToast(
+                  "📡 Connection lost. Attempting to reconnect...",
+                  "warning",
+                  4000
+                );
+                // Enhanced reconnection with multiple attempts
+                setTimeout(() => {
+                  attemptReconnection();
+                }, 1000);
+              } else {
+                showToast(
+                  "🌐 No internet connection. Please check your network.",
+                  "error",
+                  6000
+                );
+              }
+            } else {
+              console.log(
+                "Call ended normally or during setup, no reconnection needed",
+                {
+                  callStatus,
+                  reason,
+                  isCallInitiator,
+                }
+              );
+            }
+            break;
+
+          case "RECONNECTING":
+            console.log("Agora is attempting to reconnect...");
+            showToast("🔄 Reconnecting to call...", "info", 3000);
+            break;
+
+          case "CONNECTED":
+            console.log("Agora connection restored");
+            if (callStatus === "in-progress" || callStatus === "calling") {
+              showToast("✅ Connection restored successfully", "success", 2000);
+
+              // Additional check to ensure media tracks are still working
+              if (localAudioTrack.current) {
+                localAudioTrack.current.setEnabled(true);
+              }
+              if (localVideoTrack.current) {
+                localVideoTrack.current.setEnabled(true);
+                // Re-attach video to element if needed
+                if (localVideoRef.current && !localVideoRef.current.srcObject) {
+                  localVideoTrack.current.play(localVideoRef.current);
+                }
+              }
+            }
+            break;
+
+          case "FAILED":
+            console.error("Agora connection failed permanently:", reason);
+            let failureMessage = "❌ Connection failed. ";
+
+            // Provide specific error messages based on reason
+            if (reason && reason.includes("NETWORK")) {
+              failureMessage +=
+                "Network error - please check your internet connection.";
+            } else if (reason && reason.includes("TOKEN")) {
+              failureMessage +=
+                "Authentication failed - please try starting the call again.";
+            } else if (reason && reason.includes("TIMEOUT")) {
+              failureMessage += "Connection timed out - please try again.";
+            } else if (reason && reason.includes("ICE")) {
+              failureMessage +=
+                "Media connection failed - please check firewall settings.";
+            } else {
+              failureMessage += "Please try again or restart the call.";
+            }
+
+            showToast(failureMessage, "error", 6000);
+            endCall();
+            break;
+
+          default:
+            console.log("Agora connection state:", state);
+        }
+      };
+
+      const handleNetworkQuality = (stats) => {
+        // Monitor network quality and warn user of poor connection
+        if (
+          stats.downlinkNetworkQuality >= 4 ||
+          stats.uplinkNetworkQuality >= 4
+        ) {
+          console.warn("Poor network quality detected:", stats);
+          showToast("⚠️ Poor network connection detected", "warning", 3000);
+        }
+      };
+
+      agoraClient.current.on(
+        "connection-state-change",
+        handleConnectionStateChange
+      );
+      agoraClient.current.on("network-quality", handleNetworkQuality);
+
       // Cleanup function to prevent memory leaks
       return () => {
         if (agoraClient.current) {
           agoraClient.current.off("user-published", handleUserPublished);
           agoraClient.current.off("user-unpublished", handleUserUnpublished);
           agoraClient.current.off("user-left", handleUserLeft);
+          agoraClient.current.off(
+            "connection-state-change",
+            handleConnectionStateChange
+          );
+          agoraClient.current.off("network-quality", handleNetworkQuality);
         }
       };
     }
-  }, [handleUserPublished, handleUserUnpublished, handleUserLeft]);
+  }, [
+    handleUserPublished,
+    handleUserUnpublished,
+    handleUserLeft,
+    showToast,
+    endCall,
+    callStatus,
+    attemptReconnection,
+    isCallInitiator,
+    agoraClient,
+  ]);
 
   // Enhanced WebSocket connection monitoring and recovery
   useEffect(() => {
-    const checkWebSocketConnection = () => {
+    const checkSocketIOConnection = () => {
       if (socket.current) {
-        const wsState = socket.current.readyState;
+        const isConnected = socket.current.readyState === WebSocket.OPEN;
 
-        switch (wsState) {
-          case WebSocket.CONNECTING:
-            console.log("WebSocket is connecting...");
-            if (callStatus === "calling" || callStatus === "in-progress") {
-              showToast("🔗 Establishing connection...", "info", 2000);
-            }
-            break;
-          case WebSocket.OPEN:
-            console.log("WebSocket connection is open");
-            // Connection is healthy, no action needed
-            break;
-          case WebSocket.CLOSING:
-            console.warn("WebSocket is closing...");
-            if (callStatus !== "idle") {
-              showToast(
-                "⚠️ WebSocket connection closing during call",
-                "warning",
-                3000
-              );
-            }
-            break;
-          case WebSocket.CLOSED:
-            console.error("WebSocket connection is closed");
-            if (callStatus !== "idle") {
-              showToast(
-                "📡 WebSocket disconnected. Call may be affected. Please check your connection.",
-                "error",
-                5000
-              );
-              // Don't auto-end call immediately, let user decide
-            }
-            break;
-          default:
-            console.log("Unknown WebSocket state:", wsState);
+        if (isConnected) {
+          console.log("WebSocket connection is open");
+          // Connection is healthy, no action needed
+        } else {
+          console.warn("WebSocket connection is closed");
+          if (callStatus !== "idle") {
+            showToast(
+              "📡 WebSocket disconnected. Call may be affected. Please check your connection.",
+              "error",
+              5000
+            );
+            // Don't auto-end call immediately, let user decide
+          }
         }
       } else {
         console.warn("WebSocket is not initialized");
@@ -1293,9 +1849,9 @@ const ChatBox = ({
     };
 
     // Check WebSocket connection every 5 seconds during calls
-    let wsCheckInterval;
+    let socketIOCheckInterval;
     if (callStatus === "in-progress" || callStatus === "calling") {
-      wsCheckInterval = setInterval(checkWebSocketConnection, 5000);
+      socketIOCheckInterval = setInterval(checkSocketIOConnection, 5000);
     }
 
     // Add network event listeners
@@ -1303,130 +1859,17 @@ const ChatBox = ({
     window.addEventListener("offline", handleOffline);
 
     return () => {
-      if (wsCheckInterval) {
-        clearInterval(wsCheckInterval);
+      if (socketIOCheckInterval) {
+        clearInterval(socketIOCheckInterval);
       }
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
   }, [callStatus, socket, showToast, attemptReconnection]);
 
-  // Enhanced connection state change handler with recovery mechanisms
-  useEffect(() => {
-    const handleConnectionStateChange = (state, reason) => {
-      console.log("Agora connection state changed:", state, "reason:", reason);
-
-      switch (state) {
-        case "DISCONNECTED":
-          console.warn("Agora connection lost, reason:", reason);
-          // Only attempt reconnection if we're in an active call and not ending intentionally
-          // Also check if this is during initial connection setup for incoming calls
-          if (
-            (callStatus === "in-progress" ||
-              callStatus === "calling" ||
-              (callStatus === "incoming" && !isCallInitiator)) &&
-            reason !== "DISCONNECTING" &&
-            reason !== "LEAVE" // Don't reconnect when deliberately leaving
-          ) {
-            // Check network connectivity before attempting reconnection
-            if (navigator.onLine) {
-              showToast(
-                "📡 Connection lost. Checking network status...",
-                "warning",
-                4000
-              );
-              setTimeout(() => {
-                attemptReconnection();
-              }, 2000);
-            } else {
-              showToast(
-                "🌐 No internet connection. Please check your network.",
-                "error",
-                6000
-              );
-            }
-          } else {
-            console.log(
-              "Call ended normally or during setup, no reconnection needed",
-              {
-                callStatus,
-                reason,
-                isCallInitiator,
-              }
-            );
-          }
-          break;
-
-        case "RECONNECTING":
-          console.log("Agora is attempting to reconnect...");
-          showToast("🔄 Reconnecting to call...", "info", 3000);
-          break;
-
-        case "CONNECTED":
-          console.log("Agora connection restored");
-          if (callStatus === "in-progress" || callStatus === "calling") {
-            showToast("✅ Connection restored successfully", "success", 2000);
-          }
-          break;
-
-        case "FAILED":
-          console.error("Agora connection failed permanently:", reason);
-          let failureMessage = "❌ Connection failed. ";
-
-          // Provide specific error messages based on reason
-          if (reason && reason.includes("NETWORK")) {
-            failureMessage +=
-              "Network error - please check your internet connection.";
-          } else if (reason && reason.includes("TOKEN")) {
-            failureMessage +=
-              "Authentication failed - please try starting the call again.";
-          } else if (reason && reason.includes("TIMEOUT")) {
-            failureMessage += "Connection timed out - please try again.";
-          } else {
-            failureMessage += "Please try again or restart the call.";
-          }
-
-          showToast(failureMessage, "error", 6000);
-          endCall();
-          break;
-
-        default:
-          console.log("Agora connection state:", state);
-      }
-    };
-
-    const handleNetworkQuality = (stats) => {
-      // Monitor network quality and warn user of poor connection
-      if (
-        stats.downlinkNetworkQuality >= 4 ||
-        stats.uplinkNetworkQuality >= 4
-      ) {
-        console.warn("Poor network quality detected:", stats);
-        showToast("⚠️ Poor network connection detected", "warning", 3000);
-      }
-    };
-
-    if (agoraClient.current) {
-      agoraClient.current.on(
-        "connection-state-change",
-        handleConnectionStateChange
-      );
-      agoraClient.current.on("network-quality", handleNetworkQuality);
-    }
-
-    return () => {
-      if (agoraClient.current) {
-        agoraClient.current.off(
-          "connection-state-change",
-          handleConnectionStateChange
-        );
-        agoraClient.current.off("network-quality", handleNetworkQuality);
-      }
-    };
-  }, [showToast, endCall, callStatus, attemptReconnection]);
-
-  const MAX_RETRY_ATTEMPTS = 3;
-  const CALL_TIMEOUT = 60000; // 60 seconds
+  // Constants for call retry logic
+  // const MAX_RETRY_ATTEMPTS = 3;
+  // const CALL_TIMEOUT = 60000; // 60 seconds
 
   // Enhanced startCall function with better error handling
   const startCall = useCallback(
@@ -1445,6 +1888,12 @@ const ChatBox = ({
           return;
         }
 
+        // Verify WebSocket is available and open
+        const isConnected = socket.current.readyState === WebSocket.OPEN;
+        if (!isConnected) {
+          throw new Error("WebSocket connection is not available");
+        }
+
         if (!socket.current || socket.current.readyState !== WebSocket.OPEN) {
           showToast(
             "📡 Connection not available. Please refresh and try again.",
@@ -1454,9 +1903,42 @@ const ChatBox = ({
           return;
         }
 
-        // Reset any previous call state
-        endCall();
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Brief delay to ensure cleanup
+        // Reset any previous call state (but don't end the call yet)
+        // Only reset specific states that need to be cleared
+        setCallType(null);
+        setIsCallInitiator(false);
+        setIncomingCallOffer(null);
+        setAgoraToken(null);
+        setIsMuted(false);
+        setIsVideoOff(false);
+        setCallDuration(0);
+        setChannelName(null);
+
+        // Clear any existing timeouts
+        if (callTimeoutRef.current) {
+          clearTimeout(callTimeoutRef.current);
+          callTimeoutRef.current = null;
+        }
+
+        // Clear video elements
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
+        }
+        if (remoteMediaRef.current) {
+          remoteMediaRef.current.srcObject = null;
+        }
+
+        // Clean up local tracks if they exist
+        if (localAudioTrack.current) {
+          console.log("🎤 Closing existing local audio track");
+          localAudioTrack.current.close();
+          localAudioTrack.current = null;
+        }
+        if (localVideoTrack.current) {
+          console.log("📹 Closing existing local video track");
+          localVideoTrack.current.close();
+          localVideoTrack.current = null;
+        }
 
         // Check media permissions before starting call
         console.log("🔍 Checking media permissions...");
@@ -1469,16 +1951,20 @@ const ChatBox = ({
         // Set call state
         setCallType(type);
         setIsCallInitiator(true);
-        setCallStatus("calling");
+        if (!updateCallStatus("calling", "startCall")) {
+          showToast("❌ Invalid call state transition", "error", 3000);
+          return;
+        }
 
-        const channelName = `chat_${chat.ID}_${Date.now()}`;
-        console.log("🎥 Starting call with channel:", channelName);
+        const newChannelName = `chat_${chat.ID}_${Date.now()}`;
+        setChannelName(newChannelName);
+        console.log("🎥 Starting call with channel:", newChannelName);
 
         try {
           // Fetch Agora token for the initiator
           console.log("🔑 Fetching Agora token for initiator...");
           const tokenData = await fetchAgoraToken(
-            channelName,
+            newChannelName,
             "publisher",
             currentUser
           );
@@ -1487,7 +1973,7 @@ const ChatBox = ({
 
           // Join Agora channel and create tracks
           console.log("🔗 Joining Agora channel...");
-          await joinAgoraChannel(channelName, tokenData.token, currentUser);
+          await joinAgoraChannel(newChannelName, tokenData.token, currentUser);
           console.log("✅ Joined channel successfully");
 
           // Send call-request signal to the receiver
@@ -1502,14 +1988,24 @@ const ChatBox = ({
             data: {
               action: "call-request",
               targetId: receiverId,
-              channel: channelName,
+              channel: newChannelName,
               callType: type,
               timestamp: Date.now(),
             },
           };
 
           console.log("📤 Sending call-request signal to:", receiverId);
-          socket.current.send(JSON.stringify(callRequestMessage));
+          console.log("🔗 WebSocket status:", {
+            readyState: socket.current.readyState,
+            OPEN: WebSocket.OPEN,
+            isConnected: socket.current.readyState === WebSocket.OPEN,
+          });
+          socket.current.send(
+            JSON.stringify({
+              type: "agora-signal",
+              data: callRequestMessage.data,
+            })
+          );
           console.log("✅ Call request sent successfully");
 
           showToast(
@@ -1519,10 +2015,16 @@ const ChatBox = ({
           );
 
           // Set timeout for call initiation (60 seconds)
+          if (callTimeoutRef.current) {
+            clearTimeout(callTimeoutRef.current);
+            callTimeoutRef.current = null;
+          }
           callTimeoutRef.current = setTimeout(() => {
             console.log("⏰ Call timed out - no response from peer");
             showToast("📞 No answer from user", "warning", 4000);
             endCall();
+            // Clear the timeout reference
+            callTimeoutRef.current = null;
           }, 60000);
         } catch (agoraError) {
           console.error("❌ Agora setup failed:", agoraError);
@@ -1587,7 +2089,7 @@ const ChatBox = ({
     console.log("📞 Declining call", {
       incomingCallOffer,
       callStatus,
-      socketState: socket.current?.readyState,
+      socketConnected: socket.current?.readyState === WebSocket.OPEN,
       currentUser,
     });
 
@@ -1614,10 +2116,18 @@ const ChatBox = ({
       console.log("📤 Sending call-rejected signal:", rejectMessage);
       console.log("👤 Sender (currentUser):", currentUser);
       console.log("🎯 Target (callerId):", incomingCallOffer.callerId);
-      console.log("🔌 Socket ready state:", socket.current.readyState);
+      console.log(
+        "🔌 WebSocket connected:",
+        socket.current.readyState === WebSocket.OPEN
+      );
 
       try {
-        socket.current.send(JSON.stringify(rejectMessage));
+        socket.current.send(
+          JSON.stringify({
+            type: "agora-signal",
+            data: rejectMessage.data,
+          })
+        );
         console.log("✅ Call rejection signal sent successfully");
         showToast("📞 Call declined", "info", 2000);
       } catch (error) {
@@ -1627,8 +2137,7 @@ const ChatBox = ({
     } else {
       console.warn("⚠️ Cannot send call-rejected signal:", {
         hasSocket: !!socket.current,
-        socketState: socket.current?.readyState,
-        expectedState: WebSocket.OPEN,
+        socketConnected: socket.current?.readyState === WebSocket.OPEN,
       });
 
       showToast("📡 Connection error. Call declined locally.", "warning", 3000);
@@ -1638,7 +2147,8 @@ const ChatBox = ({
     setCallStatus("idle");
     setCallType(null);
     setIncomingCallOffer(null);
-    setCallData(null);
+    // Don't clear callData here as it might interfere with signal processing
+    // setCallData(null);
     setAgoraToken(null);
 
     // Clear any timeouts
@@ -1648,7 +2158,7 @@ const ChatBox = ({
     }
 
     console.log("✅ Call decline completed successfully");
-  }, [incomingCallOffer, currentUser, socket, showToast, setCallData]);
+  }, [incomingCallOffer, currentUser, socket, showToast, callStatus]);
 
   // Enhanced answerCall function
   const answerCall = useCallback(async () => {
@@ -1656,7 +2166,7 @@ const ChatBox = ({
       console.log("📞 Attempting to answer call", {
         callStatus,
         incomingCallOffer,
-        socketState: socket.current?.readyState,
+        socketConnected: socket.current?.readyState === WebSocket.OPEN,
         currentUser,
       });
 
@@ -1674,10 +2184,10 @@ const ChatBox = ({
         return;
       }
 
-      if (socket.current?.readyState !== WebSocket.OPEN) {
+      if (!socket.current?.readyState === WebSocket.OPEN) {
         console.error(
           "❌ WebSocket not available:",
-          socket.current?.readyState
+          socket.current?.readyState === WebSocket.OPEN
         );
         showToast("❌ Connection error - cannot answer call", "error", 3000);
         endCall();
@@ -1735,11 +2245,20 @@ const ChatBox = ({
         };
 
         console.log("📤 Sending call-accepted signal:", acceptMessage);
-        socket.current.send(JSON.stringify(acceptMessage));
+        socket.current.send(
+          JSON.stringify({
+            type: "agora-signal",
+            data: acceptMessage.data,
+          })
+        );
         console.log("✅ Call acceptance signal sent successfully");
 
         // Update to in-progress state
-        setCallStatus("in-progress");
+        if (!updateCallStatus("in-progress", "answerCall")) {
+          showToast("❌ Invalid call state transition", "error", 3000);
+          endCall();
+          return;
+        }
         showToast("✅ Call connected!", "success", 2000);
 
         // Clear incoming call data
@@ -1752,6 +2271,19 @@ const ChatBox = ({
         }
 
         console.log("✅ Call answered successfully");
+
+        // Navigate to video call page for video calls
+        if (incomingCallOffer.callType === "video") {
+          navigate("/video-call", {
+            state: {
+              callData: {
+                channel: incomingCallOffer.channel,
+                token: tokenData.token,
+                callerName: userData?.Username || "User",
+              },
+            },
+          });
+        }
       } catch (agoraError) {
         console.error("❌ Agora setup failed during answer:", agoraError);
 
@@ -1760,8 +2292,8 @@ const ChatBox = ({
           socket.current.send(
             JSON.stringify({
               type: "agora-signal",
-              userId: currentUser,
               data: {
+                userId: currentUser,
                 action: "call-rejected",
                 targetId: incomingCallOffer.callerId,
                 channel: incomingCallOffer.channel,
@@ -1824,6 +2356,8 @@ const ChatBox = ({
     endCall,
     declineCall,
     setCallData,
+    navigate,
+    userData?.Username,
   ]);
 
   // Toggle mute - Enhanced version
@@ -1862,6 +2396,14 @@ const ChatBox = ({
 
   // Enhanced WebSocket message handler for call signals
   useEffect(() => {
+    console.log("📥 CallData changed:", callData, "Current State:", {
+      callStatus,
+      isCallInitiator,
+      currentUser,
+      chat: chat?.ID,
+      timestamp: Date.now(),
+    });
+
     if (callData) {
       console.log("📞 Processing callData:", callData, "📊 Current State:", {
         callStatus,
@@ -1900,19 +2442,64 @@ const ChatBox = ({
 
       // Process different call actions
       switch (action) {
+        case "token-generated":
+          // Extract token from callData
+          const token = callData?.data?.token;
+          // Only process token-generated signals if we have a valid token and active call
+          if (token && typeof token === "string" && token.length > 0) {
+            if (
+              callStatus !== "idle" &&
+              (callStatus === "calling" ||
+                callStatus === "incoming" ||
+                callStatus === "in-progress")
+            ) {
+              console.log(
+                "🔑 Received valid token for active call participant"
+              );
+              setAgoraToken(token);
+              showToast("🔑 Authentication token received", "success", 2000);
+            } else {
+              console.log(
+                `⚠️ Ignoring token-generated signal - call status is ${callStatus} (not active call)`
+              );
+              return; // Early return to skip processing
+            }
+          } else {
+            console.log("⚠️ Received token-generated but token is invalid");
+            return; // Early return for invalid tokens
+          }
+          break;
+
         case "call-request":
           console.log("📲 Processing incoming call request from:", senderId);
+          console.log("🔍 Call request validation:", {
+            currentCallStatus: callStatus,
+            hasIncomingOffer: !!incomingCallOffer,
+            callType: incomingCallType,
+            channel: channel,
+            senderId: senderId,
+            timestamp: timestamp,
+            chatId: chat?.ID,
+          });
+
           if (callStatus === "idle") {
             console.log("✅ Setting up incoming call state");
-            setCallStatus("incoming");
+            if (!updateCallStatus("incoming", "call-request")) {
+              showToast("❌ Invalid call state transition", "error", 3000);
+              return;
+            }
             setCallType(incomingCallType);
             setIsCallInitiator(false); // Important: Set as receiver
-            setIncomingCallOffer({
+
+            const incomingOffer = {
               callerId: senderId,
               channel,
               callType: incomingCallType,
               timestamp,
-            });
+            };
+
+            console.log("📦 Setting incoming call offer:", incomingOffer);
+            setIncomingCallOffer(incomingOffer);
 
             // Show incoming call notification
             showToast(
@@ -1926,6 +2513,7 @@ const ChatBox = ({
             // Set timeout for incoming call (60 seconds)
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
+              callTimeoutRef.current = null;
             }
             callTimeoutRef.current = setTimeout(() => {
               console.log("⏰ Incoming call timed out");
@@ -1934,6 +2522,8 @@ const ChatBox = ({
               if (callStatus === "incoming") {
                 declineCall();
               }
+              // Clear the timeout reference
+              callTimeoutRef.current = null;
             }, 60000);
           } else {
             console.log(
@@ -1944,8 +2534,8 @@ const ChatBox = ({
               socket.current.send(
                 JSON.stringify({
                   type: "agora-signal",
-                  userId: currentUser,
                   data: {
+                    userId: currentUser,
                     action: "call-busy",
                     targetId: senderId,
                     channel: channel,
@@ -1966,13 +2556,30 @@ const ChatBox = ({
           console.log("✅ Call accepted by peer:", senderId);
           if (isCallInitiator && callStatus === "calling") {
             console.log("🎉 Transitioning to in-progress call state");
-            setCallStatus("in-progress");
+            if (!updateCallStatus("in-progress", "call-accepted")) {
+              showToast("❌ Invalid call state transition", "error", 3000);
+              endCall();
+              return;
+            }
             showToast("✅ Call accepted!", "success", 2000);
 
             // Clear the calling timeout
             if (callTimeoutRef.current) {
               clearTimeout(callTimeoutRef.current);
               callTimeoutRef.current = null;
+            }
+
+            // Navigate to video call page for video calls
+            if (callType === "video") {
+              navigate("/video-call", {
+                state: {
+                  callData: {
+                    channel: channel,
+                    token: agoraToken,
+                    callerName: userData?.Username || "User",
+                  },
+                },
+              });
             }
           } else {
             console.log(
@@ -2003,9 +2610,28 @@ const ChatBox = ({
 
         case "call-ended":
           console.log("🔚 Call ended by peer:", senderId);
-          if (callStatus !== "idle") {
+          if (
+            callStatus !== "idle" &&
+            (callStatus === "in-progress" ||
+              callStatus === "calling" ||
+              callStatus === "incoming")
+          ) {
+            console.log("ℹ️ Processing call-ended signal for active call");
             showToast("📞 Call ended by other user", "info", 3000);
             endCall();
+          } else {
+            console.log(
+              `ℹ️ Ignoring call-ended signal - call was already ${callStatus}`
+            );
+            // Clean up any lingering state
+            if (callTimeoutRef.current) {
+              clearTimeout(callTimeoutRef.current);
+              callTimeoutRef.current = null;
+              console.log(
+                "🧹 Cleared lingering timeout from call-ended signal"
+              );
+            }
+            return; // Early return to avoid unnecessary processing
           }
           break;
 
@@ -2014,7 +2640,8 @@ const ChatBox = ({
       }
 
       // Clear callData after processing to allow new signals
-      const clearDelay = action === "call-request" ? 1000 : 100; // Longer delay for call-request
+      // Use a longer delay for all actions to ensure proper processing
+      const clearDelay = 1000; // Consistent delay for all actions
       setTimeout(() => {
         console.log("🧹 Clearing processed callData to allow new signals");
         setCallData(null);
@@ -2029,121 +2656,13 @@ const ChatBox = ({
     userData,
     showToast,
     endCall,
-    setCallData,
     declineCall,
     socket,
-  ]);
-
-  // Enhanced Agora event handlers
-  useEffect(() => {
-    if (!agoraClient.current) return;
-
-    const handleUserPublished = async (user, mediaType) => {
-      console.log("👤 User published:", user.uid, "media type:", mediaType);
-      try {
-        await agoraClient.current.subscribe(user, mediaType);
-        console.log(
-          `✅ Successfully subscribed to ${mediaType} from user:`,
-          user.uid
-        );
-
-        if (mediaType === "video" && remoteMediaRef.current) {
-          user.videoTrack.play(remoteMediaRef.current);
-          console.log("📹 Remote video track started playing");
-        }
-
-        if (mediaType === "audio") {
-          user.audioTrack.play();
-          console.log("🔊 Remote audio track started playing");
-        }
-      } catch (error) {
-        console.error("❌ Error subscribing to user:", error);
-        showToast(
-          `Failed to receive ${mediaType} from remote user: ${error.message}`,
-          "error",
-          5000
-        );
-      }
-    };
-
-    const handleUserLeft = (user, reason) => {
-      console.log("👋 User left:", user.uid, "reason:", reason);
-      if (callStatus === "in-progress") {
-        showToast("📞 Other user left the call", "info", 3000);
-        setTimeout(() => {
-          endCall();
-        }, 1000);
-      }
-    };
-
-    const handleConnectionStateChange = (state, reason) => {
-      console.log(
-        "🔗 Agora connection state changed:",
-        state,
-        "reason:",
-        reason
-      );
-
-      switch (state) {
-        case "DISCONNECTED":
-          if (callStatus === "in-progress" && reason !== "LEAVE") {
-            showToast(
-              "📡 Connection lost. Attempting to reconnect...",
-              "warning",
-              4000
-            );
-            setTimeout(() => {
-              attemptReconnection();
-            }, 2000);
-          }
-          break;
-        case "RECONNECTING":
-          showToast("🔄 Reconnecting to call...", "info", 3000);
-          break;
-        case "CONNECTED":
-          if (callStatus === "in-progress") {
-            showToast("✅ Connection restored successfully", "success", 2000);
-          }
-          break;
-        case "FAILED":
-          showToast("❌ Connection failed. Ending call.", "error", 4000);
-          endCall();
-          break;
-        default:
-          console.log("🔄 Agora connection state:", state);
-      }
-    };
-
-    // Add event listeners
-    agoraClient.current.on("user-published", handleUserPublished);
-    agoraClient.current.on("user-left", handleUserLeft);
-    agoraClient.current.on(
-      "connection-state-change",
-      handleConnectionStateChange
-    );
-
-    // Cleanup function
-    return () => {
-      if (agoraClient.current) {
-        agoraClient.current.off("user-published", handleUserPublished);
-        agoraClient.current.off("user-left", handleUserLeft);
-        agoraClient.current.off(
-          "connection-state-change",
-          handleConnectionStateChange
-        );
-      }
-    };
-  }, [
     agoraToken,
-    callStatus,
-    chat,
-    currentUser,
-    endCall,
-    incomingCallOffer,
-    joinAgoraChannel,
-    showToast,
-    attemptReconnection,
+    callType,
+    navigate,
   ]);
+
   return (
     <Fade in={isVisible} timeout={800}>
       <div className={`chatbox-container ${isDarkTheme ? "dark" : "light"}`}>
@@ -2328,7 +2847,18 @@ const ChatBox = ({
             </Zoom>
 
             {/* Enhanced Incoming Call Notification */}
-            {callStatus === "incoming" && incomingCallOffer && (
+            {(() => {
+              const shouldShowModal =
+                callStatus === "incoming" && incomingCallOffer;
+              console.log("📺 Incoming call modal render check:", {
+                callStatus,
+                hasIncomingOffer: !!incomingCallOffer,
+                shouldShowModal,
+                incomingCallOffer,
+                timestamp: Date.now(),
+              });
+              return shouldShowModal;
+            })() && (
               <Slide
                 direction="down"
                 in={callStatus === "incoming" && !!incomingCallOffer}

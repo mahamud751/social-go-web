@@ -1,6 +1,5 @@
 // src/components/AgoraFrontendDemo.jsx
 import React, { useState, useEffect } from "react";
-import { useAgoraFrontend } from "../hooks/useAgoraFrontend";
 import {
   Box,
   Button,
@@ -33,29 +32,68 @@ const AgoraFrontendDemo = () => {
   const [videoQuality, setVideoQuality] = useState("medium");
   const [statsInterval, setStatsInterval] = useState(null);
 
-  const {
-    // State
-    isInitialized,
-    isConnected,
-    isMuted,
-    isVideoOff,
-    connectionState,
-    localStats,
-    error,
+  // This component is a demo and not fully implemented
+  // The main video call functionality is in ChatBox.jsx
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [connectionState, setConnectionState] = useState("DISCONNECTED");
+  const [localStats, setLocalStats] = useState(null);
+  const [error, setError] = useState(null);
 
-    // Actions
-    initialize,
-    joinChannel,
-    leaveChannel,
-    setupLocalTracks,
-    toggleMute,
-    toggleVideo,
-    switchCamera,
-    setVideoQuality: setAgoraVideoQuality,
-    getLocalStats,
-  } = useAgoraFrontend({
-    useFrontendTokenGeneration: false, // Set to true if you have App Certificate in .env
-  });
+  // Mock functions for the demo
+  const initialize = async () => {
+    console.log("Initializing Agora client (demo)");
+    setIsInitialized(true);
+  };
+
+  const joinChannel = async (channelName, userId) => {
+    console.log("Joining channel (demo):", channelName, userId);
+    setIsConnected(true);
+    setConnectionState("CONNECTED");
+  };
+
+  const leaveChannel = async () => {
+    console.log("Leaving channel (demo)");
+    setIsConnected(false);
+    setConnectionState("DISCONNECTED");
+  };
+
+  const setupLocalTracks = async (audio, video) => {
+    console.log("Setting up local tracks (demo):", audio, video);
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    console.log("Toggling mute (demo):", !isMuted);
+  };
+
+  const toggleVideo = () => {
+    setIsVideoOff(!isVideoOff);
+    console.log("Toggling video (demo):", !isVideoOff);
+  };
+
+  const switchCamera = () => {
+    console.log("Switching camera (demo)");
+  };
+
+  const setAgoraVideoQuality = async (quality) => {
+    console.log("Setting video quality (demo):", quality);
+  };
+
+  const getLocalStats = () => {
+    console.log("Getting local stats (demo)");
+    setLocalStats({
+      audio: { audioBitrate: 32, codecType: "opus" },
+      video: {
+        captureFrameWidth: 1280,
+        captureFrameHeight: 720,
+        captureFrameRate: 30,
+        videoBitrate: 1000,
+      },
+    });
+  };
 
   // Get stats periodically when connected
   useEffect(() => {

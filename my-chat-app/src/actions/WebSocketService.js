@@ -12,7 +12,7 @@ const WebSocketService = {
       return;
     }
 
-    const wsUrl = `${process.env.REACT_APP_WS_URL}/ws`; // e.g., ws://localhost:3000/ws
+    const wsUrl = `wss://${process.env.REACT_APP_WS_URL}/ws/ws`; // e.g., ws://localhost:3000/ws
     this.socket = new WebSocket(wsUrl);
 
     this.socket.onopen = () => {

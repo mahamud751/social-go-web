@@ -1,0 +1,84 @@
+/* Global Call Notification Styles */
+@keyframes pulse-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(56, 139, 253, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(56, 139, 253, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(56, 139, 253, 0);
+  }
+}
+
+.global-call-modal {
+  position: relative;
+  overflow: hidden;
+}
+
+.call-pulse.ringing {
+  animation: pulse-ring 1.5s infinite;
+}
+
+.audio-indicator {
+  color: #2ecc71;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .global-call-modal {
+  background: linear-gradient(145deg, #2c2c2c, #1f1f1f);
+  border: 1px solid #404040;
+}
+
+[data-theme="dark"] .caller-name {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .caller-info {
+  color: #b0b0b0 !important;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .global-call-modal {
+  background: linear-gradient(145deg, #ffffff, #f5f5f5);
+  border: none;
+}
+
+[data-theme="light"] .caller-name {
+  color: #1f2a44 !important;
+}
+
+[data-theme="light"] .caller-info {
+  color: #6b7280 !important;
+}

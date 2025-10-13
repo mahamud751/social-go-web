@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { userChats } from "../../api/ChatRequest";
-import { io } from "socket.io-client";
 import Contract from "../../components/contract/Contract";
 
 const ContractList = () => {
@@ -25,31 +24,66 @@ const ContractList = () => {
   }, [user.ID]);
 
   useEffect(() => {
-    socket.current = io(`https://${process.env.REACT_APP_API_URL}/api`, {
-      transports: ["websocket"],
-      upgrade: false,
-    });
-    // socket.current = io("https://deft-paprenjak-f681e6.netlify.app", {
-    //   withCredentials: true,
-    // });
-    socket.current.emit("new-user-add", user.ID);
-    socket.current.on("get-users", (users) => {
-      setOnlineUsers(users);
-    });
+    // Use WebSocket instead of Socket.IO
+    const wsUrl = `wss://${process.env.REACT_APP_API_URL}/ws/ws`;
+    console.log("🔗 Connecting to WebSocket:", wsUrl);
+
+    const websocket = new WebSocket(wsUrl);
+    socket.current = websocket;
+
+    websocket.onopen = () => {
+      console.log("✅ WebSocket connected");
+      websocket.send(
+        JSON.stringify({
+          type: "new-user-add",
+          userId: user.ID,
+        })
+      );
+    };
+
+    websocket.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "get-users") {
+          setOnlineUsers(msg.data);
+        } else if (msg.type === "recieve-message") {
+          setReceivedMessage(msg.data);
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+
+    websocket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    websocket.onclose = (event) => {
+      console.log("WebSocket closed:", event.reason);
+    };
+
+    return () => {
+      if (websocket) {
+        websocket.close();
+      }
+    };
   }, [user]);
 
-  // Send Message to socket server
+  // Send Message to WebSocket server
   useEffect(() => {
-    if (sendMessage !== null) {
-      socket.current.emit("send-message", sendMessage);
+    if (sendMessage !== null && socket.current?.readyState === WebSocket.OPEN) {
+      socket.current.send(
+        JSON.stringify({
+          type: "send-message",
+          data: sendMessage,
+        })
+      );
     }
   }, [sendMessage]);
 
-  // Get the message from socket server
+  // Get the message from WebSocket server
   useEffect(() => {
-    socket.current.on("recieve-message", (data) => {
-      setReceivedMessage(data);
-    });
+    // Message handling is done in the onmessage handler above
   }, []);
 
   const checkOnlineStatus = (chat) => {
