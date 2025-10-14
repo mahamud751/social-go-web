@@ -1,4 +1,6 @@
-// src/services/WebSocketService.js
+// src/actions/WebSocketService.js
+// Pure WebSocket service for chat and online/offline status
+// NO Socket.IO - uses native WebSocket only
 
 const WebSocketService = {
   socket: null,

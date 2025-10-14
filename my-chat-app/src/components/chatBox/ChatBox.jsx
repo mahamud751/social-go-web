@@ -84,6 +84,29 @@ const ChatBox = ({
   const callDurationInterval = useRef(null);
   const ringingAudio = useRef(null);
 
+  // Refs for stable values used in endCall to prevent recreations
+  const chatRef = useRef(chat);
+  const currentUserRef = useRef(currentUser);
+  const incomingCallOfferRef = useRef(incomingCallOffer);
+  const channelNameRef = useRef(channelName);
+  const callStatusRef = useRef(callStatus);
+  const isCallInitiatorRef = useRef(isCallInitiator);
+  const callTypeRef = useRef(callType);
+  const agoraTokenRef = useRef(agoraToken);
+  const lastProcessedSignalRef = useRef(null);
+
+  // Keep refs updated
+  useEffect(() => {
+    chatRef.current = chat;
+    currentUserRef.current = currentUser;
+    incomingCallOfferRef.current = incomingCallOffer;
+    channelNameRef.current = channelName;
+    callStatusRef.current = callStatus;
+    isCallInitiatorRef.current = isCallInitiator;
+    callTypeRef.current = callType;
+    agoraTokenRef.current = agoraToken;
+  }, [chat, currentUser, incomingCallOffer, channelName, callStatus, isCallInitiator, callType, agoraToken]);
+
   // Toast notification functions - MOVED removeToast before showToast to fix circular dependency
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -133,43 +156,52 @@ const ChatBox = ({
   );
 
   // Enhanced call status state management with validation
-  const updateCallStatus = useCallback(
-    (newStatus, context = "") => {
-      const validTransitions = {
-        idle: ["calling", "incoming"],
-        calling: ["in-progress", "idle"],
-        incoming: ["in-progress", "idle"],
-        connecting: ["in-progress", "idle"],
-        "in-progress": ["idle"],
-      };
+  const updateCallStatus = useCallback((newStatus, context = "") => {
+    const validTransitions = {
+      idle: ["calling", "incoming"],
+      calling: ["in-progress", "idle"],
+      incoming: ["in-progress", "idle"],
+      connecting: ["in-progress", "idle"],
+      "in-progress": ["idle"],
+    };
 
-      const currentStatus = callStatus;
+    setCallStatus((currentStatus) => {
       const isValidTransition =
         validTransitions[currentStatus]?.includes(newStatus) ||
         newStatus === "idle";
 
       if (!isValidTransition) {
-        console.warn(
-          `⚠️ Invalid call status transition: ${currentStatus} -> ${newStatus}`,
-          context ? `(${context})` : ""
+        console.error(
+          `❌ INVALID CALL STATE TRANSITION: ${currentStatus} -> ${newStatus}`,
+          `\n📍 Context: ${context || "No context provided"}`,
+          `\n✅ Valid transitions from '${currentStatus}':`,
+          validTransitions[currentStatus] || "none",
+          `\n🔍 Current state: ${currentStatus}`,
+          `\n🔍 Attempted state: ${newStatus}`
         );
+
+        // DON'T show toast here - it would cause infinite loop
+        // The calling code should show a toast if needed
+
         // Allow transition to idle for emergency cleanup
         if (newStatus === "idle") {
-          console.log("🚨 Emergency transition to idle status");
-          setCallStatus("idle");
+          console.log("🚨 Emergency transition to idle status allowed");
+          return "idle";
         }
-        return false;
+
+        console.warn(
+          `⚠️ Rejecting invalid transition, staying in: ${currentStatus}`
+        );
+        return currentStatus; // Don't change state if invalid transition
       }
 
       console.log(
-        `🔄 Call status transition: ${currentStatus} -> ${newStatus}`,
+        `✅ Call status: ${currentStatus} -> ${newStatus}`,
         context ? `(${context})` : ""
       );
-      setCallStatus(newStatus);
-      return true;
-    },
-    [callStatus]
-  );
+      return newStatus;
+    });
+  }, []); // NO dependencies - completely stable to prevent infinite loops
 
   // Enhanced device error handler with actionable error messages
   const handleDeviceError = useCallback(
@@ -394,7 +426,7 @@ const ChatBox = ({
   };
 
   // End call function - Enhanced cleanup (MOVED UP to fix circular dependencies)
-  const endCall = useCallback(() => {
+  const endCall = useCallback((notifyPeer = true) => {
     console.log("🔚 Ending call and cleaning up resources");
 
     try {
@@ -433,18 +465,50 @@ const ChatBox = ({
 
       // Leave the Agora channel and cleanup client
       if (agoraClient.current) {
-        console.log("📡 Leaving Agora channel");
-        agoraClient.current.leave().catch((error) => {
-          console.error("❌ Error leaving Agora channel:", error);
-        });
+        console.log(
+          "📡 Checking Agora client connection state before leaving..."
+        );
+
+        // Check if client is in a channel before trying to leave
+        const connectionState = agoraClient.current.connectionState;
+        console.log("🔗 Agora connection state:", connectionState);
+
+        if (
+          connectionState === "CONNECTED" ||
+          connectionState === "CONNECTING"
+        ) {
+          console.log("📡 Leaving Agora channel...");
+          agoraClient.current.leave().catch((error) => {
+            // Ignore "not in channel" or "already left" errors
+            if (
+              error.code === "LEAVE_ERR" ||
+              error.message.includes("not in channel") ||
+              error.message.includes("WS_ABORT")
+            ) {
+              console.warn(
+                "⚠️ Agora channel already left or never joined:",
+                error.message
+              );
+            } else {
+              console.error("❌ Error leaving Agora channel:", error);
+            }
+          });
+        } else {
+          console.log(
+            "ℹ️ Agora client not connected, skipping leave. State:",
+            connectionState
+          );
+        }
 
         // Remove all listeners to prevent memory leaks
         agoraClient.current.removeAllListeners();
       }
 
-      // Notify the other user if we're in a call
-      if (callStatus !== "idle") {
-        const peerId = chat?.Members?.find((id) => id !== currentUser);
+      // Notify the other user if we're in a call - use refs for stable access
+      if (notifyPeer && callStatusRef.current !== "idle") {
+        const peerId = chatRef.current?.Members?.find(
+          (id) => id !== currentUserRef.current
+        );
         if (peerId && WebSocketService.socket) {
           const endMessage = {
             type: "agora-signal",
@@ -452,9 +516,9 @@ const ChatBox = ({
               action: "call-ended",
               targetId: peerId,
               channel:
-                incomingCallOffer?.channel ||
-                channelName ||
-                `chat_${chat.ID}_${Date.now()}`,
+                incomingCallOfferRef.current?.channel ||
+                channelNameRef.current ||
+                `chat_${chatRef.current.ID}_${Date.now()}`,
               timestamp: Date.now(),
             },
           };
@@ -487,7 +551,7 @@ const ChatBox = ({
     } catch (error) {
       console.error("❌ Error during call cleanup:", error);
     }
-  }, [callStatus, chat, currentUser, incomingCallOffer, socket, channelName]);
+  }, [sendWebSocketMessage, updateCallStatus]); // Only depend on stable callback functions
 
   // Theme detection
   useEffect(() => {
@@ -628,12 +692,6 @@ const ChatBox = ({
 
   // Component mounting state tracking and Agora client initialization
   const isMountedRef = useRef(true);
-  const endCallRef = useRef(endCall);
-
-  // Update endCallRef when endCall changes
-  useEffect(() => {
-    endCallRef.current = endCall;
-  }, [endCall]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -720,10 +778,36 @@ const ChatBox = ({
           { callStatus, isActiveCall, documentHidden: document.hidden }
         );
 
-        // Use endCall for proper cleanup
-        if (typeof endCallRef.current === "function") {
-          endCallRef.current();
+        // Manual cleanup WITHOUT triggering state updates to prevent infinite loops
+        // Stop ringing sounds
+        if (ringingAudio.current) {
+          ringingAudio.current.pause();
+          ringingAudio.current.currentTime = 0;
         }
+
+        // Stop call duration tracking
+        if (callDurationInterval.current) {
+          clearInterval(callDurationInterval.current);
+          callDurationInterval.current = null;
+        }
+
+        // Clean up local tracks
+        if (localAudioTrack.current) {
+          localAudioTrack.current.close();
+          localAudioTrack.current = null;
+        }
+        if (localVideoTrack.current) {
+          localVideoTrack.current.close();
+          localVideoTrack.current = null;
+        }
+
+        // Leave the Agora channel
+        if (agoraClient.current) {
+          agoraClient.current.leave().catch(() => {});
+          agoraClient.current.removeAllListeners();
+        }
+
+        // DON'T call endCall() here - it triggers setState which causes infinite loop
       } else if (isActiveCall) {
         console.log("⚠️ Skipping cleanup - active call in progress", {
           callStatus,
@@ -732,7 +816,7 @@ const ChatBox = ({
         });
       }
     };
-  }); // No dependencies - this effect should run on every render but only cleanup on unmount
+  }, [callStatus]); // Add callStatus as dependency
 
   // Fetch user data
   useEffect(() => {
@@ -1950,10 +2034,7 @@ const ChatBox = ({
         // Set call state
         setCallType(type);
         setIsCallInitiator(true);
-        if (!updateCallStatus("calling", "startCall")) {
-          showToast("❌ Invalid call state transition", "error", 3000);
-          return;
-        }
+        updateCallStatus("calling", "startCall"); // Just update the status
 
         const newChannelName = `chat_${chat.ID}_${Date.now()}`;
         setChannelName(newChannelName);
@@ -1962,46 +2043,78 @@ const ChatBox = ({
         try {
           // Fetch Agora token for the initiator
           console.log("🔑 Fetching Agora token for initiator...");
+          console.log("🔍 Token params:", {
+            channel: newChannelName,
+            role: "publisher",
+            uid: currentUser,
+          });
+
           const tokenData = await fetchAgoraToken(
             newChannelName,
             "publisher",
             currentUser
           );
+
+          console.log("🔍 Token data received:", tokenData);
           setAgoraToken(tokenData.token);
           console.log("✅ Agora token fetched successfully");
 
-          // Join Agora channel and create tracks
-          console.log("🔗 Joining Agora channel...");
-          await joinAgoraChannel(newChannelName, tokenData.token, currentUser);
-          console.log("✅ Joined channel successfully");
-
-          // Send call-request signal to the receiver
+          // Send call-request signal to the receiver FIRST (before joining Agora)
+          // This ensures the other user gets notified immediately
+          console.log(
+            "🔍 Step 1: Finding receiver ID from chat members:",
+            chat.Members
+          );
           const receiverId = chat.Members.find((id) => id !== currentUser);
+          console.log("🔍 Step 2: Receiver ID found:", receiverId);
+          console.log("🔍 Step 3: Current user ID:", currentUser);
+
           if (!receiverId) {
+            console.error(
+              "❌ Receiver ID not found! Chat members:",
+              chat.Members,
+              "Current user:",
+              currentUser
+            );
             throw new Error("Receiver ID not found in chat members");
           }
 
+          console.log("🔍 Step 4: Creating call request message...");
           const callRequestMessage = {
             type: "agora-signal",
             userId: currentUser,
             data: {
               action: "call-request",
+              senderId: currentUser, // Add senderId here
               targetId: receiverId,
               channel: newChannelName,
               callType: type,
               timestamp: Date.now(),
             },
           };
+          console.log("🔍 Step 5: Message created:", callRequestMessage);
+
+          console.log("🔍 Step 5: Message created:", callRequestMessage);
 
           console.log("📤 Sending call-request signal to:", receiverId);
           console.log("🔗 WebSocket status:", {
             isConnected: WebSocketService.isConnected,
             hasSocket: !!WebSocketService.socket,
+            socketReadyState: WebSocketService.socket?.readyState,
           });
-          WebSocketService.sendMessage({
-            type: "agora-signal",
-            data: callRequestMessage.data,
-          });
+
+          console.log(
+            "🔍 Step 6: About to call WebSocketService.sendMessage..."
+          );
+          try {
+            WebSocketService.sendMessage(callRequestMessage); // Send the complete message
+            console.log(
+              "🔍 Step 7: WebSocketService.sendMessage called successfully"
+            );
+          } catch (wsError) {
+            console.error("❌ WebSocket send error:", wsError);
+            throw wsError;
+          }
           console.log("✅ Call request sent successfully");
 
           showToast(
@@ -2009,6 +2122,11 @@ const ChatBox = ({
             "info",
             3000
           );
+
+          // Now join Agora channel (this can take time, but other user already notified)
+          console.log("🔗 Joining Agora channel...");
+          await joinAgoraChannel(newChannelName, tokenData.token, currentUser);
+          console.log("✅ Joined channel successfully");
 
           // Set timeout for call initiation (60 seconds)
           if (callTimeoutRef.current) {
@@ -2222,8 +2340,9 @@ const ChatBox = ({
         return;
       }
 
-      // Update call status immediately to prevent double-accepting
-      setCallStatus("connecting");
+      // Update call status using updateCallStatus instead of setCallStatus directly
+      // This ensures proper state validation
+      updateCallStatus("in-progress", "answerCall - before joining");
       setCallType(incomingCallOffer.callType);
 
       try {
@@ -2237,16 +2356,8 @@ const ChatBox = ({
         setAgoraToken(tokenData.token);
         console.log("✅ Agora token fetched for answerer");
 
-        // Join the Agora channel
-        console.log("🔗 Joining Agora channel:", incomingCallOffer.channel);
-        await joinAgoraChannel(
-          incomingCallOffer.channel,
-          tokenData.token,
-          currentUser
-        );
-        console.log("✅ Successfully joined Agora channel");
-
-        // Send call-accepted signal back to the initiator
+        // Send call-accepted signal back to the initiator FIRST
+        // This ensures the caller knows immediately that the call was accepted
         const acceptMessage = {
           type: "agora-signal",
           userId: currentUser,
@@ -2265,13 +2376,16 @@ const ChatBox = ({
         });
         console.log("✅ Call acceptance signal sent successfully");
 
-        // Update to in-progress state
-        if (!updateCallStatus("in-progress", "answerCall")) {
-          showToast("❌ Invalid call state transition", "error", 3000);
-          endCall();
-          return;
-        }
         showToast("✅ Call connected!", "success", 2000);
+
+        // Now join the Agora channel (this can take time, but caller already knows)
+        console.log("🔗 Joining Agora channel:", incomingCallOffer.channel);
+        await joinAgoraChannel(
+          incomingCallOffer.channel,
+          tokenData.token,
+          currentUser
+        );
+        console.log("✅ Successfully joined Agora channel");
 
         // Clear incoming call data
         setIncomingCallOffer(null);
@@ -2414,31 +2528,25 @@ const ChatBox = ({
   // Enhanced WebSocket message handler for call signals
   useEffect(() => {
     console.log("📥 CallData changed:", callData, "Current State:", {
-      callStatus,
-      isCallInitiator,
-      currentUser,
-      chat: chat?.ID,
+      callStatus: callStatusRef.current,
+      isCallInitiator: isCallInitiatorRef.current,
+      currentUser: currentUserRef.current,
+      chat: chatRef.current?.ID,
       timestamp: Date.now(),
     });
 
     if (callData) {
-      console.log("📞 Processing callData:", callData, "📊 Current State:", {
-        callStatus,
-        isCallInitiator,
-        currentUser,
-        chat: chat?.ID,
-        timestamp: Date.now(),
-      });
-
-      const {
-        action,
-        channel,
-        callType: incomingCallType,
-        targetId,
-        timestamp,
-      } = callData.data;
-
+      const { action, channel, callType: incomingCallType, targetId, timestamp } =
+        callData.data || {};
       const senderId = callData.senderId || callData.userId;
+
+      // De-duplicate identical signals to prevent re-processing loops
+      const signalKey = `${action}|${channel}|${senderId}|${timestamp}`;
+      if (lastProcessedSignalRef.current === signalKey) {
+        console.log("🔁 Duplicate callData detected, skipping:", signalKey);
+        return;
+      }
+      lastProcessedSignalRef.current = signalKey;
 
       console.log(
         `🎯 Processing action: ${action} from sender: ${senderId} to target: ${targetId}`
@@ -2453,6 +2561,7 @@ const ChatBox = ({
           Date.now() - timestamp,
           "ms"
         );
+        lastProcessedSignalRef.current = null;
         setCallData(null);
         return;
       }
@@ -2464,23 +2573,23 @@ const ChatBox = ({
           const token = callData?.data?.token;
           // Only process token-generated signals if we have a valid token and active call
           if (token && typeof token === "string" && token.length > 0) {
-            if (
-              callStatus !== "idle" &&
-              (callStatus === "calling" ||
-                callStatus === "incoming" ||
-                callStatus === "in-progress")
-            ) {
-              console.log(
-                "🔑 Received valid token for active call participant"
-              );
-              setAgoraToken(token);
-              showToast("🔑 Authentication token received", "success", 2000);
-            } else {
-              console.log(
-                `⚠️ Ignoring token-generated signal - call status is ${callStatus} (not active call)`
-              );
-              return; // Early return to skip processing
-            }
+          if (
+            callStatusRef.current !== "idle" &&
+            (callStatusRef.current === "calling" ||
+              callStatusRef.current === "incoming" ||
+              callStatusRef.current === "in-progress")
+          ) {
+            console.log(
+              "🔑 Received valid token for active call participant"
+            );
+            setAgoraToken(token);
+            showToast("🔑 Authentication token received", "success", 2000);
+          } else {
+            console.log(
+              `⚠️ Ignoring token-generated signal - call status is ${callStatusRef.current} (not active call)`
+            );
+            return; // Early return to skip processing
+          }
           } else {
             console.log("⚠️ Received token-generated but token is invalid");
             return; // Early return for invalid tokens
@@ -2490,21 +2599,18 @@ const ChatBox = ({
         case "call-request":
           console.log("📲 Processing incoming call request from:", senderId);
           console.log("🔍 Call request validation:", {
-            currentCallStatus: callStatus,
+            currentCallStatus: callStatusRef.current,
             hasIncomingOffer: !!incomingCallOffer,
             callType: incomingCallType,
             channel: channel,
             senderId: senderId,
             timestamp: timestamp,
-            chatId: chat?.ID,
+            chatId: chatRef.current?.ID,
           });
 
-          if (callStatus === "idle") {
+          if (callStatusRef.current === "idle") {
             console.log("✅ Setting up incoming call state");
-            if (!updateCallStatus("incoming", "call-request")) {
-              showToast("❌ Invalid call state transition", "error", 3000);
-              return;
-            }
+            updateCallStatus("incoming", "call-request"); // Update status without checking return
             setCallType(incomingCallType);
             setIsCallInitiator(false); // Important: Set as receiver
 
@@ -2536,9 +2642,9 @@ const ChatBox = ({
               console.log("⏰ Incoming call timed out");
               showToast("📞 Incoming call timed out", "warning", 3000);
               // Auto decline after timeout
-              if (callStatus === "incoming") {
-                declineCall();
-              }
+            if (callStatusRef.current === "incoming") {
+              declineCall();
+            }
               // Clear the timeout reference
               callTimeoutRef.current = null;
             }, 60000);
@@ -2569,13 +2675,9 @@ const ChatBox = ({
 
         case "call-accepted":
           console.log("✅ Call accepted by peer:", senderId);
-          if (isCallInitiator && callStatus === "calling") {
+          if (isCallInitiatorRef.current && callStatusRef.current === "calling") {
             console.log("🎉 Transitioning to in-progress call state");
-            if (!updateCallStatus("in-progress", "call-accepted")) {
-              showToast("❌ Invalid call state transition", "error", 3000);
-              endCall();
-              return;
-            }
+            updateCallStatus("in-progress", "call-accepted"); // Update status without checking return
             showToast("✅ Call accepted!", "success", 2000);
 
             // Clear the calling timeout
@@ -2585,12 +2687,12 @@ const ChatBox = ({
             }
 
             // Navigate to video call page for video calls
-            if (callType === "video") {
+            if (callTypeRef.current === "video") {
               navigate("/video-call", {
                 state: {
                   callData: {
                     channel: channel,
-                    token: agoraToken,
+                    token: agoraTokenRef.current,
                     callerName: userData?.Username || "User",
                   },
                 },
@@ -2598,7 +2700,7 @@ const ChatBox = ({
             }
           } else {
             console.log(
-              `⚠️ Received call-accepted but not in calling state (status: ${callStatus}, initiator: ${isCallInitiator})`
+              `⚠️ Received call-accepted but not in calling state (status: ${callStatusRef.current}, initiator: ${isCallInitiatorRef.current})`
             );
           }
           break;
@@ -2626,17 +2728,17 @@ const ChatBox = ({
         case "call-ended":
           console.log("🔚 Call ended by peer:", senderId);
           if (
-            callStatus !== "idle" &&
-            (callStatus === "in-progress" ||
-              callStatus === "calling" ||
-              callStatus === "incoming")
+            callStatusRef.current !== "idle" &&
+            (callStatusRef.current === "in-progress" ||
+              callStatusRef.current === "calling" ||
+              callStatusRef.current === "incoming")
           ) {
             console.log("ℹ️ Processing call-ended signal for active call");
             showToast("📞 Call ended by other user", "info", 3000);
-            endCall();
+            endCall(false);
           } else {
             console.log(
-              `ℹ️ Ignoring call-ended signal - call was already ${callStatus}`
+              `ℹ️ Ignoring call-ended signal - call was already ${callStatusRef.current}`
             );
             // Clean up any lingering state
             if (callTimeoutRef.current) {
@@ -2659,24 +2761,11 @@ const ChatBox = ({
       const clearDelay = 1000; // Consistent delay for all actions
       setTimeout(() => {
         console.log("🧹 Clearing processed callData to allow new signals");
+        lastProcessedSignalRef.current = null;
         setCallData(null);
       }, clearDelay);
     }
-  }, [
-    callData,
-    callStatus,
-    isCallInitiator,
-    currentUser,
-    chat,
-    userData,
-    showToast,
-    endCall,
-    declineCall,
-    socket,
-    agoraToken,
-    callType,
-    navigate,
-  ]);
+  }, [callData]);
 
   return (
     <Fade in={isVisible} timeout={800}>
