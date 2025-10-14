@@ -2036,6 +2036,11 @@ const ChatBox = ({
                   isIncoming: false,
                   isInitiator: true,
                   receiverId: receiverId,
+                  // Pass existing Agora client and tracks to avoid recreation
+                  existingClient: agoraClient.current,
+                  existingAudioTrack: localAudioTrack.current,
+                  existingVideoTrack: localVideoTrack.current,
+                  uid: tokenData.uid,
                 },
               },
             });
@@ -2290,6 +2295,11 @@ const ChatBox = ({
                 callType: incomingCallOffer.callType,
                 isIncoming: true,
                 callerId: incomingCallOffer.callerId,
+                // Pass existing Agora client and tracks to avoid recreation
+                existingClient: agoraClient.current,
+                existingAudioTrack: localAudioTrack.current,
+                existingVideoTrack: localVideoTrack.current,
+                uid: tokenData.uid,
               },
             },
           });

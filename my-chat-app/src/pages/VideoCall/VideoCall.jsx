@@ -99,6 +99,110 @@ const VideoCall = () => {
     };
   }, [callStatus]);
 
+  // Setup Agora event handlers
+  const setupAgoraEventHandlers = useCallback(() => {
+    if (!agoraClientRef.current) return;
+
+    console.log("🔧 Setting up Agora event handlers");
+
+    // Enhanced event handlers
+    agoraClientRef.current.on(
+      "user-published",
+      async (remoteUser, mediaType) => {
+        console.log("👥 Remote user published:", remoteUser.uid, mediaType);
+
+        try {
+          await agoraClientRef.current.subscribe(remoteUser, mediaType);
+          console.log(
+            "✅ Subscribed to remote user:",
+            remoteUser.uid,
+            mediaType
+          );
+
+          if (mediaType === "video" && remoteVideoRef.current) {
+            remoteUser.videoTrack.play(remoteVideoRef.current);
+            console.log("📺 Remote video started playing");
+
+            // Set remote user info
+            setRemoteUserInfo({
+              uid: remoteUser.uid,
+              hasVideo: true,
+              hasAudio: !!remoteUser.audioTrack,
+            });
+          }
+
+          if (mediaType === "audio") {
+            remoteUser.audioTrack.play();
+            console.log("🔊 Remote audio started playing");
+
+            // Update remote user info
+            setRemoteUserInfo((prev) => ({
+              ...prev,
+              uid: remoteUser.uid,
+              hasAudio: true,
+            }));
+          }
+        } catch (subscribeError) {
+          console.error(
+            "❌ Failed to subscribe to remote user:",
+            subscribeError
+          );
+        }
+      }
+    );
+
+    // Handle user left events
+    agoraClientRef.current.on("user-left", (remoteUser) => {
+      console.log("👤 Remote user left:", remoteUser.uid);
+      setRemoteUserInfo(null);
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+    });
+
+    // Handle connection state changes
+    agoraClientRef.current.on(
+      "connection-state-change",
+      (curState, revState) => {
+        console.log("🔗 Connection state changed:", curState, "from", revState);
+
+        switch (curState) {
+          case "CONNECTED":
+            setCallStatus("in-progress");
+            setConnectionQuality("excellent");
+            break;
+          case "CONNECTING":
+            setCallStatus("connecting");
+            break;
+          case "RECONNECTING":
+            setConnectionQuality("poor");
+            break;
+          case "DISCONNECTED":
+            console.log("❌ Call disconnected");
+            // Set status to trigger cleanup in useEffect
+            setCallStatus("disconnected");
+            break;
+          default:
+            break;
+        }
+      }
+    );
+
+    // Handle network quality changes
+    agoraClientRef.current.on("network-quality", (stats) => {
+      const quality = stats.uplinkNetworkQuality;
+      if (quality >= 4) {
+        setConnectionQuality("excellent");
+      } else if (quality >= 3) {
+        setConnectionQuality("good");
+      } else if (quality >= 2) {
+        setConnectionQuality("fair");
+      } else {
+        setConnectionQuality("poor");
+      }
+    });
+  }, []);
+
   // Initialize Agora client and join channel
   const initializeCall = useCallback(async () => {
     if (!callData || !user) return;
@@ -106,7 +210,40 @@ const VideoCall = () => {
     try {
       console.log("📹 Initializing video call with data:", callData);
 
-      // Create Agora client with enhanced configuration
+      // Check if we have an existing Agora client from ChatBox
+      if (callData.existingClient && callData.uid) {
+        console.log("♻️ Reusing existing Agora client and session");
+
+        // Reuse existing client
+        agoraClientRef.current = callData.existingClient;
+
+        // Reuse existing tracks
+        if (callData.existingAudioTrack) {
+          localAudioTrackRef.current = callData.existingAudioTrack;
+          console.log("🎤 Reusing existing audio track");
+        }
+
+        if (callData.existingVideoTrack && callData.callType !== "audio") {
+          localVideoTrackRef.current = callData.existingVideoTrack;
+          console.log("📹 Reusing existing video track");
+
+          // Play local video
+          if (localVideoRef.current && localVideoTrackRef.current) {
+            localVideoTrackRef.current.play(localVideoRef.current);
+            console.log("📺 Local video started playing");
+          }
+        }
+
+        // Set up event handlers for the existing client
+        setupAgoraEventHandlers();
+
+        setCallStatus("in-progress");
+        console.log("✅ Successfully reused existing Agora session");
+        return;
+      }
+
+      // Create NEW Agora client only if no existing session
+      console.log("🆕 Creating new Agora client session");
       agoraClientRef.current = AgoraRTC.createClient({
         mode: "rtc",
         codec: "vp8",
@@ -117,109 +254,11 @@ const VideoCall = () => {
         },
       });
 
-      // Enhanced event handlers
-      agoraClientRef.current.on(
-        "user-published",
-        async (remoteUser, mediaType) => {
-          console.log("👥 Remote user published:", remoteUser.uid, mediaType);
-
-          try {
-            await agoraClientRef.current.subscribe(remoteUser, mediaType);
-            console.log(
-              "✅ Subscribed to remote user:",
-              remoteUser.uid,
-              mediaType
-            );
-
-            if (mediaType === "video" && remoteVideoRef.current) {
-              remoteUser.videoTrack.play(remoteVideoRef.current);
-              console.log("📺 Remote video started playing");
-
-              // Set remote user info
-              setRemoteUserInfo({
-                uid: remoteUser.uid,
-                hasVideo: true,
-                hasAudio: !!remoteUser.audioTrack,
-              });
-            }
-
-            if (mediaType === "audio") {
-              remoteUser.audioTrack.play();
-              console.log("🔊 Remote audio started playing");
-
-              // Update remote user info
-              setRemoteUserInfo((prev) => ({
-                ...prev,
-                uid: remoteUser.uid,
-                hasAudio: true,
-              }));
-            }
-          } catch (subscribeError) {
-            console.error(
-              "❌ Failed to subscribe to remote user:",
-              subscribeError
-            );
-          }
-        }
-      );
-
-      // Handle user left events
-      agoraClientRef.current.on("user-left", (remoteUser) => {
-        console.log("👤 Remote user left:", remoteUser.uid);
-        setRemoteUserInfo(null);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = null;
-        }
-      });
-
-      // Handle connection state changes
-      agoraClientRef.current.on(
-        "connection-state-change",
-        (curState, revState) => {
-          console.log(
-            "🔗 Connection state changed:",
-            curState,
-            "from",
-            revState
-          );
-
-          switch (curState) {
-            case "CONNECTED":
-              setCallStatus("in-progress");
-              setConnectionQuality("excellent");
-              break;
-            case "CONNECTING":
-              setCallStatus("connecting");
-              break;
-            case "RECONNECTING":
-              setConnectionQuality("poor");
-              break;
-            case "DISCONNECTED":
-              console.log("❌ Call disconnected");
-              endCall();
-              break;
-            default:
-              break;
-          }
-        }
-      );
-
-      // Handle network quality changes
-      agoraClientRef.current.on("network-quality", (stats) => {
-        const quality = stats.uplinkNetworkQuality;
-        if (quality >= 4) {
-          setConnectionQuality("excellent");
-        } else if (quality >= 3) {
-          setConnectionQuality("good");
-        } else if (quality >= 2) {
-          setConnectionQuality("fair");
-        } else {
-          setConnectionQuality("poor");
-        }
-      });
+      // Set up event handlers
+      setupAgoraEventHandlers();
 
       // Convert user ID to Agora UID
-      const agoraUid = convertToAgoraUid(user.ID);
+      const agoraUid = callData.uid || convertToAgoraUid(user.ID);
       console.log("🎯 Joining channel with UID:", agoraUid);
 
       // Join channel with proper app ID from environment
@@ -309,48 +348,10 @@ const VideoCall = () => {
 
       console.log("⚠️ Call initialization failed:", errorMessage);
 
-      // End call after showing error
-      setTimeout(() => {
-        endCall();
-      }, 3000);
+      // Set error status to trigger cleanup
+      setCallStatus("error");
     }
-  }, [callData, user, isVideoOff]);
-
-  // Initialize call on component mount
-  useEffect(() => {
-    // Check if we have call data
-    if (!callData) {
-      console.log("No call data, redirecting to chat");
-      navigate("/chat");
-      return;
-    }
-
-    // Initialize the call
-    initializeCall();
-
-    // Cleanup on unmount
-    return () => {
-      endCall();
-    };
-  }, [callData, initializeCall, navigate]);
-
-  // Toggle mute
-  const toggleMute = () => {
-    if (localAudioTrackRef.current) {
-      const newMuted = !isMuted;
-      localAudioTrackRef.current.setEnabled(!newMuted);
-      setIsMuted(newMuted);
-    }
-  };
-
-  // Toggle video
-  const toggleVideo = () => {
-    if (localVideoTrackRef.current) {
-      const newOff = !isVideoOff;
-      localVideoTrackRef.current.setEnabled(!newOff);
-      setIsVideoOff(newOff);
-    }
-  };
+  }, [callData, user, isVideoOff, setupAgoraEventHandlers]);
 
   // End call with proper cleanup and signaling
   const endCall = useCallback(async () => {
@@ -376,31 +377,45 @@ const VideoCall = () => {
         });
       }
 
-      // Clean up local tracks
-      if (localAudioTrackRef.current) {
-        await localAudioTrackRef.current.close();
-        localAudioTrackRef.current = null;
-        console.log("🎤 Closed local audio track");
-      }
+      // Only clean up tracks if they were created in VideoCall (not reused from ChatBox)
+      if (!callData?.existingClient) {
+        // Clean up local tracks only if we created them
+        if (localAudioTrackRef.current) {
+          await localAudioTrackRef.current.close();
+          localAudioTrackRef.current = null;
+          console.log("🎤 Closed local audio track");
+        }
 
-      if (localVideoTrackRef.current) {
-        await localVideoTrackRef.current.close();
-        localVideoTrackRef.current = null;
-        console.log("📹 Closed local video track");
-      }
+        if (localVideoTrackRef.current) {
+          await localVideoTrackRef.current.close();
+          localVideoTrackRef.current = null;
+          console.log("📹 Closed local video track");
+        }
 
-      if (screenShareTrackRef.current) {
-        await screenShareTrackRef.current.close();
-        screenShareTrackRef.current = null;
-        console.log("💻 Closed screen share track");
-      }
+        if (screenShareTrackRef.current) {
+          await screenShareTrackRef.current.close();
+          screenShareTrackRef.current = null;
+          console.log("💻 Closed screen share track");
+        }
 
-      // Leave Agora channel
-      if (agoraClientRef.current) {
-        await agoraClientRef.current.leave();
-        agoraClientRef.current.removeAllListeners();
-        agoraClientRef.current = null;
-        console.log("📵 Left Agora channel");
+        // Leave Agora channel only if we created the client
+        if (agoraClientRef.current) {
+          await agoraClientRef.current.leave();
+          agoraClientRef.current.removeAllListeners();
+          agoraClientRef.current = null;
+          console.log("📵 Left Agora channel");
+        }
+      } else {
+        console.log(
+          "♻️ Skipping cleanup - using shared Agora session from ChatBox"
+        );
+        // Just remove event listeners but don't destroy the client or tracks
+        if (agoraClientRef.current) {
+          // Remove only our event listeners
+          agoraClientRef.current.removeAllListeners();
+          console.log("🔇 Removed VideoCall event listeners");
+        }
+        // Don't set refs to null as ChatBox still needs them
       }
 
       // Clear video elements
@@ -418,10 +433,62 @@ const VideoCall = () => {
     }
   }, [navigate, callData]);
 
+  // Initialize call on component mount
+  useEffect(() => {
+    // Check if we have call data
+    if (!callData) {
+      console.log("No call data, redirecting to chat");
+      navigate("/chat");
+      return;
+    }
+
+    // Initialize the call
+    initializeCall();
+
+    // Cleanup on unmount
+    return () => {
+      if (endCall) {
+        endCall();
+      }
+    };
+  }, [callData, initializeCall, navigate, endCall]);
+
+  // Toggle mute
+  const toggleMute = () => {
+    if (localAudioTrackRef.current) {
+      const newMuted = !isMuted;
+      localAudioTrackRef.current.setEnabled(!newMuted);
+      setIsMuted(newMuted);
+    }
+  };
+
+  // Toggle video
+  const toggleVideo = () => {
+    if (localVideoTrackRef.current) {
+      const newOff = !isVideoOff;
+      localVideoTrackRef.current.setEnabled(!newOff);
+      setIsVideoOff(newOff);
+    }
+  };
+
+  // Handle disconnected or error status - trigger endCall
+  useEffect(() => {
+    if (callStatus === "disconnected" || callStatus === "error") {
+      console.log("📞 Call status changed to:", callStatus);
+      // Small delay to allow state updates
+      const timer = setTimeout(() => {
+        endCall();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [callStatus, endCall]);
+
   // Handle before unload
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      endCall();
+      if (endCall) {
+        endCall();
+      }
       e.preventDefault();
       e.returnValue = "";
     };

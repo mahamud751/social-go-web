@@ -26,8 +26,11 @@ const FriendList = () => {
   }, [user.ID]);
 
   useEffect(() => {
-    // Use WebSocket instead of Socket.IO
-    const wsUrl = `wss://${process.env.REACT_APP_API_URL}/ws/ws`;
+    // Use REACT_APP_WS_URL from .env directly (already includes full path)
+    // Fallback: construct from API_URL if WS_URL not provided
+    const wsUrl =
+      process.env.REACT_APP_WS_URL ||
+      `wss://${process.env.REACT_APP_API_URL}/ws`;
     console.log("🔗 Connecting to WebSocket:", wsUrl);
 
     const websocket = new WebSocket(wsUrl);
