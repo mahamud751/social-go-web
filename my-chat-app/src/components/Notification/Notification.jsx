@@ -77,7 +77,8 @@ const Notification = () => {
     WebSocketService.connect(user?.ID, handleMessage, handleError, handleClose);
 
     return () => {
-      WebSocketService.disconnect();
+      // Do not disconnect the shared WebSocket; just remove this handler
+      WebSocketService.removeMessageHandler(handleMessage);
     };
   }, [user?.ID]);
 

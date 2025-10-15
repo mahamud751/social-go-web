@@ -28,7 +28,8 @@ import "./VideoCall.css";
 const VideoCall = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const user = useSelector((state) => state.authReducer.authData);
+  const authData = useSelector((state) => state.authReducer.authData);
+  const user = authData?.user || authData;
 
   // Call data from location state
   const { callData } = location.state || {};

@@ -14,7 +14,7 @@ import ThemeToggle from "./components/ThemeToggle";
 import Notification from "./components/Notification/Notification";
 import NavIcons from "./components/NavIcons/NavIcons";
 import { UserStatusProvider } from "./components/UserStatus/UserStatus";
-import GlobalCallNotification from "./components/GlobalCallNotification";
+import GlobalIncomingCallHandler from "./components/GlobalIncomingCallHandler/GlobalIncomingCallHandler";
 
 function App({ toggleTheme, theme }) {
   const user = useSelector((state) => state.authReducer.authData);
@@ -94,8 +94,8 @@ function App({ toggleTheme, theme }) {
           <NavIcons />
         </div>
 
-        {/* Global Call Notification - Shows on all routes */}
-        <GlobalCallNotification />
+        {/* Global Incoming Call Handler - Shows on all routes */}
+        <GlobalIncomingCallHandler />
       </div>
     </UserStatusProvider>
   );

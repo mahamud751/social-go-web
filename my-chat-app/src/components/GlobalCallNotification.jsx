@@ -18,6 +18,9 @@ import {
   VolumeUp as VolumeUpIcon,
 } from "@mui/icons-material";
 import WebSocketService from "../actions/WebSocketService";
+import AgoraRTC from "agora-rtc-sdk-ng";
+import { RtcTokenBuilder, RtcRole } from "agora-access-token";
+import { convertToAgoraUid } from "../utils/AgoraUtils";
 import "./globalCallNotification.css";
 
 const GlobalCallNotification = () => {
@@ -25,7 +28,13 @@ const GlobalCallNotification = () => {
   const [isRinging, setIsRinging] = useState(false);
   const ringingAudioRef = useRef(null);
   const navigate = useNavigate();
-  const user = useSelector((state) => state.authReducer.authData);
+  const authData = useSelector((state) => state.authReducer.authData);
+  const user = authData?.user || authData;
+
+  // Agora client and local tracks (reused by VideoCall)
+  const agoraClientRef = useRef(null);
+  const localAudioTrackRef = useRef(null);
+  const localVideoTrackRef = useRef(null);
 
   // Initialize WebSocket connection using the service
   useEffect(() => {
@@ -60,14 +69,12 @@ const GlobalCallNotification = () => {
           message.data.senderId
         );
 
-        // Set incoming call data
+        // Set incoming call data (token/appId may be undefined; we'll generate on accept)
         setIncomingCall({
           callerId: message.data.senderId || message.userId,
           channel: message.data.channel,
           callType: message.data.callType || "video",
           timestamp: message.data.timestamp,
-          token: message.data.receiverToken,
-          appId: message.data.appId,
         });
 
         // Start ringing
@@ -105,6 +112,123 @@ const GlobalCallNotification = () => {
     };
   }, [user?.ID]);
 
+  // Check media permissions
+  const checkMediaPermissions = useCallback(async (requireVideo = false) => {
+    try {
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      };
+
+      if (requireVideo) {
+        constraints.video = {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        };
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch (error) {
+      console.error("Media permissions error:", error);
+      return false;
+    }
+  }, []);
+
+  // Generate Agora token
+  const generateAgoraToken = useCallback(async (channelName, uid) => {
+    try {
+      const numericUid = convertToAgoraUid(uid);
+      const appID = process.env.REACT_APP_AGORA_APP_ID;
+      const appCertificate = process.env.REACT_APP_AGORA_APP_CERTIFICATE;
+
+      if (!appID) {
+        throw new Error("Agora App ID not configured");
+      }
+
+      if (!appCertificate) {
+        console.warn("⚠️ Agora App Certificate not found - development mode");
+        return { token: null, appId: appID, uid: numericUid };
+      }
+
+      const expirationTimeInSeconds = 3600;
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+
+      const token = RtcTokenBuilder.buildTokenWithUid(
+        appID,
+        appCertificate,
+        channelName,
+        numericUid,
+        RtcRole.PUBLISHER,
+        privilegeExpiredTs
+      );
+
+      return { token, appId: appID, uid: numericUid };
+    } catch (error) {
+      console.error("❌ Error generating Agora token:", error);
+      throw error;
+    }
+  }, []);
+
+  // Join Agora channel
+  const joinAgoraChannel = useCallback(
+    async (channelName, token, uid, callType = "audio") => {
+      try {
+        // Initialize client if needed
+        if (!agoraClientRef.current) {
+          agoraClientRef.current = AgoraRTC.createClient({
+            mode: "rtc",
+            codec: "vp8",
+            reportApiConfig: { reportApiUrl: null, enableReportApi: false },
+          });
+        }
+
+        // Leave any existing channel first
+        if (agoraClientRef.current.connectionState === "CONNECTED") {
+          await agoraClientRef.current.leave();
+        }
+
+        // Create local tracks
+        if (!localAudioTrackRef.current) {
+          localAudioTrackRef.current = await AgoraRTC.createMicrophoneAudioTrack({
+            encoderConfig: "music_standard",
+            AEC: true,
+            ANS: true,
+            AGC: true,
+          });
+        }
+
+        if (callType === "video" && !localVideoTrackRef.current) {
+          localVideoTrackRef.current = await AgoraRTC.createCameraVideoTrack({
+            encoderConfig: "720p_1",
+            optimizationMode: "motion",
+          });
+        }
+
+        const numericUid = convertToAgoraUid(uid);
+        await agoraClientRef.current.join(
+          process.env.REACT_APP_AGORA_APP_ID,
+          channelName,
+          token || null,
+          numericUid
+        );
+
+        const tracksToPublish = [localAudioTrackRef.current];
+        if (localVideoTrackRef.current) {
+          tracksToPublish.push(localVideoTrackRef.current);
+        }
+        await agoraClientRef.current.publish(tracksToPublish);
+      } catch (error) {
+        console.error("❌ Error joining Agora channel:", error);
+        throw error;
+      }
+    }, []);
+
   // Stop ringing when incoming call is cleared
   useEffect(() => {
     if (!incomingCall) {
@@ -117,8 +241,8 @@ const GlobalCallNotification = () => {
   }, [incomingCall]);
 
   // Handle accepting the call
-  const handleAcceptCall = useCallback(() => {
-    if (!incomingCall) return;
+  const handleAcceptCall = useCallback(async () => {
+    if (!incomingCall || !user?.ID) return;
 
     // Stop ringing
     setIsRinging(false);
@@ -127,34 +251,74 @@ const GlobalCallNotification = () => {
       ringingAudioRef.current.currentTime = 0;
     }
 
-    // Send call accepted signal
-    WebSocketService.sendMessage({
-      type: "agora-signal",
-      data: {
-        action: "call-accepted",
-        targetId: incomingCall.callerId,
-        channel: incomingCall.channel,
-        timestamp: Date.now(),
-      },
-    });
+    try {
+      // Check permissions
+      const hasPermissions = await checkMediaPermissions(
+        incomingCall.callType === "video"
+      );
+      if (!hasPermissions) {
+        console.error("🚫 Media permissions denied");
+        // Send rejection for clarity
+        WebSocketService.sendMessage({
+          type: "agora-signal",
+          data: {
+            action: "call-rejected",
+            targetId: incomingCall.callerId,
+            channel: incomingCall.channel,
+            timestamp: Date.now(),
+          },
+        });
+        setIncomingCall(null);
+        return;
+      }
 
-    // Navigate to video call page with call data
-    navigate("/video-call", {
-      state: {
-        callData: {
+      // Generate token for this user
+      const tokenData = await generateAgoraToken(incomingCall.channel, user.ID);
+
+      // Send call accepted signal
+      WebSocketService.sendMessage({
+        type: "agora-signal",
+        data: {
+          action: "call-accepted",
+          targetId: incomingCall.callerId,
           channel: incomingCall.channel,
-          token: incomingCall.token,
-          appId: incomingCall.appId,
-          callType: incomingCall.callType,
-          isIncoming: true,
-          callerId: incomingCall.callerId,
+          timestamp: Date.now(),
         },
-      },
-    });
+      });
 
-    // Clear incoming call
-    setIncomingCall(null);
-  }, [incomingCall, navigate]);
+      // Join channel and publish local tracks
+      await joinAgoraChannel(
+        incomingCall.channel,
+        tokenData.token,
+        user.ID,
+        incomingCall.callType
+      );
+
+      // Navigate to VideoCall page with reused client/tracks
+      navigate("/video-call", {
+        state: {
+          callData: {
+            channel: incomingCall.channel,
+            token: tokenData.token,
+            appId: tokenData.appId,
+            uid: tokenData.uid,
+            callType: incomingCall.callType,
+            isIncoming: true,
+            callerId: incomingCall.callerId,
+            existingClient: agoraClientRef.current,
+            existingAudioTrack: localAudioTrackRef.current,
+            existingVideoTrack: localVideoTrackRef.current,
+          },
+        },
+      });
+
+      // Clear incoming call
+      setIncomingCall(null);
+    } catch (error) {
+      console.error("❌ Error accepting call:", error);
+      setIncomingCall(null);
+    }
+  }, [incomingCall, user?.ID, checkMediaPermissions, generateAgoraToken, joinAgoraChannel, navigate]);
 
   // Handle declining the call
   const handleDeclineCall = useCallback(() => {

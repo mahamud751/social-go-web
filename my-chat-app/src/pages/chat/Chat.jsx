@@ -117,11 +117,8 @@ const Chat = () => {
 
     console.log("🔗 Connecting to WebSocket for user:", user.ID);
 
-    // Use WebSocketService for connection
-    WebSocketService.connect(
-      user.ID,
-      // Message handler
-      (msg) => {
+    // Define a stable message handler so we can remove it on cleanup
+    const chatMessageHandler = (msg) => {
         console.log("📥 Received message:", msg);
 
         switch (msg.type) {
@@ -246,7 +243,13 @@ const Chat = () => {
           default:
             console.log("📥 Unknown message type:", msg.type);
         }
-      },
+      };
+
+    // Use WebSocketService for connection
+    WebSocketService.connect(
+      user.ID,
+      // Message handler
+      chatMessageHandler,
       // Error handler
       (error) => {
         console.error("❌ WebSocket error:", error);
@@ -259,10 +262,9 @@ const Chat = () => {
 
     console.log("✅ WebSocket initialized via WebSocketService");
 
-    // Cleanup on unmount
+    // Cleanup on unmount: remove only this message handler
     return () => {
-      console.log("🧹 Closing WebSocket connection");
-      WebSocketService.disconnect();
+      WebSocketService.removeMessageHandler(chatMessageHandler);
     };
   }, [user?.ID]);
 
