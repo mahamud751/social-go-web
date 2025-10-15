@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { UilScenery, UilTimes } from "@iconscout/react-unicons";
 import "./story.css";
+import { motion } from "framer-motion";
 
 const backgroundColors = [
   { value: "#FF0000", label: "Red" },
@@ -98,9 +99,14 @@ const StoryCreate = ({ onClose, onStoryCreated }) => {
     <Box
       component="form"
       onSubmit={handleSubmit}
-      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        color: "var(--text-color)",
+      }}
     >
-      <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+      <Typography variant="h6" className="create-story-title">
         Create a Story
       </Typography>
       {error && (
@@ -117,20 +123,48 @@ const StoryCreate = ({ onClose, onStoryCreated }) => {
         fullWidth
         variant="outlined"
         placeholder="What's on your mind?"
+        sx={{
+          "& .MuiOutlinedInput-root": {
+            borderRadius: 2,
+            backgroundColor: "var(--inputColor)",
+          },
+          "& .MuiInputLabel-root": {
+            color: "var(--text-color)",
+          },
+          "& .MuiInputBase-input": {
+            color: "var(--text-color)",
+          },
+          "& .MuiInputBase-input::placeholder": {
+            color: "var(--gray)",
+            opacity: 0.8,
+          },
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgba(255,255,255,0.2)",
+          },
+          "& .Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: "#8f00ff",
+          },
+        }}
       />
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Button
-          variant="outlined"
-          startIcon={<UilScenery />}
-          onClick={() => imageRef.current.click()}
-          sx={{
-            borderRadius: 2,
-            color: "var(--photo)",
-            borderColor: "var(--photo)",
-          }}
-        >
-          Photo
-        </Button>
+        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+          <Button
+            variant="outlined"
+            startIcon={<UilScenery />}
+            onClick={() => imageRef.current.click()}
+            sx={{
+              borderRadius: 2,
+              color: "var(--photo)",
+              borderColor: "var(--photo)",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                backgroundColor: "rgba(76, 178, 86, 0.12)",
+              },
+            }}
+          >
+            Photo
+          </Button>
+        </motion.div>
         <div style={{ display: "none" }}>
           <input
             type="file"
@@ -153,6 +187,21 @@ const StoryCreate = ({ onClose, onStoryCreated }) => {
           value={color}
           onChange={(e) => setColor(e.target.value)}
           label="Background Color"
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              borderRadius: 2,
+              backgroundColor: "var(--inputColor)",
+            },
+            "& .MuiOutlinedInput-input": {
+              color: "var(--text-color)",
+            },
+            "& .MuiSelect-select": {
+              color: "var(--text-color)",
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: "rgba(255,255,255,0.2)",
+            },
+          }}
         >
           {backgroundColors.map((col) => (
             <MenuItem key={col.value} value={col.value}>
@@ -171,19 +220,18 @@ const StoryCreate = ({ onClose, onStoryCreated }) => {
           ))}
         </Select>
       </FormControl>
-      <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-        <Button variant="outlined" onClick={onClose} sx={{ borderRadius: 2 }}>
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          sx={{ borderRadius: 2 }}
-          disabled={!text.trim() && !image}
-        >
-          Create
-        </Button>
+      <Box className="action-row">
+        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+          <Button
+            type="submit"
+            variant="contained"
+            className="create-btn"
+            sx={{ borderRadius: 2, px: 2.5, py: 1 }}
+            disabled={!text.trim() && !image}
+          >
+            Create
+          </Button>
+        </motion.div>
       </Box>
     </Box>
   );

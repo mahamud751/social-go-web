@@ -9,6 +9,7 @@ import { Box, Modal, Typography, IconButton, Avatar } from "@mui/material";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
+import { motion, AnimatePresence } from "framer-motion";
 
 const Story = () => {
   const { user } = useSelector((state) => state.authReducer.authData);
@@ -273,13 +274,31 @@ const Story = () => {
         open={openCreateModal}
         onClose={() => setOpenCreateModal(false)}
         sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+        BackdropProps={{
+          sx: {
+            backdropFilter: "blur(8px)",
+            backgroundColor: "rgba(0,0,0,0.35)",
+          },
+        }}
       >
-        <Box sx={{ bgcolor: "white", p: 3, borderRadius: 2, width: 400 }}>
-          <StoryCreate
-            onClose={() => setOpenCreateModal(false)}
-            onStoryCreated={handleStoryCreated}
-          />
-        </Box>
+        <AnimatePresence>
+          {openCreateModal && (
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 300, damping: 24 }}
+              style={{ width: "90%", maxWidth: 520 }}
+           >
+              <Box className="create-story-card" sx={{ p: 3, borderRadius: 3 }}>
+                <StoryCreate
+                  onClose={() => setOpenCreateModal(false)}
+                  onStoryCreated={handleStoryCreated}
+                />
+              </Box>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Modal>
       <StoryModal
         open={openViewModal}

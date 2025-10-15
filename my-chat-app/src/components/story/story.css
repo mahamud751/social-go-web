@@ -24,3 +24,130 @@
   width: 24px;
   height: 24px;
 }
+
+/* Create Story Modal Card - Unique Gradient UI */
+.create-story-card {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(145deg, #1f1f1f 0%, #2b2b2b 100%);
+}
+
+.create-story-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    1200px 1200px at 10% 10%,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.06) 30%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.create-story-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18));
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* Light theme override */
+:root[data-theme="light"] .create-story-card {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(145deg, #ffffff 0%, #f5f7fa 100%);
+}
+
+:root[data-theme="light"] .create-story-card::before {
+  background: radial-gradient(
+    1200px 1200px at 10% 10%,
+    rgba(0, 0, 0, 0.06) 0%,
+    rgba(0, 0, 0, 0.03) 30%,
+    transparent 60%
+  );
+}
+
+/* Title Gradient Text */
+.create-story-title {
+  background: linear-gradient(90deg, #ff7eb3, #65d6ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+  letter-spacing: 0.5px;
+  font-weight: 800 !important;
+}
+
+/* Action buttons spacing within card */
+.create-story-card .action-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+/* Theme-aware buttons */
+.create-story-card .create-btn {
+  background: var(--buttonBg) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 10px 24px rgba(118, 75, 162, 0.35) !important;
+  transition: all 0.25s ease !important;
+}
+
+.create-story-card .create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(118, 75, 162, 0.45) !important;
+}
+
+.create-story-card .cancel-btn {
+  color: var(--text-color) !important;
+  transition: all 0.2s ease !important;
+}
+
+:root[data-theme="dark"] .create-story-card .cancel-btn {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+:root[data-theme="dark"] .create-story-card .cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+}
+
+:root[data-theme="light"] .create-story-card .cancel-btn {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+
+:root[data-theme="light"] .create-story-card .cancel-btn:hover {
+  background: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Ensure MUI inputs inside the card inherit theme text color */
+.create-story-card .MuiInputBase-input,
+.create-story-card .MuiInputLabel-root {
+  color: var(--text-color) !important;
+}
+
+:root[data-theme="dark"] .create-story-card .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+:root[data-theme="light"] .create-story-card .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .create-story-card {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  }
+}

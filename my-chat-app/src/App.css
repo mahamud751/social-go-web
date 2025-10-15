@@ -324,6 +324,11 @@ h6 {
     padding-top: 60px;
     padding-bottom: 90px;
   }
+  /* Remove padding when no navigation is present (Auth page) */
+  .App.no-nav {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
 }
 
 @media screen and (min-width: 769px) {
@@ -342,6 +347,11 @@ h6 {
   /* Add top padding to prevent content from being hidden behind desktop nav */
   .App {
     padding-top: 90px;
+    padding-bottom: 0;
+  }
+  /* Remove padding when no navigation is present (Auth page) */
+  .App.no-nav {
+    padding-top: 0;
     padding-bottom: 0;
   }
 }

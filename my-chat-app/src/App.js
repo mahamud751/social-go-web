@@ -20,29 +20,33 @@ function App({ toggleTheme, theme }) {
   const user = useSelector((state) => state.authReducer.authData);
   return (
     <UserStatusProvider userId={user?.ID}>
-      <div className="App">
-        {/* Desktop Navigation - Top Center with Gradient */}
-        <div className="desktop-nav">
-          <div className="nav-content">
-            <div className="nav-spacer"></div>
-            <NavIcons />
-            <div className="nav-controls">
-              <Notification />
-              <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+      <div className={`App ${user ? "" : "no-nav"}`}>
+        {/* Desktop Navigation - Top Center with Gradient (shown only when logged in) */}
+        {user && (
+          <div className="desktop-nav">
+            <div className="nav-content">
+              <div className="nav-spacer"></div>
+              <NavIcons />
+              <div className="nav-controls">
+                <Notification />
+                <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Mobile Top Bar for Notification and Theme Toggle */}
-        <div className="mobile-top-bar">
-          <div className="mobile-top-content">
-            <div className="mobile-spacer"></div>
-            <div className="mobile-controls">
-              <Notification />
-              <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+        {/* Mobile Top Bar (shown only when logged in) */}
+        {user && (
+          <div className="mobile-top-bar">
+            <div className="mobile-top-content">
+              <div className="mobile-spacer"></div>
+              <div className="mobile-controls">
+                <Notification />
+                <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <Routes>
           <Route
             path="/"
@@ -89,10 +93,12 @@ function App({ toggleTheme, theme }) {
           />
         </Routes>
 
-        {/* Mobile Navigation - Bottom Footer */}
-        <div className="mobile-nav">
-          <NavIcons />
-        </div>
+        {/* Mobile Navigation - Bottom Footer (shown only when logged in) */}
+        {user && (
+          <div className="mobile-nav">
+            <NavIcons />
+          </div>
+        )}
 
         {/* Global Incoming Call Handler - Shows on all routes */}
         <GlobalIncomingCallHandler />

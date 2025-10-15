@@ -4,6 +4,40 @@ import Logo from "../../img/logo1.png";
 import { useDispatch, useSelector } from "react-redux";
 import { logIn, signUp } from "../../actions/AuthAction";
 
+// Inline icons for password visibility toggles
+const EyeOpenIcon = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M1 12c2.7-5 7.7-8 11-8s8.3 3 11 8c-2.7 5-7.7 8-11 8s-8.3-3-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeClosedIcon = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M1 12c2.7-5 7.7-8 11-8s8.3 3 11 8c-2.7 5-7.7 8-11 8s-8.3-3-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="M3 3l18 18" />
+  </svg>
+);
+
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const dispatch = useDispatch();
@@ -17,6 +51,8 @@ const Auth = () => {
     username: "",
   });
   const [confirmPass, setConfirmPass] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const handleChange = (e) => {
     setData({ ...data, [e.target.name]: e.target.value });
   };
@@ -53,17 +89,17 @@ const Auth = () => {
       }}
     >
       <div className="row">
-        <div className="col-md-12 right mt-5">
+        <div className="col-md-12 right">
           <form className="infoForm authForm" onSubmit={handleSubmit}>
             {/* <img src={Logo} alt="" /> */}
-            <h3 style={{ color: "black" }}>
+            <h3 className="s_icon2" style={{ color: "black" }}>
               {isSignUp ? "Sign up to" : "Log in to "}
             </h3>
             <h1 className="s_icon2" style={{ fontSize: 42 }}>
               Dream Tech
             </h1>
             {isSignUp && (
-              <div>
+              <div className="inputRow twoCol">
                 <input
                   type="text"
                   placeholder="First Name"
@@ -80,6 +116,11 @@ const Auth = () => {
                   onChange={handleChange}
                   value={data.lastname}
                 />
+              </div>
+            )}
+
+            {isSignUp && (
+              <div className="inputRow">
                 <input
                   type="text"
                   className="infoInput"
@@ -91,37 +132,99 @@ const Auth = () => {
               </div>
             )}
 
-            <div>
-              <input
-                type="text"
-                className="infoInput"
-                name="email"
-                placeholder="Email or Username"
-                onChange={handleChange}
-                value={data.email}
-              />
-            </div>
-
-            <div>
-              <input
-                type="password"
-                className="infoInput"
-                name="password"
-                placeholder="Password"
-                onChange={handleChange}
-                value={data.password}
-              />
-              {isSignUp && (
+            {!isSignUp ? (
+              <div className="inputRow twoCol">
                 <input
-                  type="password"
+                  type="text"
                   className="infoInput"
-                  name="confirmpass"
-                  placeholder="Confirm Password"
+                  name="email"
+                  placeholder="Email or Username"
                   onChange={handleChange}
-                  value={data.confirmpass}
+                  value={data.email}
                 />
-              )}
-            </div>
+                <div className="passwordGroup">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="infoInput"
+                    name="password"
+                    placeholder="Password"
+                    onChange={handleChange}
+                    value={data.password}
+                  />
+                  <button
+                    type="button"
+                    className="toggleVisibilityBtn"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                  >
+                    {showPassword ? (
+                      <EyeClosedIcon aria-hidden="true" />
+                    ) : (
+                      <EyeOpenIcon aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="inputRow">
+                  <input
+                    type="text"
+                    className="infoInput"
+                    name="email"
+                    placeholder="Email"
+                    onChange={handleChange}
+                    value={data.email}
+                  />
+                </div>
+                <div className="inputRow twoCol">
+                  <div className="passwordGroup">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      className="infoInput"
+                      name="password"
+                      placeholder="Password"
+                      onChange={handleChange}
+                      value={data.password}
+                    />
+                    <button
+                      type="button"
+                      className="toggleVisibilityBtn"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                    >
+                      {showPassword ? (
+                        <EyeClosedIcon aria-hidden="true" />
+                      ) : (
+                        <EyeOpenIcon aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+                  <div className="passwordGroup">
+                    <input
+                      type={showConfirm ? "text" : "password"}
+                      className="infoInput"
+                      name="confirmpass"
+                      placeholder="Confirm Password"
+                      onChange={handleChange}
+                      value={data.confirmpass}
+                    />
+                    <button
+                      type="button"
+                      className="toggleVisibilityBtn"
+                      aria-label={showConfirm ? "Hide password" : "Show password"}
+                      onClick={() => setShowConfirm((prev) => !prev)}
+                    >
+                      {showConfirm ? (
+                        <EyeClosedIcon aria-hidden="true" />
+                      ) : (
+                        <EyeOpenIcon aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
             <span
               style={{
                 display: confirmPass ? "none" : "block",

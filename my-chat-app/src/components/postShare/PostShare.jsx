@@ -2,12 +2,11 @@ import React, { useState, useRef } from "react";
 
 import "./postShare.css";
 import { UilScenery } from "@iconscout/react-unicons";
-import { UilPlayCircle } from "@iconscout/react-unicons";
-import { UilLocationPoint } from "@iconscout/react-unicons";
 import { UilTimes } from "@iconscout/react-unicons";
 import { useDispatch, useSelector } from "react-redux";
 import { uploadImage, uploadPost } from "../../actions/uploadAction";
 import axios from "axios";
+import TextEnhancerModal from "./TextEnhancerModal";
 const PostShare = () => {
   const loading = useSelector((state) => state.postReducer.uploading);
   const dispatch = useDispatch();
@@ -15,6 +14,8 @@ const PostShare = () => {
   const imageRef = useRef();
   const serverPublic = process.env.REACT_APP_PUBLIC_FOLDER;
   const desc = useRef();
+  const [descValue, setDescValue] = useState("");
+  const [enhancerOpen, setEnhancerOpen] = useState(false);
   const { user } = useSelector((state) => state.authReducer.authData);
 
   const onImageChange = (event) => {
@@ -26,13 +27,14 @@ const PostShare = () => {
   const reset = () => {
     setImage(null);
     desc.current.value = "";
+    setDescValue("");
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const newPost = {
       userId: user.ID,
-      desc: desc.current.value,
+      desc: descValue,
     };
     if (image) {
       const data = new FormData();
@@ -63,6 +65,29 @@ const PostShare = () => {
     }
     reset();
   };
+
+  const handleDescChange = (e) => {
+    const val = e.target.value;
+    setDescValue(val);
+    // Open enhancer when user starts typing (first non-empty input)
+    if (!enhancerOpen && val.trim().length === 1) {
+      setEnhancerOpen(true);
+    }
+  };
+
+  const handleEnhancerApply = (value) => {
+    setDescValue(value || "");
+    if (desc.current) desc.current.value = value || "";
+    setEnhancerOpen(false);
+  };
+  const handleEnhancerCancel = () => {
+    setDescValue("");
+    if (desc.current) {
+      desc.current.value = "";
+      desc.current.blur();
+    }
+    setEnhancerOpen(false);
+  };
   return (
     <>
       <div className="postShare2_bg">
@@ -81,6 +106,9 @@ const PostShare = () => {
               required
               type="text"
               placeholder="What's happening"
+              value={descValue}
+              onChange={handleDescChange}
+              onClick={() => setEnhancerOpen(true)}
             />
           </div>
           <div>
@@ -93,14 +121,6 @@ const PostShare = () => {
                 <UilScenery />
                 Photo
               </div>
-              <div className="option" style={{ color: "var(--video)" }}>
-                <UilPlayCircle />
-                Video
-              </div>{" "}
-              <div className="option" style={{ color: "var(--location)" }}>
-                <UilLocationPoint />
-                Location
-              </div>{" "}
               <button
                 className="button ps-button"
                 onClick={handleSubmit}
@@ -126,6 +146,14 @@ const PostShare = () => {
           </div>
         </div>
       </div>
+      <TextEnhancerModal
+        open={enhancerOpen}
+        value={descValue}
+        onChange={setDescValue}
+        onApply={handleEnhancerApply}
+        onClose={() => setEnhancerOpen(false)}
+        onCancel={handleEnhancerCancel}
+      />
     </>
   );
 };

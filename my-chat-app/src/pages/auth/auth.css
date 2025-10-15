@@ -89,3 +89,284 @@
   align-items: center;
   justify-content: center;
 }
+
+/* --- Enhanced Auth Layout & Card Styles --- */
+.AuthLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(90deg, #ffffff 0%, #ffbefd 100%);
+}
+
+.AuthLeft {
+  position: relative;
+  background-image: url("../../img/cover.jpg");
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.AuthLeftOverlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.6) 100%
+  );
+}
+
+.AuthLeftContent {
+  position: absolute;
+  left: 8%;
+  bottom: 10%;
+  color: #1f2937;
+  max-width: 70%;
+  animation: fadeIn 600ms ease-out;
+}
+
+.AuthTitle {
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 800;
+}
+
+.AuthSubtitle {
+  font-size: clamp(14px, 2vw, 18px);
+  opacity: 0.9;
+}
+
+.AuthRight {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: radial-gradient(
+      1200px 400px at 100% 0%,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.3) 40%,
+      rgba(255, 255, 255, 0) 70%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.2) 100%
+    );
+}
+
+/* Card enhancements */
+.authForm {
+  width: clamp(360px, 92%, 560px);
+  backdrop-filter: saturate(180%) blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.AnimatedCard {
+  animation: floatIn 600ms ease-out;
+}
+
+.authForm::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    #ff6ec7,
+    #ffd1ff,
+    #7aa2ff,
+    #a0ffe6,
+    #ff6ec7
+  );
+  filter: blur(8px);
+  opacity: 0.35;
+  animation: spin 6s linear infinite;
+  pointer-events: none;
+}
+
+.AuthBrand {
+  background-image: linear-gradient(90deg, #111 0%, #555 20%, #111 40%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.5s linear infinite;
+}
+
+.AuthHeading {
+  color: #111;
+}
+
+/* Apply shimmer to existing brand class used in Auth.jsx */
+.s_icon2 {
+  background-image: linear-gradient(90deg, #111 0%, #555 20%, #111 40%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* Style the right-side container used in current markup */
+.right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  min-height: 100vh;
+}
+
+/* Ensure the card animates even without AnimatedCard class */
+.authForm {
+  animation: floatIn 600ms ease-out;
+}
+
+/* Rows and two-column layout */
+.inputRow {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+  height: auto;
+}
+
+/* Password visibility toggle */
+.passwordGroup {
+  position: relative;
+}
+
+.passwordGroup .infoInput {
+  padding-right: 3rem;
+}
+
+.toggleVisibilityBtn {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #444;
+  cursor: pointer;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 150ms ease, transform 150ms ease, background-color 150ms ease;
+}
+
+.toggleVisibilityBtn:hover {
+  color: #000;
+  transform: scale(1.05);
+  background-color: rgba(0,0,0,0.05);
+}
+
+.toggleVisibilityBtn svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* Inputs */
+.infoInput {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: box-shadow 180ms ease, border-color 180ms ease,
+    transform 120ms ease;
+}
+
+.infoInput:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Button */
+.infoButton {
+  width: 100%;
+  height: 2.4rem;
+  border: none;
+  border-radius: 10px;
+  background-image: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 10px 18px rgba(37, 117, 252, 0.35);
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.infoButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(37, 117, 252, 0.45);
+  filter: brightness(1.05);
+}
+
+.infoButton:active {
+  transform: translateY(0px) scale(0.98);
+  box-shadow: 0 10px 18px rgba(37, 117, 252, 0.35);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .AuthLayout {
+    grid-template-columns: 1fr;
+  }
+  .AuthLeft {
+    height: 40vh;
+  }
+  .AuthRight {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+  }
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+}
