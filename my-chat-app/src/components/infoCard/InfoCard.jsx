@@ -34,16 +34,16 @@ const InfoCard = ({ isCurrentUser }) => {
   }, [profileUserId, user]);
 
   return (
-    <div className="infoCard m-3">
+    <div className="infoCard animated-card">
       <div className="infoHead">
         <h4>Profile Info</h4>
         {user.ID === profileUserId ? (
-          <div>
+          <div className="edit-icon-wrapper">
             <UilPen
               width="2rem"
               height="1.2rem"
               onClick={() => setProfileModal(true)}
-              style={{ color: "white" }}
+              className="edit-icon"
             />
             <ProfileModal
               profileModal={profileModal}
@@ -57,27 +57,29 @@ const InfoCard = ({ isCurrentUser }) => {
         )}
       </div>
 
-      <div className="info">
-        {/* */}
+      <div className="info animated-info">
         <span>
           <b>Status: </b>
         </span>
-        <span>{profileUser.Relationship}</span>
+        <span>{profileUser.Relationship || "Not specified"}</span>
       </div>
-      <div className="info">
+      <div className="info animated-info">
         <span>
           <b>Lives in: </b>
         </span>
-        <span>{profileUser.LivesIn}</span>
+        <span>{profileUser.LivesIn || "Not specified"}</span>
       </div>
-      <div className="info">
+      <div className="info animated-info">
         <span>
           <b>Works at: </b>
         </span>
-        <span>{profileUser.WorksAt}</span>
+        <span>{profileUser.WorksAt || "Not specified"}</span>
       </div>
       {isCurrentUser && (
-        <button className="button logout-button" onClick={handleLogOut}>
+        <button
+          className="button logout-button animated-button"
+          onClick={handleLogOut}
+        >
           Log Out
         </button>
       )}

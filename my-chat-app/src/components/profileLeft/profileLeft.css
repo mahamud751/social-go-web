@@ -1,0 +1,98 @@
+.profileSide {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+  width: 100%;
+}
+
+.animated-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.profile-element {
+  transition: all 0.3s ease;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.profile-element:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.logo-search-wrapper {
+  animation: slideInLeft 0.5s ease-out;
+  background: linear-gradient(
+    135deg,
+    rgba(143, 0, 255, 0.1),
+    rgba(255, 24, 183, 0.1)
+  );
+  padding: 1rem;
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.info-card-wrapper {
+  animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Staggered animations for child elements */
+.profile-element:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.profile-element:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+  .profileSide {
+    padding: 0.5rem;
+    gap: 1rem;
+  }
+
+  .logo-search-wrapper,
+  .info-card-wrapper {
+    animation: none;
+  }
+
+  .profile-element:hover {
+    transform: none;
+  }
+}

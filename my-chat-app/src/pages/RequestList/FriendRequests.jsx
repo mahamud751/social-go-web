@@ -52,15 +52,31 @@ const FriendRequests = () => {
   const [processingIds, setProcessingIds] = useState([]);
   const [animationDelay, setAnimationDelay] = useState(0);
 
-  // Get current theme from document
-  const currentTheme =
-    document.documentElement.getAttribute("data-theme") || "dark";
-  const isDarkTheme = currentTheme === "dark";
+  // Theme state: observe data-theme for live toggling
+  const [isDarkTheme, setIsDarkTheme] = useState(
+    (document.documentElement.getAttribute("data-theme") || "dark") === "dark"
+  );
 
   // Initialize animations
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Observe theme changes so UI updates instantly when toggled
+  useEffect(() => {
+    const checkTheme = () => {
+      const current =
+        document.documentElement.getAttribute("data-theme") || "dark";
+      setIsDarkTheme(current === "dark");
+    };
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
   }, []);
 
   // Log user for debugging
@@ -228,9 +244,7 @@ const FriendRequests = () => {
                       component="h1"
                       className="main-title"
                       sx={{
-                        color: isDarkTheme
-                          ? "#ffffff !important"
-                          : "var(--friend-requests-text) !important",
+                        color: "var(--friend-requests-text) !important",
                         background: `linear-gradient(45deg, var(--friend-requests-accent), var(--friend-requests-primary))`,
                         backgroundClip: "text",
                         WebkitBackgroundClip: "text",
@@ -247,9 +261,8 @@ const FriendRequests = () => {
                       variant="subtitle1"
                       className="subtitle"
                       sx={{
-                        color: isDarkTheme
-                          ? "#e0e0e0 !important"
-                          : "var(--friend-requests-secondary-text) !important",
+                        color:
+                          "var(--friend-requests-secondary-text) !important",
                         margin: 0,
                         fontWeight: 500,
                       }}
@@ -267,10 +280,10 @@ const FriendRequests = () => {
                       className="stats-chip"
                       sx={{
                         backgroundColor: "var(--friend-requests-accent)",
-                        color: "var(--friend-requests-card-bg)",
+                        color: "var(--friend-requests-on-accent)",
                         fontWeight: 600,
                         "& .MuiChip-icon": {
-                          color: "var(--friend-requests-card-bg)",
+                          color: "var(--friend-requests-on-accent)",
                         },
                       }}
                     />
@@ -382,9 +395,7 @@ const FriendRequests = () => {
                           variant="h5"
                           className="empty-title"
                           sx={{
-                            color: isDarkTheme
-                              ? "#ffffff !important"
-                              : "var(--friend-requests-text) !important",
+                            color: "var(--friend-requests-text) !important",
                             fontWeight: 600,
                             mb: 1,
                           }}
@@ -395,9 +406,8 @@ const FriendRequests = () => {
                           variant="body1"
                           className="empty-description"
                           sx={{
-                            color: isDarkTheme
-                              ? "#e0e0e0 !important"
-                              : "var(--friend-requests-secondary-text) !important",
+                            color:
+                              "var(--friend-requests-secondary-text) !important",
                             mb: 3,
                           }}
                         >
@@ -410,32 +420,23 @@ const FriendRequests = () => {
                           onClick={() => navigate("/friend")}
                           className="explore-button"
                           sx={{
-                            borderColor: isDarkTheme
-                              ? "#f5c32c !important"
-                              : "var(--friend-requests-accent) !important",
-                            color: isDarkTheme
-                              ? "#f5c32c !important"
-                              : "var(--friend-requests-accent) !important",
+                            borderColor:
+                              "var(--friend-requests-accent) !important",
+                            color: "var(--friend-requests-accent) !important",
                             "&:hover": {
-                              backgroundColor: isDarkTheme
-                                ? "#f5c32c !important"
-                                : "var(--friend-requests-accent) !important",
-                              color: isDarkTheme
-                                ? "#000000 !important"
-                                : "var(--friend-requests-card-bg) !important",
-                              borderColor: isDarkTheme
-                                ? "#f5c32c !important"
-                                : "var(--friend-requests-accent) !important",
+                              backgroundColor:
+                                "var(--friend-requests-accent) !important",
+                              color:
+                                "var(--friend-requests-on-accent) !important",
+                              borderColor:
+                                "var(--friend-requests-accent) !important",
                             },
                             "& .MuiButton-startIcon": {
-                              color: isDarkTheme
-                                ? "#f5c32c !important"
-                                : "var(--friend-requests-accent) !important",
+                              color: "var(--friend-requests-accent) !important",
                             },
                             "&:hover .MuiButton-startIcon": {
-                              color: isDarkTheme
-                                ? "#000000 !important"
-                                : "var(--friend-requests-card-bg) !important",
+                              color:
+                                "var(--friend-requests-on-accent) !important",
                             },
                           }}
                         >
@@ -528,7 +529,7 @@ const FriendRequests = () => {
                                           })}
                                         </Typography>
                                       </div>
-                                      <Chip
+                                      {/* <Chip
                                         label="Pending"
                                         size="small"
                                         className="status-chip"
@@ -536,11 +537,16 @@ const FriendRequests = () => {
                                           backgroundColor:
                                             "var(--friend-requests-warning)",
                                           color:
-                                            "var(--friend-requests-card-bg)",
-                                          fontSize: "0.7rem",
+                                            "var(--friend-requests-on-warning)",
+                                          height: 32,
+                                          borderRadius: "12px",
+                                          padding: "0 16px",
+                                          minWidth: 80,
+                                          fontSize: "0.875rem",
                                           fontWeight: 600,
+                                          marginTop: -4,
                                         }}
-                                      />
+                                      /> */}
                                     </div>
                                   }
                                 />
@@ -559,7 +565,8 @@ const FriendRequests = () => {
                                       sx={{
                                         backgroundColor:
                                           "var(--friend-requests-success)",
-                                        color: "var(--friend-requests-card-bg)",
+                                        color:
+                                          "var(--friend-requests-on-success)",
                                         "&:hover": {
                                           backgroundColor:
                                             "var(--friend-requests-success)",
@@ -593,7 +600,7 @@ const FriendRequests = () => {
                                           backgroundColor:
                                             "var(--friend-requests-error)",
                                           color:
-                                            "var(--friend-requests-card-bg)",
+                                            "var(--friend-requests-on-error)",
                                           transform: "scale(1.05)",
                                         },
                                         "&:disabled": {

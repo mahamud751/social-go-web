@@ -144,7 +144,7 @@ const User = ({ person }) => {
                   ? person.ProfilePicture
                   : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
               }
-              alt={`${person?.Username}'s profile`}
+              alt={`${person.Username}'s profile`}
               className="profile-image"
               onLoad={() => setImageLoaded(true)}
               style={{

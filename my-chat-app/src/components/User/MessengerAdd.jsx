@@ -97,7 +97,7 @@ const MessengerAdd = ({ message, theme }) => {
             isAdded ? "added" : ""
           }`}
         >
-          <div className="card-image-container">
+          <div className="image-container">
             <CardMedia
               component="img"
               image={

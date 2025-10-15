@@ -1,11 +1,62 @@
 .profile_image {
-    display: flex;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background-color: rgba(143, 0, 255, 0.05);
+  transition: all 0.3s ease;
+}
+.modal-close-button {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #666;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.modal-close-button:hover {
+  background-color: rgba(143, 0, 255, 0.1);
+  color: #8f00ff;
+  transform: rotate(90deg);
+}
+
+.profile_image:hover {
+  background-color: rgba(143, 0, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 @media only screen and (max-width: 600px) {
-    .profile_image {
-        display: block;
+  .profile_image {
+    display: block;
+    text-align: center;
+  }
+}
 
-    }
+.modal-content {
+  border-radius: 1rem !important;
+  border: none !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+}
 
+.modal-content .modal-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.modal-content .modal-footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.btn-close {
+  transition: all 0.3s ease;
+}
+
+.btn-close:hover {
+  transform: rotate(90deg);
 }

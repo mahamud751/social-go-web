@@ -1,6 +1,81 @@
 .logoSearch {
   display: flex;
   gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: linear-gradient(
+    135deg,
+    rgba(143, 0, 255, 0.1),
+    rgba(255, 24, 183, 0.1)
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.logoSearch:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.animated-logo {
+  animation: logoEntrance 0.7s ease-out;
+}
+
+@keyframes logoEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logo-link {
+  text-decoration: none;
+  display: block;
+  width: 100%;
+}
+
+.logo-container {
+  align-items: center;
+  justify-content: center;
+}
+
+.s_icon2 {
+  color: #8f00ff;
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: linear-gradient(98.63deg, #8f00ff 0%, #ff18b7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: all 0.3s ease;
+}
+
+.s_icon2:hover {
+  transform: scale(1.05);
+}
+
+.animated-text {
+  animation: textGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes textGlow {
+  from {
+    text-shadow: 0 0 5px rgba(143, 0, 255, 0.3);
+  }
+  to {
+    text-shadow: 0 0 15px rgba(255, 24, 183, 0.5),
+      0 0 25px rgba(143, 0, 255, 0.3);
+  }
 }
 
 .search {
@@ -8,12 +83,18 @@
   background-color: var(--inputColor);
   border-radius: 10px;
   padding: 5px;
+  flex: 1;
+  max-width: 300px;
+  margin-left: auto;
 }
 
-.search>input {
+.search > input {
   border: none;
   outline: none;
   background-color: transparent;
+  flex: 1;
+  padding: 0 10px;
+  color: var(--text-color);
 }
 
 .s-icon {
@@ -24,16 +105,31 @@
   border-radius: 5px;
   color: white;
   background: linear-gradient(98.63deg, #8f00ff 0%, #ff18b7 100%);
-}
-
-.s_icon2 {
-  color: #8f00ff;
-  margin-top: 10px;
-  font-weight: bolder;
-  font-size: large;
-  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .s-icon:hover {
-  cursor: pointer;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(143, 0, 255, 0.5);
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+  .logoSearch {
+    padding: 0.75rem;
+    margin: 1rem !important;
+  }
+
+  .s_icon2 {
+    font-size: 1.5rem;
+  }
+
+  .animated-logo {
+    animation: none;
+  }
+
+  .logoSearch:hover {
+    transform: none;
+  }
 }

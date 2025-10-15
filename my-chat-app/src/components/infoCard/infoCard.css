@@ -12,6 +12,7 @@
   --info-card-button-hover-bg: transparent;
   --info-card-button-hover-border: 2px solid var(--orange); /* From App.css */
   --info-card-button-hover-text: var(--orange);
+  --info-card-border: rgba(255, 255, 255, 0.1);
 }
 
 :root[data-theme="light"] {
@@ -27,6 +28,7 @@
   --info-card-button-hover-bg: transparent;
   --info-card-button-hover-border: 2px solid var(--orange);
   --info-card-button-hover-text: var(--orange);
+  --info-card-border: rgba(0, 0, 0, 0.1);
 }
 
 .infoCard {
@@ -35,9 +37,54 @@
   gap: 0.75rem;
   background-color: var(--info-card-bg);
   border-radius: 1rem;
-  padding: 1rem;
+  padding: 1.5rem;
   width: 90%;
   color: var(--info-card-text);
+  border: 1px solid var(--info-card-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.infoCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.infoCard:hover::before {
+  left: 100%;
+}
+
+.infoCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.animated-card {
+  animation: cardEntrance 0.6s ease-out;
+}
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .infoHead {
@@ -45,35 +92,188 @@
   justify-content: space-between;
   align-items: center;
   color: var(--info-card-text);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--info-card-border);
+  margin-bottom: 0.75rem;
 }
 
-.infoHead > div:hover {
+.infoHead > h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.edit-icon-wrapper {
+  transition: all 0.3s ease;
+  border-radius: 50%;
+  padding: 0.25rem;
+}
+
+.edit-icon {
   cursor: pointer;
   color: var(--info-card-secondary-text);
+  transition: all 0.3s ease;
+}
+
+.edit-icon-wrapper:hover {
+  background-color: rgba(143, 0, 255, 0.1);
+  transform: rotate(15deg);
+}
+
+.edit-icon-wrapper:hover .edit-icon {
+  color: #8f00ff;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px dashed var(--info-card-border);
+  transition: all 0.3s ease;
+}
+
+.info:last-of-type {
+  border-bottom: none;
+}
+
+.info:hover {
+  background-color: rgba(143, 0, 255, 0.05);
+  border-radius: 0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.info > span:first-child {
+  font-weight: 600;
+  color: var(--info-card-secondary-text);
+}
+
+.info > span:last-child {
+  font-weight: 500;
+  color: var(--info-card-text);
+}
+
+.animated-info {
+  animation: infoSlideIn 0.5s ease-out;
+  opacity: 0;
+  animation-fill-mode: forwards;
+}
+
+@keyframes infoSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animated-info:nth-child(1) {
+  animation-delay: 0.2s;
+}
+
+.animated-info:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.animated-info:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
 .logout-button {
   width: 7rem;
-  height: 2rem;
+  height: 2.5rem;
   align-self: flex-end;
-  margin-top: 6rem;
+  margin-top: 1.5rem;
   background: var(--info-card-button-bg);
   color: var(--info-card-button-text);
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 200ms ease-out;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(143, 0, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.logout-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.logout-button:hover::before {
+  left: 100%;
 }
 
 .logout-button:hover {
-  background: var(--info-card-button-hover-bg);
-  border: var(--info-card-button-hover-border);
-  color: var(--info-card-button-hover-text);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(143, 0, 255, 0.4);
+}
+
+.logout-button:active {
+  transform: translateY(-1px);
 }
 
 .logout-button:disabled {
   background: silver;
   color: #ffffff;
   pointer-events: none;
+}
+
+.animated-button {
+  animation: buttonPopIn 0.5s ease-out 0.5s;
+  animation-fill-mode: forwards;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+@keyframes buttonPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+  .infoCard {
+    padding: 1rem;
+    width: 100%;
+  }
+
+  .infoCard:hover {
+    transform: none;
+  }
+
+  .animated-info,
+  .animated-button {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .logout-button {
+    width: 100%;
+    height: 2.5rem;
+  }
 }

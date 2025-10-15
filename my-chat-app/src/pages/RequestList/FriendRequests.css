@@ -1,34 +1,37 @@
-Enhanced FriendRequests Page Theme-Aware Styles
-
 /* Theme Variables */
 :root[data-theme="dark"] {
-  --friend-requests-bg: #1a1a1a;
-  --friend-requests-card-bg: #2c2c2c;
-  --friend-requests-header-bg: #242424;
-  --friend-requests-text: #ffffff;
-  --friend-requests-secondary-text: #e0e0e0;
+  --friend-requests-bg: #121212;
+  --friend-requests-card-bg: #1e1e1e;
+  --friend-requests-header-bg: #1e1e1e;
+  --friend-requests-text: #e0e0e0;
+  --friend-requests-secondary-text: #b0b0b0;
   --friend-requests-accent: #f5c32c;
   --friend-requests-primary: #4a90e2;
   --friend-requests-success: #2ecc71;
   --friend-requests-info: #17a2b8;
   --friend-requests-warning: #ffc107;
   --friend-requests-error: #ff7875;
-  --friend-requests-error-bg: rgba(255, 120, 117, 0.1);
-  --friend-requests-border: #404040;
-  --friend-requests-hover-bg: #383838;
+  --friend-requests-error-bg: rgba(255, 120, 117, 0.15);
+  --friend-requests-border: #333333;
+  --friend-requests-hover-bg: #2a2a2a;
   --friend-requests-active-bg: #f5c32c;
-  --friend-requests-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --friend-requests-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   --friend-requests-glow: 0 0 20px rgba(245, 195, 44, 0.4);
-  --friend-requests-glass: rgba(44, 44, 44, 0.8);
-  --friend-requests-gradient: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%);
+  --friend-requests-glass: rgba(30, 30, 30, 0.9);
+  --friend-requests-gradient: linear-gradient(135deg, #121212 0%, #1e1e1e 100%);
+  /* Contrast text for colored backgrounds */
+  --friend-requests-on-success: #ffffff;
+  --friend-requests-on-warning: #000000;
+  --friend-requests-on-error: #ffffff;
+  --friend-requests-on-accent: #000000;
 }
 
 :root[data-theme="light"] {
   --friend-requests-bg: #f8f9fa;
   --friend-requests-card-bg: #ffffff;
   --friend-requests-header-bg: #ffffff;
-  --friend-requests-text: #000000;
-  --friend-requests-secondary-text: #666666;
+  --friend-requests-text: #212121;
+  --friend-requests-secondary-text: #757575;
   --friend-requests-accent: #1976d2;
   --friend-requests-primary: #1976d2;
   --friend-requests-success: #4caf50;
@@ -43,10 +46,20 @@ Enhanced FriendRequests Page Theme-Aware Styles
   --friend-requests-glow: 0 0 20px rgba(25, 118, 210, 0.3);
   --friend-requests-glass: rgba(255, 255, 255, 0.9);
   --friend-requests-gradient: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  /* Contrast text for colored backgrounds */
+  --friend-requests-on-success: #ffffff;
+  --friend-requests-on-warning: #000000;
+  --friend-requests-on-error: #ffffff;
+  --friend-requests-on-accent: #ffffff;
 }
 
 .friend-requests-page.light {
   background: var(--friend-requests-gradient);
+}
+
+.friend-requests-page.dark {
+  background: var(--friend-requests-gradient);
+  color: var(--friend-requests-text);
 }
 
 .friend-requests-page::before {
@@ -92,7 +105,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
 
 /* Enhanced Page Header */
 .page-header {
-  background: var(--friend-requests-glass);
+  background: var(--friend-requests-glass) !important;
   backdrop-filter: blur(20px);
   border-radius: 24px;
   padding: 2.5rem;
@@ -102,6 +115,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
   position: relative;
   overflow: hidden;
   animation: slideInFromTop 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--friend-requests-text);
 }
 
 .page-header::before {
@@ -222,6 +236,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
 .stats-chip {
   animation: chipEntrance 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--friend-requests-on-accent) !important;
 }
 
 .stats-chip:hover {
@@ -231,6 +246,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
 
 .refresh-button {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  color: var(--friend-requests-accent) !important;
 }
 
 .refresh-button.refreshing {
@@ -239,11 +255,12 @@ Enhanced FriendRequests Page Theme-Aware Styles
 
 .refresh-button:hover {
   box-shadow: var(--friend-requests-glow) !important;
+  background-color: var(--friend-requests-hover-bg) !important;
 }
 
 /* Requests Container */
 .requests-container {
-  background: var(--friend-requests-glass) !important;
+  background: var(--friend-requests-card-bg) !important;
   backdrop-filter: blur(20px) !important;
   border-radius: 24px !important;
   border: 1px solid var(--friend-requests-border) !important;
@@ -251,6 +268,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
   overflow: hidden !important;
   position: relative !important;
   animation: slideInFromBottom 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--friend-requests-text) !important;
 }
 
 .requests-container::before {
@@ -277,6 +295,8 @@ Enhanced FriendRequests Page Theme-Aware Styles
 /* Error Alert */
 .error-alert {
   animation: alertSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--friend-requests-error) !important;
+  background-color: var(--friend-requests-error-bg) !important;
 }
 
 /* Loading Container */
@@ -313,13 +333,13 @@ Enhanced FriendRequests Page Theme-Aware Styles
 }
 
 .friend-requests-page.dark .skeleton-avatar {
-  background: #505050 !important;
+  background: #333333 !important;
 }
 
 .friend-requests-page.dark .skeleton-title,
 .friend-requests-page.dark .skeleton-subtitle,
 .friend-requests-page.dark .skeleton-button {
-  background: #505050 !important;
+  background: #333333 !important;
 }
 
 .skeleton-actions {
@@ -341,6 +361,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
+  color: var(--friend-requests-text);
 }
 
 .empty-animation {
@@ -378,6 +399,17 @@ Enhanced FriendRequests Page Theme-Aware Styles
   border-color: #f5c32c !important;
 }
 
+.friend-requests-page.light .explore-button {
+  border-color: #1976d2 !important;
+  color: #1976d2 !important;
+}
+
+.friend-requests-page.light .explore-button:hover {
+  background-color: #1976d2 !important;
+  color: #ffffff !important;
+  border-color: #1976d2 !important;
+}
+
 .ripple-effect {
   position: absolute;
   top: 50%;
@@ -393,17 +425,21 @@ Enhanced FriendRequests Page Theme-Aware Styles
 
 .empty-title {
   margin-bottom: 1rem !important;
+  color: var(--friend-requests-text) !important;
 }
 
 .empty-description {
   margin-bottom: 2rem !important;
   max-width: 400px;
+  color: var(--friend-requests-secondary-text) !important;
 }
 
 .explore-button {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   border-radius: 12px !important;
   padding: 12px 24px !important;
+  color: var(--friend-requests-accent) !important;
+  border-color: var(--friend-requests-accent) !important;
 }
 
 .explore-button:hover {
@@ -416,6 +452,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
   padding: 1.5rem !important;
   max-height: 70vh;
   overflow-y: auto;
+  color: var(--friend-requests-text);
 }
 
 .request-item {
@@ -428,6 +465,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
   position: relative !important;
   overflow: hidden !important;
   padding: 0 !important;
+  color: var(--friend-requests-text);
 }
 
 .request-item::before {
@@ -487,6 +525,8 @@ Enhanced FriendRequests Page Theme-Aware Styles
 .user-avatar {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   animation: avatarEntrance 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  background-color: var(--friend-requests-primary) !important;
+  border: 3px solid var(--friend-requests-accent) !important;
 }
 
 .user-avatar:hover {
@@ -497,6 +537,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
 .request-info {
   flex: 1;
   margin: 0 !important;
+  color: var(--friend-requests-text);
 }
 
 /* Sender Name */
@@ -510,62 +551,49 @@ Enhanced FriendRequests Page Theme-Aware Styles
   transform: scale(1.02);
 }
 
-/* Enhanced Text Colors for Dark Mode */
-.friend-requests-page.dark .MuiTypography-root {
-  color: #ffffff !important;
-}
-
-.friend-requests-page.dark .MuiTypography-caption {
+/* Enhanced Text Colors for Dark Mode - More Specific Overrides */
+.friend-requests-page.dark .MuiTypography-root,
+.friend-requests-page.dark .MuiListItemText-primary,
+.friend-requests-page.dark .MuiListItemText-secondary {
   color: #e0e0e0 !important;
 }
 
-.friend-requests-page.dark .MuiTypography-body1 {
-  color: #e0e0e0 !important;
+.friend-requests-page.dark .MuiTypography-caption,
+.friend-requests-page.dark .MuiTypography-body1,
+.friend-requests-page.dark .MuiTypography-subtitle1,
+.friend-requests-page.dark .MuiTypography-body2 {
+  color: #b0b0b0 !important;
 }
 
+.friend-requests-page.dark .MuiTypography-h1,
+.friend-requests-page.dark .MuiTypography-h2,
+.friend-requests-page.dark .MuiTypography-h3,
+.friend-requests-page.dark .MuiTypography-h4,
+.friend-requests-page.dark .MuiTypography-h5,
 .friend-requests-page.dark .MuiTypography-h6 {
-  color: #ffffff !important;
-}
-
-.friend-requests-page.dark .MuiTypography-h5 {
-  color: #ffffff !important;
-}
-
-.friend-requests-page.dark .MuiTypography-h4 {
-  color: #ffffff !important;
-}
-
-.friend-requests-page.dark .MuiTypography-h3 {
-  color: #ffffff !important;
-}
-
-.friend-requests-page.dark .MuiTypography-subtitle1 {
   color: #e0e0e0 !important;
 }
 
-/* Force white text for all dark mode elements */
-.friend-requests-page.dark * {
-  color: inherit;
-}
-
+/* Remove the broad inherit rule as it can cause issues; use specific selectors instead */
 .friend-requests-page.dark .main-title {
-  color: #ffffff !important;
+  color: #e0e0e0 !important;
+  -webkit-text-fill-color: transparent !important;
 }
 
 .friend-requests-page.dark .subtitle {
-  color: #e0e0e0 !important;
+  color: #b0b0b0 !important;
 }
 
 .friend-requests-page.dark .sender-name {
-  color: #ffffff !important;
+  color: #e0e0e0 !important;
 }
 
 .friend-requests-page.dark .empty-title {
-  color: #ffffff !important;
+  color: #e0e0e0 !important;
 }
 
 .friend-requests-page.dark .empty-description {
-  color: #e0e0e0 !important;
+  color: #b0b0b0 !important;
 }
 
 /* Time Icon */
@@ -575,7 +603,7 @@ Enhanced FriendRequests Page Theme-Aware Styles
 }
 
 .friend-requests-page.dark .time-icon {
-  color: #e0e0e0 !important;
+  color: #b0b0b0 !important;
 }
 
 /* Empty State Text */
@@ -608,9 +636,11 @@ Enhanced FriendRequests Page Theme-Aware Styles
 
 .status-chip {
   animation: chipBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  color: var(--friend-requests-on-warning) !important;
+  background-color: var(--friend-requests-warning) !important;
 }
 
-/* Action Buttons */
+/* Action Buttons - Enhanced Overrides */
 .action-buttons {
   display: flex;
   gap: 0.75rem;
@@ -625,11 +655,40 @@ Enhanced FriendRequests Page Theme-Aware Styles
   font-weight: 600 !important;
   text-transform: none !important;
   min-width: 80px !important;
+  color: var(--friend-requests-on-success) !important;
 }
 
-.accept-button:hover,
-.reject-button:hover {
+.accept-button {
+  background-color: var(--friend-requests-success) !important;
+  border-color: var(--friend-requests-success) !important;
+}
+
+.accept-button:hover {
+  background-color: var(--friend-requests-success) !important;
+  color: var(--friend-requests-on-success) !important;
   box-shadow: var(--friend-requests-shadow) !important;
+}
+
+.accept-button:disabled {
+  background-color: var(--friend-requests-border) !important;
+  color: var(--friend-requests-secondary-text) !important;
+}
+
+.reject-button {
+  background-color: transparent !important;
+  border-color: var(--friend-requests-error) !important;
+  color: var(--friend-requests-error) !important;
+}
+
+.reject-button:hover {
+  background-color: var(--friend-requests-error) !important;
+  color: var(--friend-requests-on-error) !important;
+  box-shadow: var(--friend-requests-shadow) !important;
+}
+
+.reject-button:disabled {
+  border-color: var(--friend-requests-border) !important;
+  color: var(--friend-requests-border) !important;
 }
 
 /* Processing Overlay */

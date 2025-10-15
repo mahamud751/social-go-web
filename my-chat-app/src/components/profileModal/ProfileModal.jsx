@@ -26,8 +26,37 @@ function ProfileModal({ profileModal, setProfileModal, data }) {
   const param = useParams();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Fix the naming mismatch between state and input names
+    const { name, value } = e.target;
+    let fieldName = name;
+
+    // Map input names to state field names
+    switch (name) {
+      case "firstname":
+        fieldName = "Firstname";
+        break;
+      case "lastname":
+        fieldName = "Lastname";
+        break;
+      case "worksAt":
+        fieldName = "WorksAt";
+        break;
+      case "livesin":
+        fieldName = "LivesIn";
+        break;
+      case "country":
+        fieldName = "Country";
+        break;
+      case "relationship":
+        fieldName = "Relationship";
+        break;
+      default:
+        break;
+    }
+
+    setFormData((prevState) => ({ ...prevState, [fieldName]: value }));
   };
+
   const onImageChange = (event) => {
     if (event.target.files && event.target.files[0]) {
       let img = event.target.files[0];
@@ -89,6 +118,7 @@ function ProfileModal({ profileModal, setProfileModal, data }) {
       alert("An error occurred while updating your profile. Please try again.");
     }
   };
+
   return (
     <Modal
       overlayColor={
@@ -101,90 +131,106 @@ function ProfileModal({ profileModal, setProfileModal, data }) {
       size="100%"
       opened={profileModal}
       onClose={() => setProfileModal(false)}
+      withCloseButton={false} // We'll add our own custom close button
     >
-      <form className="infoForm">
-        <h3>Your info</h3>
+      <div className="modal-container">
+        {/* Custom Close Button */}
 
-        <div>
-          <input
-            type="text"
-            className="infoInput"
-            name="firstname"
-            placeholder="First Name"
-            onChange={handleChange}
-            defaultValue={formData.Firstname}
-          />
+        <form className="infoForm">
+          <h3>Your info</h3>
 
-          <input
-            type="text"
-            className="infoInput"
-            name="lastname"
-            placeholder="Last Name"
-            onChange={handleChange}
-            defaultValue={formData.Lastname}
-          />
-        </div>
+          <button
+            className="modal-close-button"
+            type="button"
+            onClick={() => setProfileModal(false)}
+          >
+            ×
+          </button>
+          <div>
+            <input
+              type="text"
+              className="infoInput"
+              name="firstname"
+              placeholder="First Name"
+              onChange={handleChange}
+              defaultValue={formData.Firstname}
+            />
 
-        <div>
-          <input
-            type="text"
-            className="infoInput"
-            name="worksAt"
-            placeholder="Works at"
-            onChange={handleChange}
-            defaultValue={formData.WorksAt}
-          />
-        </div>
+            <input
+              type="text"
+              className="infoInput"
+              name="lastname"
+              placeholder="Last Name"
+              onChange={handleChange}
+              defaultValue={formData.Lastname}
+            />
+          </div>
 
-        <div>
-          <input
-            type="text"
-            className="infoInput"
-            name="livesin"
-            placeholder="Lives in"
-            onChange={handleChange}
-            defaultValue={formData.LivesIn}
-          />
+          <div>
+            <input
+              type="text"
+              className="infoInput"
+              name="worksAt"
+              placeholder="Works at"
+              onChange={handleChange}
+              defaultValue={formData.WorksAt}
+            />
+          </div>
 
-          <input
-            type="text"
-            className="infoInput"
-            name="country"
-            placeholder="Country"
-            onChange={handleChange}
-            defaultValue={formData.Country}
-          />
-        </div>
+          <div>
+            <input
+              type="text"
+              className="infoInput"
+              name="livesin"
+              placeholder="Lives in"
+              onChange={handleChange}
+              defaultValue={formData.LivesIn}
+            />
 
-        <div>
-          <input
-            type="text"
-            className="infoInput"
-            name="relationship"
-            placeholder="RelationShip Status"
-            onChange={handleChange}
-            defaultValue={formData.Relationship}
-          />
-        </div>
-        <div>
-          <div className="profile_image">
-            <div>
-              <label htmlFor=""> Profile Image</label>
-              <input type="file" name="profileImage" onChange={onImageChange} />
-            </div>
+            <input
+              type="text"
+              className="infoInput"
+              name="country"
+              placeholder="Country"
+              onChange={handleChange}
+              defaultValue={formData.Country}
+            />
+          </div>
 
-            <div className="mt-lg-0 mt-2">
-              <label htmlFor=""> Cover Image</label>
+          <div>
+            <input
+              type="text"
+              className="infoInput"
+              name="relationship"
+              placeholder="RelationShip Status"
+              onChange={handleChange}
+              defaultValue={formData.Relationship}
+            />
+          </div>
+          <div>
+            <div className="profile_image">
+              <div>
+                <label htmlFor=""> Profile Image</label>
+                <input
+                  type="file"
+                  name="profileImage"
+                  onChange={onImageChange}
+                />
+              </div>
 
-              <input type="file" name="coverImage" onChange={onImageChange} />
+              <div className="mt-lg-0 mt-2">
+                <label htmlFor=""> Cover Image</label>
+
+                <input type="file" name="coverImage" onChange={onImageChange} />
+              </div>
             </div>
           </div>
-        </div>
 
-        <button className="button infoButton mt-5" onClick={handleSubmit}>
-          Update
-        </button>
-      </form>
+          <button className="button infoButton mt-5" onClick={handleSubmit}>
+            Update
+          </button>
+        </form>
+      </div>
     </Modal>
   );
 }
