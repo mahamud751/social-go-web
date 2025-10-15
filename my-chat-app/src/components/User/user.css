@@ -110,8 +110,6 @@
 
 /* Card Header */
 .card-header {
-  position: relative;
-  height: 200px;
   overflow: hidden;
 }
 

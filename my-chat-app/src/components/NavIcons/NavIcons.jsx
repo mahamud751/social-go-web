@@ -20,6 +20,26 @@ const NavIcons = () => {
       <Link to="/chat" className={isActive("/chat") ? "active" : ""}>
         <i className="fa-solid fa-message icon_bg"></i>
       </Link>
+      <Link
+        to="/pages"
+        className={
+          isActive("/pages") || location.pathname.startsWith("/page/")
+            ? "active"
+            : ""
+        }
+      >
+        <i className="fa-solid fa-flag icon_bg"></i>
+      </Link>
+      <Link
+        to="/groups"
+        className={
+          isActive("/groups") || location.pathname.startsWith("/group/")
+            ? "active"
+            : ""
+        }
+      >
+        <i className="fa-solid fa-users icon_bg"></i>
+      </Link>
       <Link to="/friend" className={isActive("/friend") ? "active" : ""}>
         <i className="fa-solid fa-user-group icon_bg"></i>
       </Link>

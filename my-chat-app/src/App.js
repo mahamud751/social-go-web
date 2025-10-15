@@ -10,6 +10,10 @@ import AddMessenger from "./pages/addMessenger/AddMessenger";
 import FriendList from "./pages/friendList/FriendList";
 import FriendRequests from "./pages/RequestList/FriendRequests";
 import VideoCall from "./pages/VideoCall/VideoCall";
+import Pages from "./pages/pages/Pages";
+import PageView from "./pages/pages/PageView";
+import Groups from "./pages/groups/Groups";
+import GroupView from "./pages/groups/GroupView";
 import ThemeToggle from "./components/ThemeToggle";
 import Notification from "./components/Notification/Notification";
 import NavIcons from "./components/NavIcons/NavIcons";
@@ -90,6 +94,26 @@ function App({ toggleTheme, theme }) {
           <Route
             path="/video-call"
             element={user ? <VideoCall /> : <Navigate to="../auth" />}
+          />
+
+          {/* Pages Routes */}
+          <Route
+            path="/pages"
+            element={user ? <Pages /> : <Navigate to="../auth" />}
+          />
+          <Route
+            path="/page/:pageId"
+            element={user ? <PageView /> : <Navigate to="../auth" />}
+          />
+
+          {/* Groups Routes */}
+          <Route
+            path="/groups"
+            element={user ? <Groups /> : <Navigate to="../auth" />}
+          />
+          <Route
+            path="/group/:groupId"
+            element={user ? <GroupView /> : <Navigate to="../auth" />}
           />
         </Routes>
 
