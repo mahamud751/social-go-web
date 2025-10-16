@@ -553,7 +553,7 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
-      className={`comment-modal ${isDarkTheme ? "dark" : "light"}`}
+      className={`comments-modal ${isDarkTheme ? "dark" : "light"}`}
       sx={{
         "& .MuiDialog-paper": {
           borderRadius: 3,
@@ -562,12 +562,13 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
             : "0 8px 32px rgba(0, 0, 0, 0.15)",
           bgcolor: isDarkTheme ? "#2c2c2c" : "#ffffff",
           border: isDarkTheme ? "1px solid #404040" : "none",
-          maxHeight: "90vh",
+          maxHeight: "40vh",
+          margin: 0,
         },
       }}
     >
       <DialogTitle
-        className="comment-modal-title"
+        className="comments-modal-title"
         sx={{
           display: "flex",
           alignItems: "center",
@@ -607,7 +608,7 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
       </DialogTitle>
       <DialogContent
         dividers
-        className="comment-modal-content"
+        className="comments-modal-content"
         sx={{
           bgcolor: isDarkTheme ? "#2c2c2c" : "#ffffff",
           borderColor: isDarkTheme ? "#404040" : "#e0e0e0",
@@ -654,7 +655,7 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
         </List>
       </DialogContent>
       <DialogActions
-        className="comment-modal-actions"
+        className="comments-modal-actions"
         sx={{
           p: 2,
           bgcolor: isDarkTheme ? "#383838" : "#f8f9fa",
@@ -769,13 +770,6 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
       </DialogActions>
 
       {/* Reaction Modal */}
-      <ReactionModal
-        isOpen={showReactionModal}
-        onClose={() => setShowReactionModal(false)}
-        reactionData={selectedCommentReactions}
-        currentUserId={user?.ID}
-        triggerElement={reactionTriggerElement}
-      />
     </Dialog>
   );
 };

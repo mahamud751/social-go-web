@@ -37,26 +37,26 @@
 }
 
 /* Main Modal Container */
-.comment-modal {
+.comments-modal {
   backdrop-filter: blur(8px);
   animation: modalFadeIn 0.3s ease-out;
 }
 
-.comment-modal.dark .MuiDialog-paper {
+.comments-modal.dark .MuiDialog-paper {
   background: linear-gradient(145deg, #2c2c2c 0%, #383838 100%);
 }
 
-.comment-modal.light .MuiDialog-paper {
+.comments-modal.light .MuiDialog-paper {
   background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
 }
 
 /* Modal Title Styling */
-.comment-modal-title {
+.comments-modal-title {
   position: relative;
   overflow: hidden;
 }
 
-.comment-modal-title::before {
+.comments-modal-title::before {
   content: "";
   position: absolute;
   bottom: 0;
@@ -526,7 +526,7 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .comment-modal .MuiDialog-paper {
+  .comments-modal .MuiDialog-paper {
     margin: 8px;
     width: calc(100% - 16px);
     max-height: calc(100% - 16px);
@@ -631,7 +631,7 @@
 
 /* Print Styles */
 @media print {
-  .comment-modal {
+  .comments-modal {
     background: white !important;
     color: black !important;
   }

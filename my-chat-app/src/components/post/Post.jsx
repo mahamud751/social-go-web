@@ -269,7 +269,6 @@ const Post = ({ data, theme }) => {
           <span
             className="reaction-count-text"
             onClick={(e) => {
-              setReactionTriggerElement(e.currentTarget);
               setShowReactionModal(true);
             }}
           >
@@ -282,7 +281,6 @@ const Post = ({ data, theme }) => {
         <span
           style={{ fontSize: "12px", cursor: "pointer" }}
           onClick={(e) => {
-            setReactionTriggerElement(e.currentTarget);
             setShowReactionModal(true);
           }}
         >
