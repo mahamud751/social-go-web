@@ -13,6 +13,7 @@ import {
   Paper,
   Fade,
   Slide,
+  Tooltip,
 } from "@mui/material";
 import {
   CallEnd as CallEndIcon,
@@ -20,9 +21,6 @@ import {
   MicOff as MicOffIcon,
   Videocam as VideocamIcon,
   VideocamOff as VideocamOffIcon,
-  VolumeUp as VolumeUpIcon,
-  ScreenShare as ScreenShareIcon,
-  ScreenShareOutlined as ScreenShareOutlinedIcon,
 } from "@mui/icons-material";
 import "./VideoCall.css";
 
@@ -39,18 +37,19 @@ const VideoCall = () => {
   const [callStatus, setCallStatus] = useState("connecting");
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  // Screen sharing removed per requirements
   const [callDuration, setCallDuration] = useState(0);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [connectionQuality, setConnectionQuality] = useState("excellent");
   const [remoteUserInfo, setRemoteUserInfo] = useState(null);
+  const [isEndingCall, setIsEndingCall] = useState(false);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const agoraClientRef = useRef(null);
   const localAudioTrackRef = useRef(null);
   const localVideoTrackRef = useRef(null);
-  const screenShareTrackRef = useRef(null);
+  // Screen share track ref removed
   const callDurationIntervalRef = useRef(null);
   const resolvedCallDataRef = useRef(null);
 
@@ -177,6 +176,7 @@ const VideoCall = () => {
             break;
           case "CONNECTING":
             setCallStatus("connecting");
+            setConnectionQuality("connecting");
             break;
           case "RECONNECTING":
             setConnectionQuality("poor");
@@ -396,6 +396,10 @@ const VideoCall = () => {
     console.log("🔚 Ending video call");
 
     try {
+      if (isEndingCall) {
+        return;
+      }
+      setIsEndingCall(true);
       // Stop call duration tracking
       if (callDurationIntervalRef.current) {
         clearInterval(callDurationIntervalRef.current);
@@ -431,11 +435,7 @@ const VideoCall = () => {
           console.log("📹 Closed local video track");
         }
 
-        if (screenShareTrackRef.current) {
-          await screenShareTrackRef.current.close();
-          screenShareTrackRef.current = null;
-          console.log("💻 Closed screen share track");
-        }
+        // Screen share cleanup removed
 
         // Leave Agora channel only if we created the client
         if (agoraClientRef.current) {
@@ -467,10 +467,11 @@ const VideoCall = () => {
     } catch (error) {
       console.error("❌ Error during call cleanup:", error);
     } finally {
+      setIsEndingCall(false);
       // Navigate back to previous page or chat
       navigate(-1);
     }
-  }, [navigate, callData]);
+  }, [navigate, callData, isEndingCall]);
 
   // Initialize call on component mount (only once) and cleanup on unmount
   useEffect(() => {
@@ -500,13 +501,51 @@ const VideoCall = () => {
   };
 
   // Toggle video
-  const toggleVideo = () => {
+  const toggleVideo = async () => {
+    const newOff = !isVideoOff;
+
     if (localVideoTrackRef.current) {
-      const newOff = !isVideoOff;
-      localVideoTrackRef.current.setEnabled(!newOff);
+      await localVideoTrackRef.current.setEnabled(!newOff);
+      if (!newOff && localVideoRef.current) {
+        localVideoTrackRef.current.play(localVideoRef.current);
+      }
       setIsVideoOff(newOff);
+      return;
     }
+
+    // If turning ON video and no track exists (e.g., audio-only call), create it
+    if (!newOff) {
+      try {
+        const videoConfig = {
+          encoderConfig: "720p_1",
+          optimizationMode: "motion",
+          facingMode: "user",
+        };
+
+        localVideoTrackRef.current = await AgoraRTC.createCameraVideoTrack(
+          videoConfig
+        );
+
+        if (localVideoRef.current) {
+          localVideoTrackRef.current.play(localVideoRef.current);
+        }
+
+        if (agoraClientRef.current) {
+          await agoraClientRef.current.publish([localVideoTrackRef.current]);
+        }
+
+        console.log("📹 Video track created and published on toggle");
+      } catch (createErr) {
+        console.warn("⚠️ Failed to create video track on toggle:", createErr);
+        setIsVideoOff(true);
+        return;
+      }
+    }
+
+    setIsVideoOff(newOff);
   };
+
+  // Screen share toggle removed per requirements
 
   // Handle disconnected or error status - trigger endCall
   useEffect(() => {
@@ -556,6 +595,15 @@ const VideoCall = () => {
             className="remote-video"
           />
 
+          {/* Remote video placeholder when not available */}
+          {(!remoteUserInfo || !remoteUserInfo.hasVideo) && (
+            <Box className="remote-placeholder">
+              <Typography className="placeholder-text">Remote video unavailable</Typography>
+            </Box>
+          )}
+
+          {/* Screen share banner removed per requirements */}
+
           {/* Call info overlay */}
           <Box className="call-info-overlay">
             <Typography variant="h4" className="caller-name">
@@ -586,90 +634,88 @@ const VideoCall = () => {
               You
             </Typography>
           </Box>
+
+          {/* Local video placeholder when camera is off */}
+          {(isVideoOff || !localVideoTrackRef.current) && (
+            <Box className="local-placeholder">
+              <VideocamOffIcon />
+            </Box>
+          )}
         </Box>
 
         {/* Call controls */}
         <Slide direction="up" in={true} timeout={500}>
           <Paper className="call-controls" elevation={3}>
             <Box className="controls-container">
-              <IconButton
-                className={`control-button mic-button ${
-                  isMuted ? "muted" : ""
-                }`}
-                onClick={toggleMute}
-                sx={{
-                  backgroundColor: isMuted
-                    ? "var(--error-color)"
-                    : "var(--control-bg)",
-                  color: isMuted ? "#ffffff" : "var(--control-color)",
-                  "&:hover": {
+              <Tooltip title={isMuted ? "Unmute microphone" : "Mute microphone"}>
+                <IconButton
+                  className={`control-button mic-button ${
+                    isMuted ? "muted" : ""
+                  }`}
+                  onClick={toggleMute}
+                  disabled={!localAudioTrackRef.current}
+                  sx={{
                     backgroundColor: isMuted
                       ? "var(--error-color)"
-                      : "var(--control-hover)",
-                  },
-                }}
-              >
-                {isMuted ? <MicOffIcon /> : <MicIcon />}
-              </IconButton>
+                      : "var(--control-bg)",
+                    color: isMuted ? "#ffffff" : "var(--control-color)",
+                    "&:hover": {
+                      backgroundColor: isMuted
+                        ? "var(--error-color)"
+                        : "var(--control-hover)",
+                    },
+                  }}
+                >
+                  {isMuted ? <MicOffIcon /> : <MicIcon />}
+                </IconButton>
+              </Tooltip>
 
-              <IconButton
-                className={`control-button video-button ${
-                  isVideoOff ? "off" : ""
-                }`}
-                onClick={toggleVideo}
-                sx={{
-                  backgroundColor: isVideoOff
-                    ? "var(--error-color)"
-                    : "var(--control-bg)",
-                  color: isVideoOff ? "#ffffff" : "var(--control-color)",
-                  "&:hover": {
+              <Tooltip title={isVideoOff ? "Turn on camera" : "Turn off camera"}>
+                <IconButton
+                  className={`control-button video-button ${
+                    isVideoOff ? "off" : ""
+                  }`}
+                  onClick={toggleVideo}
+                  disabled={!agoraClientRef.current}
+                  sx={{
                     backgroundColor: isVideoOff
                       ? "var(--error-color)"
-                      : "var(--control-hover)",
-                  },
-                }}
-              >
-                {isVideoOff ? <VideocamOffIcon /> : <VideocamIcon />}
-              </IconButton>
+                      : "var(--control-bg)",
+                    color: isVideoOff ? "#ffffff" : "var(--control-color)",
+                    "&:hover": {
+                      backgroundColor: isVideoOff
+                        ? "var(--error-color)"
+                        : "var(--control-hover)",
+                    },
+                  }}
+                >
+                  {isVideoOff ? <VideocamOffIcon /> : <VideocamIcon />}
+                </IconButton>
+              </Tooltip>
 
-              <IconButton
-                className="control-button end-call-button"
-                onClick={endCall}
-                sx={{
-                  backgroundColor: "var(--error-color)",
-                  color: "#ffffff",
-                  "&:hover": {
+              <Tooltip title="End call">
+                <IconButton
+                  className="control-button end-call-button"
+                  onClick={endCall}
+                  disabled={isEndingCall}
+                  sx={{
                     backgroundColor: "var(--error-color)",
-                    transform: "scale(1.1)",
-                  },
-                }}
-              >
-                <CallEndIcon />
-              </IconButton>
+                    color: "#ffffff",
+                    "&:hover": {
+                      backgroundColor: "var(--error-color)",
+                      transform: "scale(1.1)",
+                    },
+                  }}
+                >
+                  <CallEndIcon />
+                </IconButton>
+              </Tooltip>
 
-              <IconButton
-                className={`control-button screen-share-button ${
-                  isScreenSharing ? "sharing" : ""
-                }`}
-                onClick={() => {}}
-                sx={{
-                  backgroundColor: isScreenSharing
-                    ? "var(--primary-color)"
-                    : "var(--control-bg)",
-                  color: isScreenSharing ? "#ffffff" : "var(--control-color)",
-                  "&:hover": {
-                    backgroundColor: isScreenSharing
-                      ? "var(--primary-color)"
-                      : "var(--control-hover)",
-                  },
-                }}
-              >
-                {isScreenSharing ? (
-                  <ScreenShareIcon />
-                ) : (
-                  <ScreenShareOutlinedIcon />
-                )}
-              </IconButton>
+              {/* Screen share control removed per requirements */}
+              {/* Connection quality indicator */}
+              <Box className={`quality-indicator ${connectionQuality}`}>
+                {connectionQuality}
+              </Box>
             </Box>
           </Paper>
         </Slide>
