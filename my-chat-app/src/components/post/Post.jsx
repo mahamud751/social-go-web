@@ -6,7 +6,9 @@ import { useSelector, useDispatch } from "react-redux";
 import { likePost } from "../../api/PostRequest";
 import { getAllUser } from "../../api/UserRequest";
 import CommentModal from "./CommentModal";
+import ReactionModal from "../reactions/ReactionModal";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const reactions = {
   like: { emoji: "👍", label: "Like" },
@@ -28,6 +30,8 @@ const Post = ({ data, theme }) => {
   const [openCommentModal, setOpenCommentModal] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState(null);
+  const [showReactionModal, setShowReactionModal] = useState(false);
+  const [reactionTriggerElement, setReactionTriggerElement] = useState(null);
 
   useEffect(() => {
     const fetchPersons = async () => {
@@ -84,13 +88,39 @@ const Post = ({ data, theme }) => {
     );
   };
 
-  const getReactionEmojis = () => {
-    const activeReactions = Object.keys(reactionCounts).filter(
-      (type) => reactionCounts[type]?.length > 0
-    );
-    return (
-      activeReactions.map((type) => reactions[type].emoji).join(" ") || "👍"
-    );
+  const getReactionBreakdown = () => {
+    if (!reactionCounts) return [];
+    return Object.entries(reactionCounts)
+      .filter(([_, users]) => users && users.length > 0)
+      .map(([type, users]) => ({
+        emoji: reactions[type]?.emoji || "👍",
+        count: users.length,
+        type: type,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  };
+
+  const getTopReactors = () => {
+    const allUserIds = [];
+    Object.values(reactionCounts).forEach((userIds) => {
+      allUserIds.push(...userIds);
+    });
+
+    const uniqueUserIds = [...new Set(allUserIds)];
+    const names = uniqueUserIds.slice(0, 3).map((userId) => {
+      if (userId === user.ID) return "You";
+      const person = persons.find((p) => p.ID === userId);
+      return person?.Username || "Someone";
+    });
+
+    if (uniqueUserIds.length === 0) return "";
+    if (uniqueUserIds.length === 1) return names[0];
+    if (uniqueUserIds.length === 2) return `${names[0]} and ${names[1]}`;
+
+    const others = uniqueUserIds.length - 2;
+    if (others === 1) return `${names[0]}, ${names[1]} and 1 other`;
+    return `${names[0]}, ${names[1]} and ${others} others`;
   };
 
   const handleMouseEnter = () => {
@@ -208,9 +238,55 @@ const Post = ({ data, theme }) => {
         <img src={Share} alt="" />
       </div>
 
+      {/* Enhanced Reaction Display */}
+      {getTotalReactions() > 0 && (
+        <motion.div
+          className="post-reaction-summary"
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div
+            className="reaction-emojis-container"
+            onClick={(e) => {
+              setReactionTriggerElement(e.currentTarget);
+              setShowReactionModal(true);
+            }}
+          >
+            {getReactionBreakdown().map((reaction, idx) => (
+              <motion.span
+                key={reaction.type}
+                className="reaction-emoji-badge"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: idx * 0.05, type: "spring" }}
+                whileHover={{ scale: 1.2, rotate: 10 }}
+              >
+                {reaction.emoji}
+              </motion.span>
+            ))}
+          </div>
+          <span
+            className="reaction-count-text"
+            onClick={(e) => {
+              setReactionTriggerElement(e.currentTarget);
+              setShowReactionModal(true);
+            }}
+          >
+            {getTopReactors()}
+          </span>
+        </motion.div>
+      )}
+
       <div className="postStats">
-        <span style={{ fontSize: "12px" }}>
-          {getReactionEmojis()} {getTotalReactions()} reactions
+        <span
+          style={{ fontSize: "12px", cursor: "pointer" }}
+          onClick={(e) => {
+            setReactionTriggerElement(e.currentTarget);
+            setShowReactionModal(true);
+          }}
+        >
+          {getTotalReactions()} reactions
         </span>
         <span style={{ fontSize: "12px" }}>{commentCount} comments</span>
       </div>
@@ -231,7 +307,16 @@ const Post = ({ data, theme }) => {
         handleClose={() => setOpenCommentModal(false)}
         postId={data.ID}
         setCommentCount={setCommentCount}
-        theme={theme} // Pass theme to CommentModal if needed
+        theme={theme}
+      />
+
+      {/* Reaction Modal */}
+      <ReactionModal
+        isOpen={showReactionModal}
+        onClose={() => setShowReactionModal(false)}
+        reactionData={reactionCounts}
+        currentUserId={user.ID}
+        triggerElement={reactionTriggerElement}
       />
     </div>
   );

@@ -1,0 +1,419 @@
+/* ReactionModal.css */
+
+/* Dark Theme Variables */
+:root[data-theme="dark"] {
+  --reaction-modal-bg: #242526;
+  --reaction-modal-header-bg: #3a3b3c;
+  --reaction-modal-text: #e4e6eb;
+  --reaction-modal-text-secondary: #b0b3b8;
+  --reaction-modal-border: #3e4042;
+  --reaction-modal-hover: #3a3b3c;
+  --reaction-modal-tab-active: #2374e1;
+  --reaction-modal-shadow: rgba(0, 0, 0, 0.8);
+  --reaction-modal-overlay: rgba(0, 0, 0, 0.75);
+}
+
+/* Light Theme Variables */
+:root[data-theme="light"] {
+  --reaction-modal-bg: #ffffff;
+  --reaction-modal-header-bg: #f0f2f5;
+  --reaction-modal-text: #050505;
+  --reaction-modal-text-secondary: #65676b;
+  --reaction-modal-border: #ced0d4;
+  --reaction-modal-hover: #f2f3f5;
+  --reaction-modal-tab-active: #1877f2;
+  --reaction-modal-shadow: rgba(0, 0, 0, 0.3);
+  --reaction-modal-overlay: rgba(0, 0, 0, 0.5);
+}
+
+/* Modal Overlay */
+.reaction-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--reaction-modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+  overflow-y: auto;
+  padding: 20px;
+  /* Ensure modal stays centered even when scrolling */
+  min-height: 100vh;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal Container */
+.reaction-modal-container {
+  background: var(--reaction-modal-bg);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 520px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px var(--reaction-modal-shadow);
+  border: 1px solid var(--reaction-modal-border);
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  margin: auto;
+  /* Ensure modal is always visible */
+  align-self: center;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Ensure body doesn't scroll when modal is open */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Modal Header */
+.reaction-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: var(--reaction-modal-header-bg);
+  border-bottom: 2px solid var(--reaction-modal-border);
+}
+
+.reaction-modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--reaction-modal-text);
+}
+
+.reaction-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: var(--reaction-modal-text-secondary);
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.reaction-modal-close:hover {
+  background: var(--reaction-modal-hover);
+  color: var(--reaction-modal-text);
+  transform: rotate(90deg);
+}
+
+/* Reaction Tabs */
+.reaction-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px;
+  overflow-x: auto;
+  border-bottom: 2px solid var(--reaction-modal-border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--reaction-modal-text-secondary) transparent;
+}
+
+.reaction-tabs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.reaction-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reaction-tabs::-webkit-scrollbar-thumb {
+  background: var(--reaction-modal-text-secondary);
+  border-radius: 3px;
+}
+
+.reaction-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 2px solid var(--reaction-modal-border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+  color: var(--reaction-modal-text);
+  font-weight: 600;
+  font-size: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.reaction-tab::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: var(--reaction-modal-tab-active);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.4s ease;
+  opacity: 0.1;
+  z-index: 0;
+}
+
+.reaction-tab:hover::before {
+  width: 200px;
+  height: 200px;
+}
+
+.reaction-tab:hover {
+  border-color: var(--reaction-modal-tab-active);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(35, 116, 225, 0.2);
+}
+
+.reaction-tab.active {
+  background: var(--reaction-modal-tab-active);
+  border-color: var(--reaction-modal-tab-active);
+  color: #ffffff;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(35, 116, 225, 0.3);
+}
+
+.reaction-tab .tab-emoji {
+  font-size: 18px;
+  z-index: 1;
+  position: relative;
+  animation: bounceEmoji 0.5s ease;
+}
+
+@keyframes bounceEmoji {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.reaction-tab .tab-label,
+.reaction-tab .tab-count {
+  z-index: 1;
+  position: relative;
+}
+
+.reaction-tab .tab-count {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Summary Text */
+.reaction-summary-text {
+  padding: 16px 24px;
+  font-size: 14px;
+  color: var(--reaction-modal-text-secondary);
+  background: var(--reaction-modal-header-bg);
+  border-bottom: 1px solid var(--reaction-modal-border);
+  font-weight: 500;
+  animation: slideInFromTop 0.4s ease;
+}
+
+@keyframes slideInFromTop {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* User List */
+.reaction-users-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--reaction-modal-text-secondary) transparent;
+}
+
+.reaction-users-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reaction-users-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reaction-users-list::-webkit-scrollbar-thumb {
+  background: var(--reaction-modal-text-secondary);
+  border-radius: 4px;
+}
+
+/* Loading & Empty States */
+.reaction-loading,
+.reaction-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--reaction-modal-text-secondary);
+  font-size: 15px;
+}
+
+/* User Item */
+.reaction-user-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: transparent;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.reaction-user-item:hover {
+  background: var(--reaction-modal-hover);
+  border-color: var(--reaction-modal-border);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.reaction-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reaction-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--reaction-modal-border);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reaction-user-item:hover .reaction-user-avatar {
+  border-color: var(--reaction-modal-tab-active);
+  box-shadow: 0 4px 16px rgba(35, 116, 225, 0.3);
+}
+
+.reaction-user-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--reaction-modal-text);
+}
+
+.reaction-user-emoji {
+  font-size: 24px;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.reaction-user-item:hover .reaction-user-emoji {
+  transform: scale(1.3) rotate(15deg);
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .reaction-modal-overlay {
+    padding: 10px;
+  }
+
+  .reaction-modal-container {
+    width: 95%;
+    max-height: 90vh;
+    margin: auto;
+  }
+
+  .reaction-modal-header {
+    padding: 16px 20px;
+  }
+
+  .reaction-modal-header h3 {
+    font-size: 18px;
+  }
+
+  .reaction-tabs {
+    padding: 12px 20px;
+  }
+
+  .reaction-tab {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .reaction-summary-text {
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+
+  .reaction-users-list {
+    padding: 8px 20px;
+  }
+
+  .reaction-user-item {
+    padding: 10px 12px;
+  }
+
+  .reaction-user-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .reaction-user-name {
+    font-size: 14px;
+  }
+
+  .reaction-user-emoji {
+    font-size: 20px;
+  }
+}
+
+/* Animation Enhancements */
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+.reaction-user-emoji:active {
+  animation: wiggle 0.3s ease;
+}

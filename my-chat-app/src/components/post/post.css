@@ -4,7 +4,10 @@
   --post-text-color: #ffffff;
   --reaction-bg: #ffffff;
   --reaction-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --icon-color: #007bff; /* Matches CommentIcon color */
+  --icon-color: #007bff;
+  --post-reaction-summary-bg: #3a3b3c;
+  --post-reaction-badge-bg: #4a4b4c;
+  --post-reaction-text-secondary: #b0b3b8;
 }
 
 :root[data-theme="light"] {
@@ -12,7 +15,10 @@
   --post-text-color: #000000;
   --reaction-bg: #ffffff;
   --reaction-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --icon-color: #005bb5; /* Slightly darker blue for light mode */
+  --icon-color: #005bb5;
+  --post-reaction-summary-bg: #ffffff;
+  --post-reaction-badge-bg: #f0f2f5;
+  --post-reaction-text-secondary: #65676b;
 }
 
 .post {
@@ -73,4 +79,89 @@
 .reactionOptions {
   background: var(--reaction-bg);
   box-shadow: var(--reaction-shadow);
+}
+
+/* Enhanced Reaction Summary */
+.post-reaction-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--post-reaction-summary-bg);
+  border-radius: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.post-reaction-summary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--icon-color);
+}
+
+.reaction-emojis-container {
+  display: flex;
+  align-items: center;
+  gap: -8px;
+  position: relative;
+}
+
+.reaction-emoji-badge {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--post-reaction-badge-bg);
+  border-radius: 50%;
+  font-size: 16px;
+  border: 2px solid var(--post-background);
+  margin-left: -6px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+.reaction-emoji-badge:first-child {
+  margin-left: 0;
+}
+
+.reaction-emoji-badge:hover {
+  transform: scale(1.3) translateY(-3px);
+  z-index: 10;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.reaction-count-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--post-reaction-text-secondary);
+  margin-left: 8px;
+  transition: all 0.3s ease;
+}
+
+.post-reaction-summary:hover .reaction-count-text {
+  color: var(--icon-color);
+}
+
+.postStats {
+  display: flex;
+  gap: 1rem;
+  color: var(--post-text-color);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--post-reaction-badge-bg);
+}
+
+.postStats span {
+  transition: all 0.2s ease;
+}
+
+.postStats span:hover {
+  color: var(--icon-color);
+  transform: scale(1.05);
 }

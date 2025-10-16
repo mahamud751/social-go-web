@@ -253,6 +253,91 @@
   color: white;
 }
 
+/* Enhanced Reaction Summary */
+.page-post-reaction-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--page-input-bg);
+  border-radius: 10px;
+  margin: 12px 0;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid transparent;
+}
+
+.page-post-reaction-summary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-color: var(--page-primary);
+  background: var(--page-hover-bg);
+}
+
+.reaction-emojis-container {
+  display: flex;
+  align-items: center;
+  gap: -8px;
+  position: relative;
+}
+
+.reaction-emoji-badge {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--page-card-bg);
+  border-radius: 50%;
+  font-size: 18px;
+  border: 2.5px solid var(--page-input-bg);
+  margin-left: -8px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 1;
+}
+
+.reaction-emoji-badge:first-child {
+  margin-left: 0;
+}
+
+.reaction-emoji-badge:hover {
+  transform: scale(1.4) translateY(-4px) rotate(15deg);
+  z-index: 10;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.reaction-breakdown-list {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.reaction-type-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--page-card-bg);
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--page-text);
+  border: 2px solid var(--page-border);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.reaction-type-count:hover {
+  transform: scale(1.1) translateY(-2px);
+  border-color: var(--page-primary);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
+}
+
 .post-actions {
   display: flex;
   gap: 10px;

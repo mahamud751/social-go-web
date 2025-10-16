@@ -16,6 +16,8 @@ import {
   deletePageComment,
   likePageComment,
 } from "../../api/PageRequest";
+import { getAllUser } from "../../api/UserRequest";
+import ReactionModal from "../../components/reactions/ReactionModal";
 import { motion } from "framer-motion";
 import axios from "axios";
 import "./PageView.css";
@@ -47,6 +49,9 @@ const PageView = () => {
   const [showReactions, setShowReactions] = useState(null);
   const [commentModalOpen, setCommentModalOpen] = useState(null);
   const [reactionHoverTimeout, setReactionHoverTimeout] = useState(null);
+  const [showReactionModal, setShowReactionModal] = useState(false);
+  const [selectedPostReactions, setSelectedPostReactions] = useState(null);
+  const [reactionTriggerElement, setReactionTriggerElement] = useState(null);
   const postImageRef = useRef();
   const profileImageRef = useRef();
   const coverImageRef = useRef();
@@ -184,7 +189,15 @@ const PageView = () => {
         emoji: reactions[type]?.emoji || "👍",
         count: users.length,
         type: type,
-      }));
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  };
+
+  const handleOpenReactionModal = (postReactions, triggerElement) => {
+    setSelectedPostReactions(postReactions);
+    setReactionTriggerElement(triggerElement);
+    setShowReactionModal(true);
   };
 
   const handleUpdatePage = async (e) => {
@@ -441,23 +454,54 @@ const PageView = () => {
                 <img src={post.Image} alt="Post" className="post-image" />
               )}
 
-              {/* Reaction Summary */}
+              {/* Enhanced Reaction Summary */}
               {getTotalReactions(post.Reactions) > 0 && (
-                <div className="reaction-summary">
-                  {getReactionBreakdown(post.Reactions).map((reaction, idx) => (
-                    <span
-                      key={idx}
-                      className="reaction-count"
-                      title={`${reaction.count} ${reaction.type}`}
-                    >
-                      {reaction.emoji} {reaction.count}
-                    </span>
-                  ))}
-                </div>
+                <motion.div
+                  className="page-post-reaction-summary"
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  onClick={(e) =>
+                    handleOpenReactionModal(post.Reactions, e.currentTarget)
+                  }
+                >
+                  <div className="reaction-emojis-container">
+                    {getReactionBreakdown(post.Reactions).map(
+                      (reaction, idx) => (
+                        <motion.span
+                          key={reaction.type}
+                          className="reaction-emoji-badge"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: idx * 0.05, type: "spring" }}
+                          whileHover={{ scale: 1.2, rotate: 10 }}
+                        >
+                          {reaction.emoji}
+                        </motion.span>
+                      )
+                    )}
+                  </div>
+                  <div className="reaction-breakdown-list">
+                    {getReactionBreakdown(post.Reactions).map(
+                      (reaction, idx) => (
+                        <span key={idx} className="reaction-type-count">
+                          {reaction.emoji} {reaction.count}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </motion.div>
               )}
 
               <div className="post-stats">
-                <span>{getTotalReactions(post.Reactions)} reactions</span>
+                <span
+                  onClick={(e) =>
+                    handleOpenReactionModal(post.Reactions, e.currentTarget)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  {getTotalReactions(post.Reactions)} reactions
+                </span>
                 <span>{post.CommentCount || 0} comments</span>
               </div>
 
@@ -715,6 +759,15 @@ const PageView = () => {
           </motion.div>
         </motion.div>
       )}
+
+      {/* Reaction Modal */}
+      <ReactionModal
+        isOpen={showReactionModal}
+        onClose={() => setShowReactionModal(false)}
+        reactionData={selectedPostReactions}
+        currentUserId={user?.user?.ID}
+        triggerElement={reactionTriggerElement}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import API from "../../api/Api";
+import ReactionModal from "../reactions/ReactionModal";
 import {
   Dialog,
   DialogTitle,
@@ -41,7 +42,11 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
   const [users, setUsers] = useState({});
   const [reactionStates, setReactionStates] = useState({});
   const [showReactions, setShowReactions] = useState(null);
-  const [hoverTimeout, setHoverTimeout] = useState(null); // For debouncing hover
+  const [hoverTimeout, setHoverTimeout] = useState(null);
+  const [showReactionModal, setShowReactionModal] = useState(false);
+  const [selectedCommentReactions, setSelectedCommentReactions] =
+    useState(null);
+  const [reactionTriggerElement, setReactionTriggerElement] = useState(null);
 
   // Get current theme from document
   const currentTheme =
@@ -267,6 +272,12 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
     );
   };
 
+  const handleOpenReactionModal = (commentReactions, triggerElement) => {
+    setSelectedCommentReactions(commentReactions);
+    setReactionTriggerElement(triggerElement);
+    setShowReactionModal(true);
+  };
+
   // Handle hover with debounce
   const handleMouseEnter = (commentId) => {
     if (hoverTimeout) clearTimeout(hoverTimeout);
@@ -384,6 +395,12 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
                     }
                     size="small"
                     className="reaction-chip"
+                    onClick={(e) =>
+                      handleOpenReactionModal(
+                        comment.Reactions,
+                        e.currentTarget
+                      )
+                    }
                     sx={{
                       cursor: "pointer",
                       bgcolor: isDarkTheme ? "#4a90e2" : "#1976d2",
@@ -750,6 +767,15 @@ const CommentModal = ({ open, handleClose, postId, setCommentCount }) => {
           )}
         </Box>
       </DialogActions>
+
+      {/* Reaction Modal */}
+      <ReactionModal
+        isOpen={showReactionModal}
+        onClose={() => setShowReactionModal(false)}
+        reactionData={selectedCommentReactions}
+        currentUserId={user?.ID}
+        triggerElement={reactionTriggerElement}
+      />
     </Dialog>
   );
 };
