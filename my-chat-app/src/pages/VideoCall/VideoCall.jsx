@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import { convertToAgoraUid } from "../../utils/AgoraUtils";
 import WebSocketService from "../../actions/WebSocketService";
+import { RtcTokenBuilder, RtcRole } from "agora-access-token";
 import {
   Box,
   Typography,
@@ -28,6 +29,7 @@ import "./VideoCall.css";
 const VideoCall = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { channel: channelParam } = useParams();
   const authData = useSelector((state) => state.authReducer.authData);
   const user = authData?.user || authData;
 
@@ -50,6 +52,7 @@ const VideoCall = () => {
   const localVideoTrackRef = useRef(null);
   const screenShareTrackRef = useRef(null);
   const callDurationIntervalRef = useRef(null);
+  const resolvedCallDataRef = useRef(null);
 
   // Theme detection
   useEffect(() => {
@@ -206,26 +209,60 @@ const VideoCall = () => {
 
   // Initialize Agora client and join channel
   const initializeCall = useCallback(async () => {
-    if (!callData || !user) return;
+    if (!user) return;
 
     try {
-      console.log("📹 Initializing video call with data:", callData);
+      // Resolve call data using location state and URL param
+      const data = {
+        ...callData,
+        channel: (callData && callData.channel) || channelParam,
+        appId: (callData && callData.appId) || process.env.REACT_APP_AGORA_APP_ID,
+        callType: (callData && callData.callType) || "video",
+      };
+
+      // Generate token fallback if missing and certificate is available
+      if (!data.token && data.appId && data.channel && process.env.REACT_APP_AGORA_APP_CERTIFICATE) {
+        const appCertificate = process.env.REACT_APP_AGORA_APP_CERTIFICATE;
+        const uidForToken = data.uid || convertToAgoraUid(user.ID);
+        const expireTs = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+        try {
+          data.token = RtcTokenBuilder.buildTokenWithUid(
+            data.appId,
+            appCertificate,
+            data.channel,
+            uidForToken,
+            RtcRole.PUBLISHER,
+            expireTs
+          );
+          console.log("🔑 Generated fallback Agora token");
+        } catch (tokenError) {
+          console.warn("⚠️ Failed to generate fallback token, continuing without token:", tokenError);
+        }
+      }
+
+      // Persist resolved data for cleanup/signaling
+      resolvedCallDataRef.current = data;
+      console.log("📹 Initializing video call with resolved data:", data);
+
+      if (!data.channel || !data.appId) {
+        throw new Error("Missing channel or appId for video call");
+      }
 
       // Check if we have an existing Agora client from ChatBox
-      if (callData.existingClient && callData.uid) {
+      if (data.existingClient && data.uid) {
         console.log("♻️ Reusing existing Agora client and session");
 
         // Reuse existing client
-        agoraClientRef.current = callData.existingClient;
+        agoraClientRef.current = data.existingClient;
 
         // Reuse existing tracks
-        if (callData.existingAudioTrack) {
-          localAudioTrackRef.current = callData.existingAudioTrack;
+        if (data.existingAudioTrack) {
+          localAudioTrackRef.current = data.existingAudioTrack;
           console.log("🎤 Reusing existing audio track");
         }
 
-        if (callData.existingVideoTrack && callData.callType !== "audio") {
-          localVideoTrackRef.current = callData.existingVideoTrack;
+        if (data.existingVideoTrack && data.callType !== "audio") {
+          localVideoTrackRef.current = data.existingVideoTrack;
           console.log("📹 Reusing existing video track");
 
           // Play local video
@@ -259,19 +296,19 @@ const VideoCall = () => {
       setupAgoraEventHandlers();
 
       // Convert user ID to Agora UID
-      const agoraUid = callData.uid || convertToAgoraUid(user.ID);
+      const agoraUid = data.uid || convertToAgoraUid(user.ID);
       console.log("🎯 Joining channel with UID:", agoraUid);
 
-      // Join channel with proper app ID from environment
-      const appId = process.env.REACT_APP_AGORA_APP_ID;
+      // Join channel with app ID from callData or environment
+      const appId = data.appId;
       if (!appId) {
         throw new Error("Agora App ID not configured");
       }
 
       await agoraClientRef.current.join(
         appId,
-        callData.channel,
-        callData.token || null,
+        data.channel,
+        data.token || null,
         agoraUid
       );
 
@@ -286,7 +323,7 @@ const VideoCall = () => {
       };
 
       const videoConfig = {
-        encoderConfig: callData.callType === "audio" ? null : "720p_1",
+        encoderConfig: data.callType === "audio" ? null : "720p_1",
         optimizationMode: "motion",
         facingMode: "user",
       };
@@ -298,7 +335,7 @@ const VideoCall = () => {
       console.log("🎤 Created local audio track");
 
       // Create video track only for video calls
-      if (callData.callType !== "audio" && !isVideoOff) {
+      if (data.callType !== "audio" && !isVideoOff) {
         try {
           localVideoTrackRef.current = await AgoraRTC.createCameraVideoTrack(
             videoConfig
@@ -366,20 +403,21 @@ const VideoCall = () => {
       }
 
       // Send call ended signal to other user
-      if (callData?.channel) {
+      const channelToSignal = (resolvedCallDataRef.current && resolvedCallDataRef.current.channel) || callData?.channel;
+      if (channelToSignal) {
         WebSocketService.sendMessage({
           type: "agora-signal",
           data: {
             action: "call-ended",
             targetId: callData.callerId || "unknown",
-            channel: callData.channel,
+            channel: channelToSignal,
             timestamp: Date.now(),
           },
         });
       }
 
       // Only clean up tracks if they were created in VideoCall (not reused from ChatBox)
-      if (!callData?.existingClient) {
+      if (!resolvedCallDataRef.current?.existingClient && !callData?.existingClient) {
         // Clean up local tracks only if we created them
         if (localAudioTrackRef.current) {
           await localAudioTrackRef.current.close();
@@ -434,25 +472,23 @@ const VideoCall = () => {
     }
   }, [navigate, callData]);
 
-  // Initialize call on component mount
+  // Initialize call on component mount (only once) and cleanup on unmount
   useEffect(() => {
-    // Check if we have call data
-    if (!callData) {
-      console.log("No call data, redirecting to chat");
+    if (!callData && !channelParam) {
+      console.log("No call data or channel param, redirecting to chat");
       navigate("/chat");
       return;
     }
 
-    // Initialize the call
     initializeCall();
 
-    // Cleanup on unmount
     return () => {
       if (endCall) {
         endCall();
       }
     };
-  }, [callData, initializeCall, navigate, endCall]);
+    // Intentionally run once on mount to avoid ending call on state updates
+  }, []);
 
   // Toggle mute
   const toggleMute = () => {
@@ -500,7 +536,7 @@ const VideoCall = () => {
     };
   }, [endCall]);
 
-  if (!callData) {
+  if (!callData && !channelParam) {
     return (
       <Box className="video-call-container">
         <Typography variant="h6">Invalid call data</Typography>
@@ -523,7 +559,7 @@ const VideoCall = () => {
           {/* Call info overlay */}
           <Box className="call-info-overlay">
             <Typography variant="h4" className="caller-name">
-              {callData.callerName || "User"}
+              {callData?.callerName || "User"}
             </Typography>
             <Typography variant="h6" className="call-status">
               {callStatus === "connecting" ? "Connecting..." : "In call"}

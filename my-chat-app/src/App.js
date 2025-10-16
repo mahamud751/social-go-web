@@ -95,6 +95,10 @@ function App({ toggleTheme, theme }) {
             path="/video-call"
             element={user ? <VideoCall /> : <Navigate to="../auth" />}
           />
+          <Route
+            path="/video-call/:channel"
+            element={user ? <VideoCall /> : <Navigate to="../auth" />}
+          />
 
           {/* Pages Routes */}
           <Route

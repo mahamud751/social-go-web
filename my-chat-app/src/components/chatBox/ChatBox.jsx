@@ -94,6 +94,7 @@ const ChatBox = ({
   const callTypeRef = useRef(callType);
   const agoraTokenRef = useRef(agoraToken);
   const lastProcessedSignalRef = useRef(null);
+  const hasNavigatedToVideoCallRef = useRef(false);
 
   // Keep refs updated
   useEffect(() => {
@@ -2144,7 +2145,7 @@ const ChatBox = ({
           // For video calls, navigate to VideoCall page immediately
           if (type === "video") {
             console.log("📹 Navigating to video call page for caller");
-            navigate("/video-call", {
+            navigate(`/video-call/${newChannelName}` , {
               state: {
                 callData: {
                   channel: newChannelName,
@@ -2162,6 +2163,7 @@ const ChatBox = ({
                 },
               },
             });
+            hasNavigatedToVideoCallRef.current = true;
           }
         } catch (agoraError) {
           console.error("❌ Agora setup failed:", agoraError);
@@ -2398,9 +2400,9 @@ const ChatBox = ({
 
         console.log("✅ Call answered successfully");
 
-        // Navigate to video call page for video calls
+        // Navigate to video call page for video calls (ID-wise route)
         if (incomingCallOffer.callType === "video") {
-          navigate("/video-call", {
+          navigate(`/video-call/${incomingCallOffer.channel}` , {
             state: {
               callData: {
                 channel: incomingCallOffer.channel,
@@ -2688,15 +2690,21 @@ const ChatBox = ({
 
             // Navigate to video call page for video calls
             if (callTypeRef.current === "video") {
-              navigate("/video-call", {
-                state: {
-                  callData: {
-                    channel: channel,
-                    token: agoraTokenRef.current,
-                    callerName: userData?.Username || "User",
+              if (!hasNavigatedToVideoCallRef.current) {
+                navigate(`/video-call/${channel}` , {
+                  state: {
+                    callData: {
+                      channel: channel,
+                      token: agoraTokenRef.current,
+                      appId: process.env.REACT_APP_AGORA_APP_ID,
+                      callerName: userData?.Username || "User",
+                    },
                   },
-                },
-              });
+                });
+                hasNavigatedToVideoCallRef.current = true;
+              } else {
+                console.log("ℹ️ Already navigated to video call page, skipping duplicate navigation");
+              }
             }
           } else {
             console.log(
