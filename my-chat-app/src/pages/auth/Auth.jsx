@@ -91,13 +91,12 @@ const Auth = () => {
       <div className="row">
         <div className="col-md-12 right">
           <form className="infoForm authForm" onSubmit={handleSubmit}>
-            {/* <img src={Logo} alt="" /> */}
-            <h3 className="s_icon2" style={{ color: "black" }}>
-              {isSignUp ? "Sign up to" : "Log in to "}
-            </h3>
-            <h1 className="s_icon2" style={{ fontSize: 42 }}>
-              Dream Tech
-            </h1>
+            <img
+              src="https://i.ibb.co.com/vx9MqGyY/061cdbc5-1a12-4892-843f-d1768d0ea1ae-removebg-preview.png"
+              alt=""
+              style={{ width: "100%", height: "400px" }}
+            />
+
             {isSignUp && (
               <div className="inputRow twoCol">
                 <input
@@ -133,38 +132,44 @@ const Auth = () => {
             )}
 
             {!isSignUp ? (
-              <div className="inputRow twoCol">
-                <input
-                  type="text"
-                  className="infoInput"
-                  name="email"
-                  placeholder="Email or Username"
-                  onChange={handleChange}
-                  value={data.email}
-                />
-                <div className="passwordGroup">
+              <>
+                <div className="inputRow">
                   <input
-                    type={showPassword ? "text" : "password"}
+                    type="text"
                     className="infoInput"
-                    name="password"
-                    placeholder="Password"
+                    name="email"
+                    placeholder="Email or Username"
                     onChange={handleChange}
-                    value={data.password}
+                    value={data.email}
                   />
-                  <button
-                    type="button"
-                    className="toggleVisibilityBtn"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    onClick={() => setShowPassword((prev) => !prev)}
-                  >
-                    {showPassword ? (
-                      <EyeClosedIcon aria-hidden="true" />
-                    ) : (
-                      <EyeOpenIcon aria-hidden="true" />
-                    )}
-                  </button>
                 </div>
-              </div>
+                <div className="inputRow">
+                  <div className="passwordGroup">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      className="infoInput"
+                      name="password"
+                      placeholder="Password"
+                      onChange={handleChange}
+                      value={data.password}
+                    />
+                    <button
+                      type="button"
+                      className="toggleVisibilityBtn"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      onClick={() => setShowPassword((prev) => !prev)}
+                    >
+                      {showPassword ? (
+                        <EyeClosedIcon aria-hidden="true" />
+                      ) : (
+                        <EyeOpenIcon aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 <div className="inputRow">
@@ -190,7 +195,9 @@ const Auth = () => {
                     <button
                       type="button"
                       className="toggleVisibilityBtn"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                       onClick={() => setShowPassword((prev) => !prev)}
                     >
                       {showPassword ? (
@@ -212,7 +219,9 @@ const Auth = () => {
                     <button
                       type="button"
                       className="toggleVisibilityBtn"
-                      aria-label={showConfirm ? "Hide password" : "Show password"}
+                      aria-label={
+                        showConfirm ? "Hide password" : "Show password"
+                      }
                       onClick={() => setShowConfirm((prev) => !prev)}
                     >
                       {showConfirm ? (
@@ -257,7 +266,7 @@ const Auth = () => {
               {loading ? "Loading..." : isSignUp ? "Signup" : "Log in"}
             </button>
             <h6 style={{ color: "black" }}>
-              Dream Tech helps you connect and share with the people in your
+              Vibe Connect helps you connect and share with the people in your
               life.
             </h6>
           </form>

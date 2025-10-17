@@ -1,31 +1,46 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./rightSide.css";
-import { getAllUser } from "../../api/UserRequest";
+import { getUser } from "../../api/UserRequest";
 import { getAllPages } from "../../api/PageRequest";
 import { getAllGroups } from "../../api/GroupRequest";
 
 const RightSide = () => {
   const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
+  const [friends, setFriends] = useState([]);
   const [pages, setPages] = useState([]);
   const [groups, setGroups] = useState([]);
-  const currentUser = JSON.parse(localStorage.getItem("profile"));
+  const currentProfile = JSON.parse(localStorage.getItem("profile"));
+  const currentUserId = currentProfile?.user?.ID;
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
     try {
-      // Fetch all users
-      const usersRes = await getAllUser();
-      if (usersRes.data) {
-        // Filter out current user and limit to 5
-        const filteredUsers = usersRes.data
-          .filter((user) => user.ID !== currentUser?.user?.ID)
-          .slice(0, 5);
-        setUsers(filteredUsers);
+      // Fetch current user's friend IDs and resolve to user details
+      if (currentUserId) {
+        const meRes = await getUser(currentUserId);
+        const friendIds = meRes?.data?.Friends || [];
+
+        if (friendIds.length > 0) {
+          const details = await Promise.all(
+            friendIds.map(async (fid) => {
+              try {
+                const { data } = await getUser(fid);
+                return data;
+              } catch (e) {
+                console.error("Failed to fetch friend", fid, e);
+                return null;
+              }
+            })
+          );
+          setFriends(details.filter(Boolean).slice(0, 5));
+        } else {
+          setFriends([]);
+        }
       }
 
       // Fetch pages
@@ -45,42 +60,42 @@ const RightSide = () => {
   };
 
   const getRandomStatus = () => {
-    // Random online/offline for demo purposes
+    // Placeholder online/offline; integrate real presence if available
     return Math.random() > 0.5 ? "online" : "offline";
   };
 
   return (
     <div className="rightSide5" style={{ width: "22%" }}>
-      {/* Online/Offline Users Card */}
+      {/* Friends Card */}
       <div className="sidebar-card">
         <div className="card-header">
           <h3>Friends</h3>
         </div>
         <div className="card-content">
-          {users.length === 0 ? (
-            <div className="no-data">No users found</div>
+          {friends.length === 0 ? (
+            <div className="no-data">No friends found</div>
           ) : (
-            users.map((user) => {
+            friends.map((friend) => {
               const status = getRandomStatus();
               return (
                 <div
-                  key={user.ID}
+                  key={friend.ID}
                   className="user-item"
-                  onClick={() => navigate(`/profile/${user.ID}`)}
+                  onClick={() => navigate(`/profile/${friend.ID}`)}
                 >
                   <div className="user-avatar">
-                    {user.ProfilePicture ? (
-                      <img src={user.ProfilePicture} alt={user.Username} />
+                    {friend.ProfilePicture ? (
+                      <img src={friend.ProfilePicture} alt={friend.Username} />
                     ) : (
                       <div className="avatar-placeholder">
-                        {user.Username?.charAt(0).toUpperCase()}
+                        {friend.Username?.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <span className={`status-indicator ${status}`}></span>
                   </div>
                   <div className="user-info">
                     <span className="user-name">
-                      {user.Firstname} {user.Lastname}
+                      <span className="page-name">{friend.Username}</span>
                     </span>
                     <span className="user-status">{status}</span>
                   </div>

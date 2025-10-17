@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { getAllUser } from "../../api/UserRequest";
+import { getAllUser, getUser } from "../../api/UserRequest";
 import {
   confirmFriendRequest,
   rejectFriendRequest,
@@ -36,6 +36,7 @@ const Notification = () => {
   const [persons, setPersons] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [error, setError] = useState(null);
+  const [currentUserFriends, setCurrentUserFriends] = useState([]);
   const authData = useSelector((state) => state?.authReducer?.authData);
   const user = authData?.user;
   const navigate = useNavigate();
@@ -55,6 +56,20 @@ const Notification = () => {
     };
     fetchPersons();
   }, [user]);
+
+  // Fetch current user's friends for action visibility logic
+  useEffect(() => {
+    const fetchMyFriends = async () => {
+      try {
+        if (!user?.ID) return;
+        const { data } = await getUser(user.ID);
+        setCurrentUserFriends(data?.Friends || []);
+      } catch (error) {
+        console.error("Failed to fetch current user for friends:", error);
+      }
+    };
+    fetchMyFriends();
+  }, [user?.ID]);
 
   // WebSocket setup
   useEffect(() => {
@@ -108,9 +123,18 @@ const Notification = () => {
   const handleAccept = async (requestId) => {
     try {
       await confirmFriendRequest(requestId);
+
+      // Update notifications to mark this request as accepted
       setNotifications((prev) =>
-        prev.filter((notif) => notif.id !== requestId)
+        prev.map((notif) =>
+          notif.id === requestId ? { ...notif, status: "accepted" } : notif
+        )
       );
+
+      // Refetch current user's friends to update the UI
+      const { data } = await getUser(user.ID);
+      setCurrentUserFriends(data?.Friends || []);
+
       setError(null);
     } catch (error) {
       const errorMessage =
@@ -124,9 +148,14 @@ const Notification = () => {
   const handleReject = async (requestId) => {
     try {
       await rejectFriendRequest(requestId);
+
+      // Update notifications to mark this request as rejected
       setNotifications((prev) =>
-        prev.filter((notif) => notif.id !== requestId)
+        prev.map((notif) =>
+          notif.id === requestId ? { ...notif, status: "rejected" } : notif
+        )
       );
+
       setError(null);
     } catch (error) {
       const errorMessage =
@@ -387,62 +416,82 @@ const Notification = () => {
                       flexWrap: "wrap",
                     }}
                   >
-                    {notification.type === "friend_request" && (
-                      <>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          className="notification-accept-btn"
-                          startIcon={<CheckCircle />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAccept(notification.id);
-                          }}
-                          sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 500,
-                            px: 2,
-                            bgcolor: "#2ECC71",
-                            color: "#FFFFFF",
-                            "&:hover": {
-                              bgcolor: "#27AE60",
-                              transform: "scale(1.05)",
-                              transition: "all 0.2s ease-in-out",
-                            },
-                          }}
-                        >
-                          Accept
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          className="notification-reject-btn"
-                          startIcon={<Cancel />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReject(notification.id);
-                          }}
-                          sx={{
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 500,
-                            px: 2,
-                            borderColor: "var(--orange)",
-                            color: "var(--orange)",
-                            "&:hover": {
+                    {/* Friend Request Actions */}
+                    {(() => {
+                      // Check if this is a friend request
+                      if (notification.type !== "friend_request") {
+                        return null;
+                      }
+
+                      // Extract sender ID from notification (could be senderId, senderID, userId, or sender_id)
+                      const senderId =
+                        notification.senderId ||
+                        notification.senderID ||
+                        notification.userId ||
+                        notification.sender_id;
+
+                      // Check if already friends
+                      const isAlreadyFriend =
+                        senderId && currentUserFriends.includes(senderId);
+
+                      // Check if status is accepted or rejected
+                      const isAccepted = notification.status === "accepted";
+                      const isRejected = notification.status === "rejected";
+
+                      // Show Accept/Reject buttons only if:
+                      // - Status is NOT accepted or rejected
+                      // - User is NOT already a friend
+
+                      // Show "Already Friends" badge
+                      if (isAccepted || isAlreadyFriend) {
+                        return (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "#2ECC71",
+                              fontWeight: 600,
+                              bgcolor: isDarkTheme ? "#1a4d2e" : "#d4edda",
+                              px: 2,
+                              py: 0.5,
+                              borderRadius: 2,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <CheckCircle sx={{ fontSize: 16 }} />
+                            Already Friends
+                          </Typography>
+                        );
+                      }
+
+                      // Show "Rejected" badge
+                      if (isRejected) {
+                        return (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "var(--orange)",
+                              fontWeight: 600,
                               bgcolor: isDarkTheme ? "#4a1f1f" : "#FFF1F0",
-                              color: isDarkTheme ? "#ff7875" : "#CF1322",
-                              borderColor: isDarkTheme ? "#ff7875" : "#CF1322",
-                              transform: "scale(1.05)",
-                              transition: "all 0.2s ease-in-out",
-                            },
-                          }}
-                        >
-                          Reject
-                        </Button>
-                      </>
-                    )}
+                              px: 2,
+                              py: 0.5,
+                              borderRadius: 2,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <Cancel sx={{ fontSize: 16 }} />
+                            Rejected
+                          </Typography>
+                        );
+                      }
+
+                      return null;
+                    })()}
+
+                    {/* Mark as Read Button */}
                     {!notification.read && (
                       <Button
                         variant="outlined"

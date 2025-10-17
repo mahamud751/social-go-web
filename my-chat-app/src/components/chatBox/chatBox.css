@@ -106,6 +106,20 @@
   gap: 1rem;
 }
 
+/* Mobile Back Button */
+.back-button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  animation: buttonEntrance 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.back-button:hover {
+  transform: scale(1.1) !important;
+}
+
+.back-button:active {
+  transform: scale(0.95) !important;
+}
+
 .user-info {
   display: flex;
   align-items: center;

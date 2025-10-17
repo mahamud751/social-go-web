@@ -45,6 +45,7 @@ const Chat = () => {
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showChatOnMobile, setShowChatOnMobile] = useState(false);
 
   // Theme detection
   useEffect(() => {
@@ -119,131 +120,130 @@ const Chat = () => {
 
     // Define a stable message handler so we can remove it on cleanup
     const chatMessageHandler = (msg) => {
-        console.log("📥 Received message:", msg);
+      console.log("📥 Received message:", msg);
 
-        switch (msg.type) {
-          case "get-users":
-            console.log("👥 Online users:", msg.data);
-            const formattedUsers = msg.data.map((uid) => ({ UserID: uid }));
-            setOnlineUsers(formattedUsers);
-            break;
+      switch (msg.type) {
+        case "get-users":
+          console.log("👥 Online users:", msg.data);
+          const formattedUsers = msg.data.map((uid) => ({ UserID: uid }));
+          setOnlineUsers(formattedUsers);
+          break;
 
-          case "user-status-update":
-            console.log("👤 User status update:", msg.data);
-            break;
+        case "user-status-update":
+          console.log("👤 User status update:", msg.data);
+          break;
 
-          case "receive-message":
-            console.log("📥 Received message:", msg.data);
-            if (
-              msg.data &&
-              msg.data.chatId &&
-              msg.data.senderId &&
-              msg.data.text
-            ) {
-              setReceivedMessage({
-                chatId: msg.data.chatId,
-                senderId: msg.data.senderId,
-                text: msg.data.text,
-                createdAt: msg.data.createdAt || new Date().toISOString(),
-              });
-            } else {
-              console.error("Invalid receive-message:", msg.data);
-            }
-            break;
+        case "receive-message":
+          console.log("📥 Received message:", msg.data);
+          if (
+            msg.data &&
+            msg.data.chatId &&
+            msg.data.senderId &&
+            msg.data.text
+          ) {
+            setReceivedMessage({
+              chatId: msg.data.chatId,
+              senderId: msg.data.senderId,
+              text: msg.data.text,
+              createdAt: msg.data.createdAt || new Date().toISOString(),
+            });
+          } else {
+            console.error("Invalid receive-message:", msg.data);
+          }
+          break;
 
-          case "agora-signal":
-            console.log("📡 Received agora-signal:", msg.data);
-            console.log("👤 Current user ID:", user.ID);
-            console.log("🎯 Target ID:", msg.data?.targetId);
-            console.log("🎬 Action:", msg.data?.action);
+        case "agora-signal":
+          console.log("📡 Received agora-signal:", msg.data);
+          console.log("👤 Current user ID:", user.ID);
+          console.log("🎯 Target ID:", msg.data?.targetId);
+          console.log("🎬 Action:", msg.data?.action);
 
-            if (msg.data && msg.data.action) {
-              const { action, targetId, callType, channel, timestamp, token } =
-                msg.data;
-              const senderId =
-                msg.userId || msg.data.userId || msg.data.senderId;
+          if (msg.data && msg.data.action) {
+            const { action, targetId, callType, channel, timestamp, token } =
+              msg.data;
+            const senderId = msg.userId || msg.data.userId || msg.data.senderId;
 
-              if (action === "token-generated") {
-                const hasValidToken =
-                  token && typeof token === "string" && token.length > 0;
+            if (action === "token-generated") {
+              const hasValidToken =
+                token && typeof token === "string" && token.length > 0;
 
-                if (hasValidToken) {
-                  const isTokenForUser = !targetId || targetId === user.ID;
+              if (hasValidToken) {
+                const isTokenForUser = !targetId || targetId === user.ID;
 
-                  if (isTokenForUser) {
-                    setCallData({
-                      type: "agora-signal",
-                      userId: senderId,
-                      senderId: senderId,
-                      data: {
-                        action,
-                        targetId,
-                        token,
-                        timestamp: timestamp || Date.now(),
-                      },
-                    });
-                  }
+                if (isTokenForUser) {
+                  setCallData({
+                    type: "agora-signal",
+                    userId: senderId,
+                    senderId: senderId,
+                    data: {
+                      action,
+                      targetId,
+                      token,
+                      timestamp: timestamp || Date.now(),
+                    },
+                  });
                 }
+              }
+              return;
+            }
+
+            let isForCurrentUser = false;
+
+            switch (action) {
+              case "call-request":
+                isForCurrentUser = targetId === user.ID;
+                break;
+              case "call-accepted":
+              case "call-rejected":
+              case "call-busy":
+              case "call-ended":
+                isForCurrentUser = targetId === user.ID;
+                break;
+              default:
+                isForCurrentUser = !targetId || targetId === user.ID;
+            }
+
+            console.log("📊 Signal routing:", {
+              action,
+              targetId: targetId || "undefined",
+              currentUserId: user.ID,
+              senderId,
+              isForCurrentUser,
+            });
+
+            if (isForCurrentUser) {
+              console.log("✅ Processing agora-signal:", action);
+
+              const callDataPayload = {
+                type: "agora-signal",
+                userId: senderId,
+                senderId: senderId,
+                data: {
+                  action,
+                  targetId,
+                  callType,
+                  channel,
+                  timestamp: timestamp || Date.now(),
+                },
+              };
+
+              if (action === "call-request" && (!callType || !channel)) {
+                console.error("❌ Invalid call-request: missing data");
                 return;
               }
 
-              let isForCurrentUser = false;
-
-              switch (action) {
-                case "call-request":
-                  isForCurrentUser = targetId === user.ID;
-                  break;
-                case "call-accepted":
-                case "call-rejected":
-                case "call-busy":
-                case "call-ended":
-                  isForCurrentUser = targetId === user.ID;
-                  break;
-                default:
-                  isForCurrentUser = !targetId || targetId === user.ID;
-              }
-
-              console.log("📊 Signal routing:", {
-                action,
-                targetId: targetId || "undefined",
-                currentUserId: user.ID,
-                senderId,
-                isForCurrentUser,
-              });
-
-              if (isForCurrentUser) {
-                console.log("✅ Processing agora-signal:", action);
-
-                const callDataPayload = {
-                  type: "agora-signal",
-                  userId: senderId,
-                  senderId: senderId,
-                  data: {
-                    action,
-                    targetId,
-                    callType,
-                    channel,
-                    timestamp: timestamp || Date.now(),
-                  },
-                };
-
-                if (action === "call-request" && (!callType || !channel)) {
-                  console.error("❌ Invalid call-request: missing data");
-                  return;
-                }
-
-                console.log("📤 Setting callData:", callDataPayload);
-                setCallData(callDataPayload);
-              } else {
-                console.log("⚠️ Signal not for current user");
-              }
+              console.log("📤 Setting callData:", callDataPayload);
+              setCallData(callDataPayload);
+            } else {
+              console.log("⚠️ Signal not for current user");
             }
-            break;
+          }
+          break;
 
-          default:
-            console.log("📥 Unknown message type:", msg.type);
-        }
-      };
+        default:
+          console.log("📥 Unknown message type:", msg.type);
+      }
+    };
 
     // Use WebSocketService for connection
     WebSocketService.connect(
@@ -295,103 +295,6 @@ const Chat = () => {
   return (
     <Fade in={isVisible} timeout={800}>
       <Box className={`chat-page ${isDarkTheme ? "dark" : "light"}`}>
-        {/* Mobile Header */}
-        {isMobile && (
-          <Slide direction="down" in={isVisible} timeout={600}>
-            <Paper className="mobile-header" elevation={2}>
-              <Box className="header-content">
-                <IconButton
-                  className="menu-button"
-                  onClick={() => setSidebarOpen(true)}
-                  sx={{
-                    color: isDarkTheme ? "#ffffff" : "var(--chat-text)",
-                    backgroundColor: "var(--chat-accent)",
-                    "&:hover": {
-                      backgroundColor: "var(--chat-accent)",
-                      transform: "scale(1.1)",
-                      boxShadow: "var(--chat-glow)",
-                    },
-                  }}
-                >
-                  <MenuIcon />
-                </IconButton>
-
-                <Box className="header-info">
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      color: isDarkTheme
-                        ? "#ffffff !important"
-                        : "var(--chat-text) !important",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {currentChat ? (
-                      <Fade in={!!currentChat} timeout={400}>
-                        <span>Chat Active</span>
-                      </Fade>
-                    ) : (
-                      "Messages"
-                    )}
-                  </Typography>
-                  <Badge
-                    badgeContent={onlineUsers.length}
-                    color="success"
-                    sx={{
-                      "& .MuiBadge-badge": {
-                        backgroundColor: "var(--chat-success)",
-                        color: "#ffffff",
-                      },
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: isDarkTheme
-                          ? "#e0e0e0 !important"
-                          : "var(--chat-secondary-text) !important",
-                      }}
-                    >
-                      Online
-                    </Typography>
-                  </Badge>
-                </Box>
-
-                <Stack direction="row" spacing={1}>
-                  <IconButton
-                    className="header-action"
-                    sx={{
-                      color: isDarkTheme
-                        ? "#e0e0e0"
-                        : "var(--chat-secondary-text)",
-                      "&:hover": {
-                        color: "var(--chat-accent)",
-                        transform: "scale(1.1)",
-                      },
-                    }}
-                  >
-                    <SearchIcon />
-                  </IconButton>
-                  <IconButton
-                    className="header-action"
-                    sx={{
-                      color: isDarkTheme
-                        ? "#e0e0e0"
-                        : "var(--chat-secondary-text)",
-                      "&:hover": {
-                        color: "var(--chat-accent)",
-                        transform: "scale(1.1)",
-                      },
-                    }}
-                  >
-                    <SettingsIcon />
-                  </IconButton>
-                </Stack>
-              </Box>
-            </Paper>
-          </Slide>
-        )}
-
         <Box className="chat-layout">
           {/* Desktop Sidebar */}
           {!isMobile && (
@@ -446,7 +349,10 @@ const Chat = () => {
                               }`}
                               onClick={() => {
                                 setCurrentChat(chat);
-                                if (isMobile) setSidebarOpen(false);
+                                if (isMobile) {
+                                  setSidebarOpen(false);
+                                  setShowChatOnMobile(true);
+                                }
                               }}
                             >
                               <Conversation
@@ -463,6 +369,57 @@ const Chat = () => {
                 </Box>
               </Paper>
             </Slide>
+          )}
+
+          {/* Mobile Chat List View - Show when no chat selected */}
+          {isMobile && !showChatOnMobile && (
+            <Fade in={isVisible && !showChatOnMobile} timeout={600}>
+              <Box className="mobile-chat-list-view">
+                <Box className="chats-header" sx={{ padding: "1rem" }}>
+                  <Typography
+                    variant="h5"
+                    className="chats-title"
+                    sx={{
+                      color: isDarkTheme
+                        ? "#ffffff !important"
+                        : "var(--chat-text) !important",
+                      fontWeight: 700,
+                      marginBottom: 1,
+                    }}
+                  >
+                    Messages
+                  </Typography>
+                  <Chip
+                    label={`${chats.length} conversations`}
+                    size="small"
+                    sx={{
+                      backgroundColor: "var(--chat-accent)",
+                      color: "#ffffff",
+                      fontWeight: 600,
+                    }}
+                  />
+                </Box>
+                {chats.map((chat, index) => (
+                  <Fade key={chat.ID} in={isVisible} timeout={600 + index * 50}>
+                    <Box
+                      className={`conversation-wrapper mobile ${
+                        currentChat?.ID === chat.ID ? "active" : ""
+                      }`}
+                      onClick={() => {
+                        setCurrentChat(chat);
+                        setShowChatOnMobile(true);
+                      }}
+                    >
+                      <Conversation
+                        data={chat}
+                        currentUser={user.ID}
+                        online={checkOnlineStatus(chat)}
+                      />
+                    </Box>
+                  </Fade>
+                ))}
+              </Box>
+            </Fade>
           )}
 
           {/* Mobile Drawer */}
@@ -529,6 +486,7 @@ const Chat = () => {
                     onClick={() => {
                       setCurrentChat(chat);
                       setSidebarOpen(false);
+                      setShowChatOnMobile(true);
                     }}
                   >
                     <Conversation
@@ -544,7 +502,11 @@ const Chat = () => {
 
           {/* Enhanced Chat Area */}
           <Slide direction="left" in={isVisible} timeout={1000}>
-            <Box className="chat-main-area">
+            <Box
+              className={`chat-main-area ${
+                isMobile && !showChatOnMobile ? "hidden-mobile" : ""
+              }`}
+            >
               <Box className="chatbox-container">
                 <ChatBox
                   chat={currentChat}
@@ -554,6 +516,8 @@ const Chat = () => {
                   socket={socket}
                   callData={callData}
                   setCallData={setCallData}
+                  isMobile={isMobile}
+                  onBackClick={() => setShowChatOnMobile(false)}
                 />
               </Box>
             </Box>

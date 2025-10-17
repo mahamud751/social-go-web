@@ -39,6 +39,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Info as InfoIcon,
   Close as CloseIcon,
+  ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 import { convertToAgoraUid } from "../../utils/AgoraUtils"; // Utility for converting user IDs
 
@@ -50,6 +51,8 @@ const ChatBox = ({
   socket,
   callData,
   setCallData,
+  isMobile = false,
+  onBackClick,
 }) => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
@@ -106,7 +109,16 @@ const ChatBox = ({
     isCallInitiatorRef.current = isCallInitiator;
     callTypeRef.current = callType;
     agoraTokenRef.current = agoraToken;
-  }, [chat, currentUser, incomingCallOffer, channelName, callStatus, isCallInitiator, callType, agoraToken]);
+  }, [
+    chat,
+    currentUser,
+    incomingCallOffer,
+    channelName,
+    callStatus,
+    isCallInitiator,
+    callType,
+    agoraToken,
+  ]);
 
   // Toast notification functions - MOVED removeToast before showToast to fix circular dependency
   const removeToast = useCallback((id) => {
@@ -427,132 +439,135 @@ const ChatBox = ({
   };
 
   // End call function - Enhanced cleanup (MOVED UP to fix circular dependencies)
-  const endCall = useCallback((notifyPeer = true) => {
-    console.log("🔚 Ending call and cleaning up resources");
+  const endCall = useCallback(
+    (notifyPeer = true) => {
+      console.log("🔚 Ending call and cleaning up resources");
 
-    try {
-      // Stop ringing sounds
-      setIsRinging(false);
-      if (ringingAudio.current) {
-        ringingAudio.current.pause();
-        ringingAudio.current.currentTime = 0;
-      }
+      try {
+        // Stop ringing sounds
+        setIsRinging(false);
+        if (ringingAudio.current) {
+          ringingAudio.current.pause();
+          ringingAudio.current.currentTime = 0;
+        }
 
-      // Stop call duration tracking
-      if (callDurationInterval.current) {
-        clearInterval(callDurationInterval.current);
-        callDurationInterval.current = null;
-      }
+        // Stop call duration tracking
+        if (callDurationInterval.current) {
+          clearInterval(callDurationInterval.current);
+          callDurationInterval.current = null;
+        }
 
-      // Clean up local tracks
-      if (localAudioTrack.current) {
-        console.log("🎤 Closing local audio track");
-        localAudioTrack.current.close();
-        localAudioTrack.current = null;
-      }
-      if (localVideoTrack.current) {
-        console.log("📹 Closing local video track");
-        localVideoTrack.current.close();
-        localVideoTrack.current = null;
-      }
+        // Clean up local tracks
+        if (localAudioTrack.current) {
+          console.log("🎤 Closing local audio track");
+          localAudioTrack.current.close();
+          localAudioTrack.current = null;
+        }
+        if (localVideoTrack.current) {
+          console.log("📹 Closing local video track");
+          localVideoTrack.current.close();
+          localVideoTrack.current = null;
+        }
 
-      // Clear video elements
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
-      }
-      if (remoteMediaRef.current) {
-        remoteMediaRef.current.srcObject = null;
-      }
+        // Clear video elements
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
+        }
+        if (remoteMediaRef.current) {
+          remoteMediaRef.current.srcObject = null;
+        }
 
-      // Leave the Agora channel and cleanup client
-      if (agoraClient.current) {
-        console.log(
-          "📡 Checking Agora client connection state before leaving..."
-        );
-
-        // Check if client is in a channel before trying to leave
-        const connectionState = agoraClient.current.connectionState;
-        console.log("🔗 Agora connection state:", connectionState);
-
-        if (
-          connectionState === "CONNECTED" ||
-          connectionState === "CONNECTING"
-        ) {
-          console.log("📡 Leaving Agora channel...");
-          agoraClient.current.leave().catch((error) => {
-            // Ignore "not in channel" or "already left" errors
-            if (
-              error.code === "LEAVE_ERR" ||
-              error.message.includes("not in channel") ||
-              error.message.includes("WS_ABORT")
-            ) {
-              console.warn(
-                "⚠️ Agora channel already left or never joined:",
-                error.message
-              );
-            } else {
-              console.error("❌ Error leaving Agora channel:", error);
-            }
-          });
-        } else {
+        // Leave the Agora channel and cleanup client
+        if (agoraClient.current) {
           console.log(
-            "ℹ️ Agora client not connected, skipping leave. State:",
-            connectionState
+            "📡 Checking Agora client connection state before leaving..."
           );
+
+          // Check if client is in a channel before trying to leave
+          const connectionState = agoraClient.current.connectionState;
+          console.log("🔗 Agora connection state:", connectionState);
+
+          if (
+            connectionState === "CONNECTED" ||
+            connectionState === "CONNECTING"
+          ) {
+            console.log("📡 Leaving Agora channel...");
+            agoraClient.current.leave().catch((error) => {
+              // Ignore "not in channel" or "already left" errors
+              if (
+                error.code === "LEAVE_ERR" ||
+                error.message.includes("not in channel") ||
+                error.message.includes("WS_ABORT")
+              ) {
+                console.warn(
+                  "⚠️ Agora channel already left or never joined:",
+                  error.message
+                );
+              } else {
+                console.error("❌ Error leaving Agora channel:", error);
+              }
+            });
+          } else {
+            console.log(
+              "ℹ️ Agora client not connected, skipping leave. State:",
+              connectionState
+            );
+          }
+
+          // Remove all listeners to prevent memory leaks
+          agoraClient.current.removeAllListeners();
         }
 
-        // Remove all listeners to prevent memory leaks
-        agoraClient.current.removeAllListeners();
-      }
+        // Notify the other user if we're in a call - use refs for stable access
+        if (notifyPeer && callStatusRef.current !== "idle") {
+          const peerId = chatRef.current?.Members?.find(
+            (id) => id !== currentUserRef.current
+          );
+          if (peerId && WebSocketService.socket) {
+            const endMessage = {
+              type: "agora-signal",
+              data: {
+                action: "call-ended",
+                targetId: peerId,
+                channel:
+                  incomingCallOfferRef.current?.channel ||
+                  channelNameRef.current ||
+                  `chat_${chatRef.current.ID}_${Date.now()}`,
+                timestamp: Date.now(),
+              },
+            };
 
-      // Notify the other user if we're in a call - use refs for stable access
-      if (notifyPeer && callStatusRef.current !== "idle") {
-        const peerId = chatRef.current?.Members?.find(
-          (id) => id !== currentUserRef.current
-        );
-        if (peerId && WebSocketService.socket) {
-          const endMessage = {
-            type: "agora-signal",
-            data: {
-              action: "call-ended",
-              targetId: peerId,
-              channel:
-                incomingCallOfferRef.current?.channel ||
-                channelNameRef.current ||
-                `chat_${chatRef.current.ID}_${Date.now()}`,
-              timestamp: Date.now(),
-            },
-          };
-
-          console.log("📤 Sending call-ended signal:", endMessage);
-          sendWebSocketMessage(endMessage);
+            console.log("📤 Sending call-ended signal:", endMessage);
+            sendWebSocketMessage(endMessage);
+          }
         }
+
+        // Reset all call states
+        updateCallStatus("idle", "endCall");
+        setCallType(null);
+        setIsCallInitiator(false);
+        setIncomingCallOffer(null);
+        // Don't clear callData here as it might interfere with signal processing
+        // setCallData(null);
+        setAgoraToken(null);
+        setIsMuted(false);
+        setIsVideoOff(false);
+        setCallDuration(0);
+        setChannelName(null);
+
+        // Clear any timeouts
+        if (callTimeoutRef.current) {
+          clearTimeout(callTimeoutRef.current);
+          callTimeoutRef.current = null;
+        }
+
+        console.log("✅ Call ended and resources cleaned up successfully");
+      } catch (error) {
+        console.error("❌ Error during call cleanup:", error);
       }
-
-      // Reset all call states
-      updateCallStatus("idle", "endCall");
-      setCallType(null);
-      setIsCallInitiator(false);
-      setIncomingCallOffer(null);
-      // Don't clear callData here as it might interfere with signal processing
-      // setCallData(null);
-      setAgoraToken(null);
-      setIsMuted(false);
-      setIsVideoOff(false);
-      setCallDuration(0);
-      setChannelName(null);
-
-      // Clear any timeouts
-      if (callTimeoutRef.current) {
-        clearTimeout(callTimeoutRef.current);
-        callTimeoutRef.current = null;
-      }
-
-      console.log("✅ Call ended and resources cleaned up successfully");
-    } catch (error) {
-      console.error("❌ Error during call cleanup:", error);
-    }
-  }, [sendWebSocketMessage, updateCallStatus]); // Only depend on stable callback functions
+    },
+    [sendWebSocketMessage, updateCallStatus]
+  ); // Only depend on stable callback functions
 
   // Theme detection
   useEffect(() => {
@@ -2145,7 +2160,7 @@ const ChatBox = ({
           // For video calls, navigate to VideoCall page immediately
           if (type === "video") {
             console.log("📹 Navigating to video call page for caller");
-            navigate(`/video-call/${newChannelName}` , {
+            navigate(`/video-call/${newChannelName}`, {
               state: {
                 callData: {
                   channel: newChannelName,
@@ -2402,7 +2417,7 @@ const ChatBox = ({
 
         // Navigate to video call page for video calls (ID-wise route)
         if (incomingCallOffer.callType === "video") {
-          navigate(`/video-call/${incomingCallOffer.channel}` , {
+          navigate(`/video-call/${incomingCallOffer.channel}`, {
             state: {
               callData: {
                 channel: incomingCallOffer.channel,
@@ -2538,8 +2553,13 @@ const ChatBox = ({
     });
 
     if (callData) {
-      const { action, channel, callType: incomingCallType, targetId, timestamp } =
-        callData.data || {};
+      const {
+        action,
+        channel,
+        callType: incomingCallType,
+        targetId,
+        timestamp,
+      } = callData.data || {};
       const senderId = callData.senderId || callData.userId;
 
       // De-duplicate identical signals to prevent re-processing loops
@@ -2575,23 +2595,23 @@ const ChatBox = ({
           const token = callData?.data?.token;
           // Only process token-generated signals if we have a valid token and active call
           if (token && typeof token === "string" && token.length > 0) {
-          if (
-            callStatusRef.current !== "idle" &&
-            (callStatusRef.current === "calling" ||
-              callStatusRef.current === "incoming" ||
-              callStatusRef.current === "in-progress")
-          ) {
-            console.log(
-              "🔑 Received valid token for active call participant"
-            );
-            setAgoraToken(token);
-            showToast("🔑 Authentication token received", "success", 2000);
-          } else {
-            console.log(
-              `⚠️ Ignoring token-generated signal - call status is ${callStatusRef.current} (not active call)`
-            );
-            return; // Early return to skip processing
-          }
+            if (
+              callStatusRef.current !== "idle" &&
+              (callStatusRef.current === "calling" ||
+                callStatusRef.current === "incoming" ||
+                callStatusRef.current === "in-progress")
+            ) {
+              console.log(
+                "🔑 Received valid token for active call participant"
+              );
+              setAgoraToken(token);
+              showToast("🔑 Authentication token received", "success", 2000);
+            } else {
+              console.log(
+                `⚠️ Ignoring token-generated signal - call status is ${callStatusRef.current} (not active call)`
+              );
+              return; // Early return to skip processing
+            }
           } else {
             console.log("⚠️ Received token-generated but token is invalid");
             return; // Early return for invalid tokens
@@ -2644,9 +2664,9 @@ const ChatBox = ({
               console.log("⏰ Incoming call timed out");
               showToast("📞 Incoming call timed out", "warning", 3000);
               // Auto decline after timeout
-            if (callStatusRef.current === "incoming") {
-              declineCall();
-            }
+              if (callStatusRef.current === "incoming") {
+                declineCall();
+              }
               // Clear the timeout reference
               callTimeoutRef.current = null;
             }, 60000);
@@ -2677,7 +2697,10 @@ const ChatBox = ({
 
         case "call-accepted":
           console.log("✅ Call accepted by peer:", senderId);
-          if (isCallInitiatorRef.current && callStatusRef.current === "calling") {
+          if (
+            isCallInitiatorRef.current &&
+            callStatusRef.current === "calling"
+          ) {
             console.log("🎉 Transitioning to in-progress call state");
             updateCallStatus("in-progress", "call-accepted"); // Update status without checking return
             showToast("✅ Call accepted!", "success", 2000);
@@ -2691,7 +2714,7 @@ const ChatBox = ({
             // Navigate to video call page for video calls
             if (callTypeRef.current === "video") {
               if (!hasNavigatedToVideoCallRef.current) {
-                navigate(`/video-call/${channel}` , {
+                navigate(`/video-call/${channel}`, {
                   state: {
                     callData: {
                       channel: channel,
@@ -2703,7 +2726,9 @@ const ChatBox = ({
                 });
                 hasNavigatedToVideoCallRef.current = true;
               } else {
-                console.log("ℹ️ Already navigated to video call page, skipping duplicate navigation");
+                console.log(
+                  "ℹ️ Already navigated to video call page, skipping duplicate navigation"
+                );
               }
             }
           } else {
@@ -2784,6 +2809,25 @@ const ChatBox = ({
             <Zoom in={isVisible} style={{ transitionDelay: "200ms" }}>
               <Paper className="chat-header" elevation={0}>
                 <Box className="header-content">
+                  {/* Mobile Back Button */}
+                  {isMobile && onBackClick && (
+                    <IconButton
+                      className="back-button"
+                      onClick={onBackClick}
+                      sx={{
+                        color: isDarkTheme ? "#ffffff" : "var(--chatbox-text)",
+                        backgroundColor: "var(--chatbox-border)",
+                        marginRight: 1,
+                        "&:hover": {
+                          backgroundColor: "var(--chatbox-accent)",
+                          transform: "scale(1.1)",
+                        },
+                      }}
+                    >
+                      <ArrowBackIcon />
+                    </IconButton>
+                  )}
+
                   <Box className="user-info">
                     <Badge
                       overlap="circular"
@@ -3101,15 +3145,9 @@ const ChatBox = ({
               <Fade in={callStatus === "in-progress"} timeout={800}>
                 <Paper className="video-call-section" elevation={0}>
                   <Box className="video-container">
-                    <div
-                      ref={remoteMediaRef}
-                      className="remote-video"
-                    />
+                    <div ref={remoteMediaRef} className="remote-video" />
                     <Box className="local-video-container">
-                      <div
-                        ref={localVideoRef}
-                        className="local-video"
-                      />
+                      <div ref={localVideoRef} className="local-video" />
                       <Box className="video-overlay">
                         <Typography
                           variant="caption"

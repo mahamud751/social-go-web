@@ -11,7 +11,7 @@ const LogoSearch = () => {
           {/* <img src={Logo} alt="" /> */}
 
           <h2 className="s_icon2 ms-3 animated-text" style={{ fontSize: 24 }}>
-            Dream Tech
+            Vibe Connect
           </h2>
         </div>
       </Link>
