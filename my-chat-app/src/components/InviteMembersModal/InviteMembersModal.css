@@ -1,0 +1,17 @@
+.invite-members-modal {
+  z-index: 1300 !important;
+}
+
+.invite-members-modal .MuiDialog-paper {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.invite-members-modal.dark .MuiDialog-paper {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+}
+
+.invite-members-modal.light .MuiDialog-paper {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+}

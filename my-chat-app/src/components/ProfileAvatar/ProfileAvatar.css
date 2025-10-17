@@ -1,0 +1,68 @@
+/* Profile Avatar Component */
+.profile-avatar-component {
+  position: relative;
+}
+
+/* Online Indicator */
+.online-indicator-small {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+  border: 2px solid var(--background, #ffffff);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+  animation: pulse-online 2s ease-in-out infinite;
+}
+
+@keyframes pulse-online {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.8);
+    transform: scale(1.1);
+  }
+}
+
+/* Dark theme adjustments */
+:root[data-theme="dark"] .online-indicator-small {
+  border-color: #2c2c2c;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+}
+
+/* Mobile responsive */
+@media screen and (max-width: 768px) {
+  .online-indicator-small {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Menu Styles */
+.profile-avatar-menu .MuiPaper-root {
+  animation: dropIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes dropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-item {
+  padding: 0 !important;
+}
+
+.menu-link {
+  display: block;
+  width: 100%;
+  text-decoration: none;
+  color: inherit;
+}

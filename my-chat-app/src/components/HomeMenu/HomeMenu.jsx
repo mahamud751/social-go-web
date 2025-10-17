@@ -30,6 +30,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { logout } from "../../actions/AuthAction";
+import { getUser } from "../../api/UserRequest";
 import "./HomeMenu.css";
 
 const HomeMenu = ({ location }) => {
@@ -37,6 +38,7 @@ const HomeMenu = ({ location }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeItem, setActiveItem] = useState(location || "home");
   const [isAnimating, setIsAnimating] = useState(false);
+  const [userData, setUserData] = useState(null);
 
   // Get current theme from document
   const currentTheme =
@@ -47,6 +49,21 @@ const HomeMenu = ({ location }) => {
   const admin = user?.IsAdmin;
   const serverPublic = process.env.REACT_APP_PUBLIC_FOLDER;
   const dispatch = useDispatch();
+
+  // Fetch fresh user data for followers/following counts
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user?.ID) {
+        try {
+          const { data } = await getUser(user.ID);
+          setUserData(data);
+        } catch (error) {
+          console.error("Failed to fetch user data:", error);
+        }
+      }
+    };
+    fetchUserData();
+  }, [user?.ID]);
 
   // Initialize animation
   useEffect(() => {
@@ -101,6 +118,13 @@ const HomeMenu = ({ location }) => {
       color: "var(--home-menu-success)",
     },
     {
+      id: "group-invitations",
+      label: "Group Invites",
+      path: "/group-invitations",
+      icon: <GroupIcon />,
+      color: "var(--home-menu-warning)",
+    },
+    {
       id: "add-messenger",
       label: "Add Messenger",
       path: "/addMessenger",
@@ -136,56 +160,7 @@ const HomeMenu = ({ location }) => {
       {/* Mobile Navigation */}
       <div className={`navbar_lg ${isDarkTheme ? "dark" : "light"}`}>
         <Fade in={isVisible} timeout={600}>
-          <div className="mobile-header">
-            <div className="mobile-header-content">
-              <Tooltip title="Open Menu" arrow>
-                <IconButton
-                  className="menu-button"
-                  data-bs-toggle="offcanvas"
-                  data-bs-target="#offcanvasExample"
-                  aria-controls="offcanvasExample"
-                  sx={{
-                    color: "var(--home-menu-text)",
-                    "&:hover": {
-                      backgroundColor: "var(--home-menu-hover-bg)",
-                      transform: "scale(1.1)",
-                    },
-                  }}
-                >
-                  <MenuIcon fontSize="large" />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="Profile Menu" arrow>
-                <Badge
-                  overlap="circular"
-                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                  badgeContent={<div className="online-indicator-small"></div>}
-                >
-                  <Avatar
-                    src={
-                      user?.ProfilePicture ||
-                      "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
-                    }
-                    alt={user?.Username}
-                    onClick={handleOpenUserMenu}
-                    className="profile-avatar mobile"
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      cursor: "pointer",
-                      border: "2px solid var(--home-menu-accent)",
-                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                      "&:hover": {
-                        transform: "scale(1.1)",
-                        boxShadow: "0 0 20px var(--home-menu-glow)",
-                      },
-                    }}
-                  />
-                </Badge>
-              </Tooltip>
-            </div>
-
+          <div className="">
             {/* Enhanced User Menu */}
             <Menu
               anchorEl={anchorElUser}
@@ -377,7 +352,7 @@ const HomeMenu = ({ location }) => {
                   <div className="followers-section">
                     <div className="follower-stat">
                       <Typography variant="h5" className="stat-number">
-                        {user?.Followers?.length || 0}
+                        {userData?.Followers?.length || 0}
                       </Typography>
                       <Typography variant="body2" className="stat-label">
                         Followers
@@ -386,7 +361,7 @@ const HomeMenu = ({ location }) => {
                     <div className="stat-divider"></div>
                     <div className="follower-stat">
                       <Typography variant="h5" className="stat-number">
-                        {user?.Following?.length || 0}
+                        {userData?.Following?.length || 0}
                       </Typography>
                       <Typography variant="body2" className="stat-label">
                         Following

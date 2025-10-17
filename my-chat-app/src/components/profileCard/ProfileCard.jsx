@@ -71,7 +71,7 @@ const ProfileCard = ({ location, params, isCurrentUser }) => {
               <div className="follow">
                 <span>
                   {
-                    posts.filter(
+                    posts?.filter(
                       (post) =>
                         post.UserID === (isCurrentUser ? user.ID : params.id)
                     ).length

@@ -236,13 +236,15 @@ h6 {
 .mobile-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .mobile-controls > * {
   /* Remove individual background as components now handle their own styling */
   border-radius: 8px;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .mobile-controls > *:hover {
@@ -397,6 +399,19 @@ h6 {
 
   .App {
     padding-bottom: 72px;
+  }
+
+  /* Reduce gap for small devices */
+  .mobile-controls {
+    gap: 6px;
+  }
+
+  .mobile-top-bar {
+    padding: 10px 0;
+  }
+
+  .mobile-top-content {
+    padding: 0 12px;
   }
 }
 

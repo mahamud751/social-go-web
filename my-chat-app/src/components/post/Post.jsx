@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./post.css";
 import CommentIcon from "@mui/icons-material/Comment";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import Share from "../../img/share.png";
 import { useSelector, useDispatch } from "react-redux";
 import { likePost } from "../../api/PostRequest";
@@ -141,30 +142,66 @@ const Post = ({ data, theme }) => {
     );
   };
 
+  // Format date to show relative time
+  const formatPostDate = (dateString) => {
+    if (!dateString) return "";
+
+    const postDate = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - postDate) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800)
+      return `${Math.floor(diffInSeconds / 86400)}d ago`;
+
+    // For older posts, show the actual date
+    return postDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year:
+        postDate.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    });
+  };
+
   return (
     <div className="post">
-      <img src={data.Image || ""} alt="" />
       <div>
         {persons?.map((pd) => (
-          <span style={{ textTransform: "capitalize" }} key={pd.ID}>
+          <span key={pd.ID}>
             {pd.ID === data.UserID ? (
               <Link to={`/profile/${pd.ID}`} className="nameImage">
                 <img
                   src={
-                    pd.ProfilePicture
-                      ? pd.ProfilePicture
-                      : "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
+                    pd.ProfilePicture ||
+                    "https://i.ibb.co/5kywKfd/user-removebg-preview.png"
                   }
                   alt="ProfileImage"
                   className="profileImage"
                 />
-                <p className="name"> {pd.Username}</p>
+                <div className="post-user-info">
+                  <p className="name">{pd.Username}</p>
+                  <span className="post-date">
+                    <AccessTimeIcon sx={{ fontSize: 14, marginRight: "4px" }} />
+                    {formatPostDate(data.CreatedAt || data.createdAt)}
+                  </span>
+                </div>
               </Link>
             ) : (
               ""
             )}
           </span>
         ))}
+      </div>
+      <img
+        src={data.Image || ""}
+        alt="post image"
+        style={{ width: "100%", objectFit: "contain" }}
+      />
+      <div className="detail">
+        <span> {data.Desc}</span>
       </div>
       <div className="postReact">
         <div
@@ -287,17 +324,6 @@ const Post = ({ data, theme }) => {
           {getTotalReactions()} reactions
         </span>
         <span style={{ fontSize: "12px" }}>{commentCount} comments</span>
-      </div>
-
-      <div className="detail">
-        <span>
-          <b>
-            {data.Name ||
-              persons.find((p) => p.ID === data.UserID)?.Username ||
-              "Unknown"}
-          </b>
-        </span>
-        <span> {data.Desc}</span>
       </div>
 
       <CommentModal

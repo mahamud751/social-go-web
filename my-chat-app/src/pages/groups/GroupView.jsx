@@ -18,7 +18,9 @@ import {
   deleteGroupComment,
 } from "../../api/GroupRequest";
 import { getAllUser } from "../../api/UserRequest";
+import InviteMembersModal from "../../components/InviteMembersModal/InviteMembersModal";
 import ReactionModal from "../../components/reactions/ReactionModal";
+import { showSuccessToast, showErrorToast } from "../../utils/toast";
 import { motion } from "framer-motion";
 import axios from "axios";
 import "./GroupView.css";
@@ -87,7 +89,10 @@ const GroupView = () => {
       fetchGroupData();
     } catch (error) {
       console.error("Error joining group:", error);
-      alert(error.response?.data?.message || "Failed to join group");
+      showErrorToast(
+        "Error",
+        error.response?.data?.message || "Failed to join group"
+      );
     }
   };
 
@@ -98,7 +103,10 @@ const GroupView = () => {
         fetchGroupData();
       } catch (error) {
         console.error("Error leaving group:", error);
-        alert(error.response?.data?.message || "Failed to leave group");
+        showErrorToast(
+          "Error",
+          error.response?.data?.message || "Failed to leave group"
+        );
       }
     }
   };
@@ -109,10 +117,13 @@ const GroupView = () => {
       await inviteMember(groupId, inviteUserId);
       setShowInviteModal(false);
       setInviteUserId("");
-      alert("Invitation sent!");
+      showSuccessToast("🎉 Success!", "Invitation sent successfully!");
     } catch (error) {
       console.error("Error inviting member:", error);
-      alert(error.response?.data?.message || "Failed to invite member");
+      showErrorToast(
+        "Error",
+        error.response?.data?.message || "Failed to invite member"
+      );
     }
   };
 
@@ -144,7 +155,10 @@ const GroupView = () => {
       fetchGroupData();
     } catch (error) {
       console.error("Error creating post:", error);
-      alert(error.response?.data?.message || "Failed to create post");
+      showErrorToast(
+        "Error",
+        error.response?.data?.message || "Failed to create post"
+      );
       setUploading(false);
     }
   };
@@ -273,7 +287,7 @@ const GroupView = () => {
       fetchGroupData();
     } catch (error) {
       console.error("Error updating group:", error);
-      alert("Failed to update group");
+      showErrorToast("Error", "Failed to update group");
       setUploading(false);
     }
   };
@@ -289,7 +303,7 @@ const GroupView = () => {
         navigate("/groups");
       } catch (error) {
         console.error("Error deleting group:", error);
-        alert("Failed to delete group");
+        showErrorToast("Error", "Failed to delete group");
       }
     }
   };
@@ -823,41 +837,14 @@ const GroupView = () => {
         </motion.div>
       )}
 
-      {/* Invite Member Modal */}
-      {showInviteModal && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowInviteModal(false)}
-        >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Invite Member</h2>
-            <form onSubmit={handleInviteMember}>
-              <div className="form-group">
-                <label>User ID</label>
-                <input
-                  type="text"
-                  value={inviteUserId}
-                  onChange={(e) => setInviteUserId(e.target.value)}
-                  placeholder="Enter user ID to invite"
-                  required
-                />
-              </div>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowInviteModal(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Send Invite
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Invite Members Modal */}
+      <InviteMembersModal
+        open={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        groupId={groupId}
+        existingMembers={group?.Members}
+        pendingInvites={group?.PendingInvites}
+      />
 
       {/* Reaction Modal */}
       <ReactionModal

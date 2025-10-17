@@ -135,7 +135,14 @@ const Story = () => {
   return (
     <div>
       <Box sx={{ mb: 2, position: "relative", my: 2, p: 3 }}>
-        <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
+        <Typography
+          variant="h6"
+          className="section-title"
+          sx={{
+            color: "var(--post-side-text) !important",
+            fontWeight: 600,
+          }}
+        >
           My Day
         </Typography>
         <Box sx={{ display: "flex", gap: 2, overflow: "hidden" }}>
@@ -289,7 +296,7 @@ const Story = () => {
               exit={{ opacity: 0, y: -10, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 300, damping: 24 }}
               style={{ width: "90%", maxWidth: 520 }}
-           >
+            >
               <Box className="create-story-card" sx={{ p: 3, borderRadius: 3 }}>
                 <StoryCreate
                   onClose={() => setOpenCreateModal(false)}

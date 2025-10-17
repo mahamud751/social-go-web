@@ -8,9 +8,17 @@ export const updateGroup = (groupId, groupData) =>
 export const deleteGroup = (groupId) => API.delete(`/group/${groupId}`);
 export const inviteMember = (groupId, userId) =>
   API.post(`/group/${groupId}/invite`, { userId });
+export const inviteMultipleMembers = (groupId, userIds) =>
+  API.post(`/group/${groupId}/invite-multiple`, { userIds });
 export const joinGroup = (groupId) => API.post(`/group/${groupId}/join`);
 export const leaveGroup = (groupId) => API.post(`/group/${groupId}/leave`);
 export const getUserGroups = (userId) => API.get(`/group/user/${userId}`);
+export const getGroupInvitations = (userId) =>
+  API.get(`/group/invitations/${userId}`);
+export const acceptGroupInvite = (groupId) =>
+  API.post(`/group/${groupId}/accept-invite`);
+export const rejectGroupInvite = (groupId) =>
+  API.post(`/group/${groupId}/reject-invite`);
 export const getAllGroups = () => API.get("/group");
 
 // Group Post APIs

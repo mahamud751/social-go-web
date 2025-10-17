@@ -14,6 +14,7 @@ import Pages from "./pages/pages/Pages";
 import PageView from "./pages/pages/PageView";
 import Groups from "./pages/groups/Groups";
 import GroupView from "./pages/groups/GroupView";
+import GroupInvitations from "./pages/groupInvitations/GroupInvitations";
 import ThemeToggle from "./components/ThemeToggle";
 import Notification from "./components/Notification/Notification";
 import NavIcons from "./components/NavIcons/NavIcons";
@@ -47,6 +48,7 @@ function App({ toggleTheme, theme }) {
               <div className="mobile-controls">
                 <Notification />
                 <ThemeToggle toggleTheme={toggleTheme} theme={theme} />
+                <NavIcons isMobileTopBar={true} />
               </div>
             </div>
           </div>
@@ -118,6 +120,10 @@ function App({ toggleTheme, theme }) {
           <Route
             path="/group/:groupId"
             element={user ? <GroupView /> : <Navigate to="../auth" />}
+          />
+          <Route
+            path="/group-invitations"
+            element={user ? <GroupInvitations /> : <Navigate to="../auth" />}
           />
         </Routes>
 

@@ -1,9 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
+import ProfileAvatar from "../ProfileAvatar";
 import "./NavIcons.css";
 
-const NavIcons = () => {
+const NavIcons = ({ isMobileTopBar = false }) => {
   const location = useLocation();
+  const user = useSelector((state) => state.authReducer.authData?.user);
 
   const isActive = (path) => {
     return (
@@ -11,6 +14,15 @@ const NavIcons = () => {
       (path === "/home" && location.pathname === "/")
     );
   };
+
+  // If it's for mobile top bar, only show profile avatar
+  if (isMobileTopBar) {
+    return (
+      <div className="navIcons mobile-top-bar-profile">
+        <ProfileAvatar size={44} showOnlineIndicator={true} showMenu={true} />
+      </div>
+    );
+  }
 
   return (
     <div className="navIcons">
@@ -44,8 +56,10 @@ const NavIcons = () => {
         <i className="fa-solid fa-user-group icon_bg"></i>
       </Link>
       <Link
-        to="/profile/1"
-        className={location.pathname.startsWith("/profile") ? "active" : ""}
+        to={`/profile/${user?.ID || 1}`}
+        className={`profile-link ${
+          location.pathname.startsWith("/profile") ? "active" : ""
+        }`}
       >
         <i className="fa-solid fa-user icon_bg"></i>
       </Link>

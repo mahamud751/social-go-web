@@ -31,8 +31,79 @@
   border-radius: 0.5rem;
 }
 
+/* Post Header with improved layout */
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.nameImage {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  gap: 14px;
+  flex: 1;
+  transition: all 0.3s ease;
+  padding: 4px 0;
+}
+
+.nameImage:hover {
+  transform: translateX(4px);
+}
+
+.profileImage {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--icon-color);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.nameImage:hover .profileImage {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.post-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.name {
+  margin: 0;
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-transform: capitalize;
+  line-height: 1.4;
+  letter-spacing: 0.3px;
+}
+
+.post-date {
+  font-size: 0.8rem;
+  color: var(--post-reaction-text-secondary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.post-date svg {
+  opacity: 0.7;
+}
+
 .post > img {
   width: 100%;
+  max-height: 500px;
   object-fit: cover;
   border-radius: 0.5rem;
 }
@@ -41,44 +112,6 @@
   display: flex;
   align-items: flex-start;
   gap: 1.5rem;
-}
-
-.nameImage {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.profileImage {
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.name {
-  margin-left: 10px;
-  margin-top: 12px;
-  color: var(--text-color); /* From App.css */
-}
-
-.postStats {
-  display: flex;
-  gap: 1rem;
-  color: var(--post-text-color);
-}
-
-.detail {
-  color: var(--post-text-color);
-}
-
-.reactionContainer {
-  color: var(--post-text-color);
-}
-
-.reactionOptions {
-  background: var(--reaction-bg);
-  box-shadow: var(--reaction-shadow);
 }
 
 /* Enhanced Reaction Summary */
@@ -164,4 +197,43 @@
 .postStats span:hover {
   color: var(--icon-color);
   transform: scale(1.05);
+}
+
+.detail {
+  color: var(--post-text-color);
+  line-height: 1.6;
+}
+
+.reactionContainer {
+  color: var(--post-text-color);
+}
+
+.reactionOptions {
+  background: var(--reaction-bg);
+  box-shadow: var(--reaction-shadow);
+}
+
+/* Mobile Responsive */
+@media screen and (max-width: 768px) {
+  .post {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+  }
+
+  .profileImage {
+    width: 40px;
+    height: 40px;
+  }
+
+  .name {
+    font-size: 0.9rem;
+  }
+
+  .post-date {
+    font-size: 0.7rem;
+  }
+
+  .post > img {
+    max-height: 400px;
+  }
 }
