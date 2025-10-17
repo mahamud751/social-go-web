@@ -588,10 +588,8 @@ const VideoCall = () => {
       <Box className={`video-call-container ${isDarkTheme ? "dark" : "light"}`}>
         {/* Remote video container */}
         <Box className="remote-video-container">
-          <video
+          <div
             ref={remoteVideoRef}
-            autoPlay
-            playsInline
             className="remote-video"
           />
 
@@ -622,11 +620,8 @@ const VideoCall = () => {
 
         {/* Local video container */}
         <Box className="local-video-container">
-          <video
+          <div
             ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
             className="local-video"
           />
           <Box className="local-video-overlay">

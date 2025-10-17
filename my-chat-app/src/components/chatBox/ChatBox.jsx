@@ -3101,18 +3101,13 @@ const ChatBox = ({
               <Fade in={callStatus === "in-progress"} timeout={800}>
                 <Paper className="video-call-section" elevation={0}>
                   <Box className="video-container">
-                    <video
+                    <div
                       ref={remoteMediaRef}
-                      autoPlay
-                      playsInline
                       className="remote-video"
                     />
                     <Box className="local-video-container">
-                      <video
+                      <div
                         ref={localVideoRef}
-                        autoPlay
-                        playsInline
-                        muted
                         className="local-video"
                       />
                       <Box className="video-overlay">
